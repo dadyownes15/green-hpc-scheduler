@@ -1,4 +1,4 @@
-from workloads import Workloads
+from src.workloads import Workloads
 
 
 # def test_load():
