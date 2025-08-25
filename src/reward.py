@@ -19,14 +19,14 @@ class Reward():
     def get_invalid_action_reward(self):
         return -10 
 
-    def get_reward(self,scheduled_job : Job | None, carbon_intensity : CarbonIntensity):
+    def get_reward(self,scheduled_job : Job | None, carbon_intensity : CarbonIntensity, current_timestamp):
         reward = 0
         assert self.reward_type == "CO2_direct"
         if self.reward_type == "CO2_direct":
 
             if scheduled_job: 
-                start_time = scheduled_job.submit_time
-                end_time = scheduled_job.submit_time + scheduled_job.run_time
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
                 power_usage = scheduled_job.power_usage
                 
                 carbon_emission = carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)

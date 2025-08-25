@@ -8,6 +8,7 @@ class CarbonIntensity():
         self.year = year
         self.green_win_length = green_win_length
         self.carbonIntensityList = self.loadCarbonIntensityData()
+        self.start_offset = 0
     
     def reset(self, start_offset = 0):
         self.start_offset = start_offset
@@ -79,6 +80,8 @@ class CarbonIntensity():
 
 
         # Cyclical encodings based on episode offset and current time
+        assert self.start_offset is not None
+
         total_hours = int(self.start_offset + (current_timestamp // 3600)) % 8760
         time_left_before_new_ci = (current_timestamp % 3600) / 3600 # Normalized
         hour_of_day = total_hours % 24

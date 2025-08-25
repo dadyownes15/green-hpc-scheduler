@@ -132,4 +132,3 @@ def mask_fn(env: gym.Env) -> np.ndarray:
     # for the current env. In this example, we assume the env has a
     # helpful method we can rely on.
     return env.valid_action_mask()
-

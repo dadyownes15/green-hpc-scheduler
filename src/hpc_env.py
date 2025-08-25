@@ -105,7 +105,7 @@ class HPCenv(Env):
 
         # TODO: potential truncated logic or episode termination conditions
         
-        reward = self.reward.get_reward(scheduled_job=scheduled_job, carbon_intensity=self.carbon_intensity)
+        reward = self.reward.get_reward(scheduled_job=scheduled_job, carbon_intensity=self.carbon_intensity, current_timestamp=self.current_timestamp)
         obs = self.build_observation()
         info = {}
 
@@ -127,12 +127,13 @@ class HPCenv(Env):
             create_directory_if_not_exists(directory_path=self.dir_path)
             
         # Randomize carbon offset and reset components
-        print("Seed used in evaluation: ", seed)
         super().reset(seed=seed)
         random.seed(seed)
-        random_offset = random.randint(0, 8760)
+
+        #random_offset = random.randint(0, 8760)
+        random_offset = 0
         self.episode_start_hour_offset = random_offset
-        
+
         if self.config_dict['variable_carbon_intensities'] == True: 
             self.carbon_intensity.reset(start_offset=random_offset)
         else:
@@ -224,16 +225,19 @@ class HPCenv(Env):
     def schedule_job(self, queue_index):
         # Guard index
         if queue_index < 0 or queue_index >= len(self.job_queue):
+            # Check if the the queue index was block
+            print(self.valid_action_mask())
+            masked =  self.valid_action_mask()[queue_index]
+            print("mask at queue index: ", masked)
             raise IndexError("schedule_job: queue_index out of range")
 
         job = self.job_queue[queue_index]
 
         if not self.cluster.can_allocated(job):
             raise AssertionError("Tried to schedule an invalid scheduling. This should be masked out")
-    #   if self.debug:
-            #EPI("Current step: ", self.current_step)
-            #print("Current timestamp: ", self.current_timestamp)
-            #print("Trying to schedule job: ", job.job_id, ". Submitted to queue at: ", job.submit_time )
+        if self.debug:
+            print("Job scheduled: ", job.job_id)
+            print("Current timestamp (env): ", self.current_timestamp)
 
         assert job.scheduled_time == -1
         assert job.submit_time <= self.current_timestamp
