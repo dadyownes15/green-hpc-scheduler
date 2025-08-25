@@ -219,8 +219,6 @@ class HPCenv(Env):
 
         # Concatenate everything into a single observation vector
         obs = np.concatenate((queue_flat, running_flat, carbon_vector)).astype(np.float32)
-        np.set_printoptions(threshold=sys.maxsize)
-        print(obs)
 
         return obs
 
