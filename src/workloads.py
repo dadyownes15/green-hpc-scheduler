@@ -32,10 +32,10 @@ class Workloads:
         # Load configuration for power settings
         self.config_dict = config_dict
 
-        #TO DO: Optimize this, to avoid multiple loops. The aggregate calculates are nesacarry for normalization
+       #TO DO: Optimize this, to avoid multiple loops. The aggregate calculates are nesacarry for normalization
         with open(path) as fp:
-            processor_list = np.array([])
-            run_time_list = np.array([])
+            processor_list = []  # Use standard lists for appending
+            run_time_list = []   # This is more efficient for building the data
 
             for line in fp:
                 if line.startswith(";"):
@@ -46,8 +46,14 @@ class Workloads:
                     continue
                 line = line.strip()
                 s_array = re.split("\\s+", line)
-                np.append(processor_list,int(s_array[3]))
-                np.append(run_time_list,int(s_array[4]))
+                
+                # Append to standard Python lists
+                processor_list.append(int(s_array[3]))
+                run_time_list.append(int(s_array[4]))
+
+        # Convert to numpy arrays outside the loop after all data is collected
+        processor_list = np.array(processor_list)
+        run_time_list = np.array(run_time_list)
 
         self.run_time_mean = np.mean(run_time_list)
         self.run_time_std = np.std(run_time_list)
@@ -55,7 +61,8 @@ class Workloads:
         self.processor_mean = np.mean(processor_list)
         self.processor_std = np.mean(processor_list)
 
-
+        print("run time mean: ", self.run_time_mean)
+        print("run time std: ", self.run_time_std)
         with open(path) as fp:
             for line in fp:
 

@@ -46,7 +46,7 @@ class Reward():
                 
                 carbon_emission_actual = carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
 
-                carbon_emission_initial = max(carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time),1)
+                carbon_emission_initial = carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
                 
                 carbon_ratio_reward = (carbon_emission_initial-carbon_emission_actual)/carbon_emission_initial
 
