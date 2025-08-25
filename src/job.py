@@ -2,6 +2,7 @@ import re
 import numpy as np
 import configparser
 import os
+import math
 
 config = configparser.ConfigParser()
 config_path = os.path.join(os.getcwd(), 'config_file', 'config.ini')
@@ -44,7 +45,7 @@ The rest are not used in are simplified envoriemnt
     18. Think Time from Preceding Job -- this is the number of seconds that should elapse between the termination of the preceding job and the submittal of this one.
     """
 
-    def __init__(self, line="0        0      0    0   0     0    0   0  0 0  0   0   0  0  0 0 0 0"):
+    def __init__(self, config_dict, request_time_mean, request_time_std, processor_mean, processor_std, line="0        0      0    0   0     0    0   0  0 0  0   0   0  0  0 0 0 0", ):
         line = line.strip()
         s_array = re.split("\\s+", line)
         self.job_id = int(s_array[0])
@@ -52,7 +53,13 @@ The rest are not used in are simplified envoriemnt
         self.wait_time = int(s_array[2])
         self.run_time = int(s_array[3])
         self.number_of_allocated_processors = int(s_array[4])
-        
+        self.config_dict = config_dict 
+
+        # For normalization
+        self.request_time_mean = request_time_mean 
+        self.request_time_std = request_time_std 
+        self.processor_mean = processor_mean
+        self.processor_std = processor_std
         # No difference between run time and request time for simplification
         self.request_time = self.run_time 
         
@@ -69,7 +76,7 @@ The rest are not used in are simplified envoriemnt
             # Fallback: all jobs have carbon consideration 0 (very low concern)
             # This means no carbon optimization when using original SWF files
             self.carbon_consideration = 1 
-
+    
         self.scheduled_time = -1
         self.allocated_machines = None
         self.slurm_in_queue_time = 0
@@ -91,11 +98,21 @@ The rest are not used in are simplified envoriemnt
         return hash(self.job_id)
 
     def encode_vector(self,current_timestamp):
+        power_std = math.sqrt(
+                    (self.config_dict["constant_power_pr_processor"]**2) * (
+                            self.request_time_std**2 * self.processor_std**2 + 
+                            self.processor_mean**2 * self.request_time_std**2 + 
+                            self.processor_std**2 * self.request_time_mean**2
+                        )
+                    )
+
+        ## source: https://stats.stackexchange.com/questions/52646/variance-of-product-of-multiple-independent-random-variables
+
         return np.array([
-            current_timestamp - self.submit_time / MAX_WAIT_TIME,
-            self.request_time / MAX_RUN_TIME,
-            self.request_number_of_processors / MAX_REQUESTED_PROCESSORS,  
-            self.power_usage /  (MAX_RUN_TIME * MAX_REQUESTED_PROCESSORS * MAX_POWER_PR_PROCESSOR),
+            (current_timestamp - self.submit_time) / self.config_dict['max_waittime'],
+            (self.request_time - self.request_time_mean ) / self.request_time_std,
+            (self.request_number_of_processors - self.processor_mean ) / self.processor_std ,  
+            (self.power_usage - self.request_time_mean * self.processor_mean*self.config_dict["constant_power_pr_processor"])/  power_std ,
             self.carbon_consideration
         ])
 

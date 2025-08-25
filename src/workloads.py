@@ -5,6 +5,8 @@ import configparser
 import copy
 from src.job import Job
 from typing import Dict
+import re
+import numpy as np
 
 
 class Workloads:
@@ -30,6 +32,30 @@ class Workloads:
         # Load configuration for power settings
         self.config_dict = config_dict
 
+        #TO DO: Optimize this, to avoid multiple loops. The aggregate calculates are nesacarry for normalization
+        with open(path) as fp:
+            processor_list = np.array([])
+            run_time_list = np.array([])
+
+            for line in fp:
+                if line.startswith(";"):
+                    if line.startswith("; MaxNodes:"):
+                        self.max_nodes = int(line.split(":")[1].strip())
+                    if line.startswith("; MaxProcs:"):
+                        self.max_procs = int(line.split(":")[1].strip())
+                    continue
+                line = line.strip()
+                s_array = re.split("\\s+", line)
+                np.append(processor_list,int(s_array[3]))
+                np.append(run_time_list,int(s_array[4]))
+
+        self.run_time_mean = np.mean(run_time_list)
+        self.run_time_std = np.std(run_time_list)
+
+        self.processor_mean = np.mean(processor_list)
+        self.processor_std = np.mean(processor_list)
+
+
         with open(path) as fp:
             for line in fp:
 
@@ -40,7 +66,7 @@ class Workloads:
                         self.max_procs = int(line.split(":")[1].strip())
                     continue
 
-                j = Job(line)
+                j = Job(self.config_dict, self.run_time_mean, self.run_time_std, self.processor_mean, self.processor_std, line)
                 
                 # Set power based on configuration
                 j.power_usage = self.config_dict['constant_power_per_processor'] * j.request_number_of_processors

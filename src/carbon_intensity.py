@@ -4,11 +4,19 @@ import math
 import numpy as np
 
 class CarbonIntensity():
-    def __init__(self, year = 2021, green_win_length = 72) -> None: 
+    def __init__(self, year = 2021, green_win_length = 72, normalize = True) -> None: 
         self.year = year
         self.green_win_length = green_win_length
         self.carbonIntensityList = self.loadCarbonIntensityData()
+        assert len(self.carbonIntensityList) == 8760 ## Class only implemented for a single year for now
         self.start_offset = 0
+        self.normalize = normalize
+
+        if self.normalize: 
+            mean = np.mean(self.carbonIntensityList)
+            std = np.std(self.carbonIntensityList)
+            self.carbonIntensityList = ( self.carbonIntensityList - mean ) / std
+
     
     def reset(self, start_offset = 0):
         self.start_offset = start_offset
@@ -47,7 +55,7 @@ class CarbonIntensity():
     def getCarbonItensityData(self, end_hour):
         data = []
         if end_hour > 8760:
-            data = self.carbonIntensityList[self.start_offset : 8760].append(self.carbonIntensityList[0:end_hour-8760])
+            data = np.append(self.carbonIntensityList[self.start_offset : 8760],self.carbonIntensityList[0:end_hour-8760])
         else: 
             data = self.carbonIntensityList[self.start_offset : end_hour]
         
@@ -70,8 +78,10 @@ class CarbonIntensity():
             next(reader)  # Skip header
             for row in reader:
                 carbon_list.append(float(row[col_index]))
-        
-        return carbon_list
+
+
+         
+        return np.array(carbon_list)
 
     def create_carbon_forecast_enconding(self, current_timestamp):
         # This function returns the following carbon enconding

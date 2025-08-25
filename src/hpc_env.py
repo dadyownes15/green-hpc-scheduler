@@ -197,10 +197,10 @@ class HPCenv(Env):
         running_jobs_vector = []
 
         for running_job in self.running_jobs:
-            allocated_processors = running_job.request_number_of_processors
             remaining = (running_job.scheduled_time + running_job.run_time) - self.current_timestamp
-            time_until_finish = max(remaining, 0)
-            running_job_encoding = np.array([allocated_processors, time_until_finish], dtype=np.float32)
+            time_until_finish = max(remaining / self.config_dict['max_run_time'], 0)
+            running_job_encoding = np.array([(
+                running_job.request_number_of_processors - running_job.processor_mean) / running_job.processor_std, time_until_finish], dtype=np.float32)
             running_jobs_vector.append(running_job_encoding)
             # Cap the encoding length to run_win_length earliest finishing jobs
             if len(running_jobs_vector) == self.config_dict['run_win_length']:
