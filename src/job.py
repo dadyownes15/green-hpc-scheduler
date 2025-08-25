@@ -116,10 +116,6 @@ The rest are not used in are simplified envoriemnt
             self.carbon_consideration
         ])
 
-        assert not np.any(np.isnan(enconding))
-
-        print(enconding)
-
         return enconding
     def __str__(self):
         return "J[" + str(self.job_id) + "]-[" + str(self.request_number_of_processors) + "]-[" + str(
