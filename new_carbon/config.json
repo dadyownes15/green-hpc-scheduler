@@ -4,7 +4,7 @@
     "procs_per_node": 1,
     "idle_power": 15,
     "carbon_year": 2021,
-    "variable_carbon_intensities": true,
+    "variable_carbon_intensities": false,
     "carbon_granularity": "minutely",
     "green_forecast_length": 24,
     "eta": 0.0,
@@ -22,7 +22,7 @@
     "episode_length": 256,
     "gamma": 0.999,
     "gae_lambda": 0.97,
-    "batch_size": 256,
+    "batch_size": 10240,
     "seed": 43,
     "n_epochs": 10,
     "pi_nn": [
@@ -33,8 +33,8 @@
         512,
         512
     ],
-    "n_steps": 10000,
-    "total_timesteps": 100000,
+    "n_steps": 102400,
+    "total_timesteps": 20480000,
     "ent_coef": 0.05,
     "base_line_wait_carbon_penality": 0.01,
     "bounded_slowdown_threshhold": 10,

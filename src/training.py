@@ -52,14 +52,14 @@ class Train():
                          n_epochs = self.config_dict['n_epochs'],
                          n_steps = self.config_dict['n_steps'],
                          ent_coef = self.config_dict['ent_coef'],
-                         seed=self.config_dict['seed']
+                         seed=self.config_dict['seed'],
                          policy_kwargs=policy_kwargs
                                   )
     
     def run(self, save_checkpoints = False):
         self.env.reset()
         checkpoint_callback = None   
-        
+
         if save_checkpoints:
             checkpoint_callback = CheckpointCallback(
             save_freq=100000,
