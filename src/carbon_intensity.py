@@ -9,6 +9,7 @@ class CarbonIntensity():
         self.green_win_length = green_win_length
         self.granularity = granularity
         self.carbonIntensityList = self.loadCarbonIntensityData()
+        self.total_slots = len(self.carbonIntensityList)
         self.start_offset = 0
         self.normalize = normalize
 
@@ -40,7 +41,7 @@ class CarbonIntensity():
                 lastTime = (i + 1) * 3600 - t
             
             # Handle wrap-around for year-long data with start offset
-            hour_index = (i + self.start_offset) % len(self.carbonIntensityList)
+            hour_index = (i + self.start_offset) %self.total_slots 
             carbonIntensity = self.carbonIntensityList[hour_index]
             
             # Convert power from watts to kW and time from seconds to hours
@@ -54,8 +55,8 @@ class CarbonIntensity():
     
     def getCarbonItensityData(self, end_hour):
         data = []
-        if end_hour > len(self.carbonIntensityList):
-            data = np.append(self.carbonIntensityList[self.start_offset : len(self.carbonIntensityList)],self.carbonIntensityList[0:end_hour-len(self.carbonIntensityList)])
+        if end_hour > self.total_slots:
+            data = np.append(self.carbonIntensityList[self.start_offset : self.total_slots],self.carbonIntensityList[0:end_hour-self.total_slots])
         else: 
             data = self.carbonIntensityList[self.start_offset : end_hour]
         
@@ -95,7 +96,7 @@ class CarbonIntensity():
         # Cyclical encodings based on episode offset and current time
         assert self.start_offset is not None
 
-        total_hours = int(self.start_offset + (current_timestamp // 3600)) %len(self.carbonIntensityList) 
+        total_hours = int(self.start_offset + (current_timestamp // 3600)) %self.total_slots 
         time_left_before_new_ci = (current_timestamp % 3600) / 3600 # Normalized
         hour_of_day = total_hours % 24
         day_of_week = (total_hours // 24) % 7
@@ -109,14 +110,14 @@ class CarbonIntensity():
         year_sin = math.sin(two_pi * hour_of_year / (365.0 * 24.0))
         year_cos = math.cos(two_pi * hour_of_year / (365.0 * 24.0))
 
-        assert total_hours <len(self.carbonIntensityList) 
+        assert total_hours <self.total_slots 
         current_ci_norm = self.carbonIntensityList[total_hours]
         carbon_context = [current_ci_norm, time_left_before_new_ci, hour_sin, hour_cos, day_sin, day_cos, year_sin, year_cos]
 
         forecast = []
         for t in range(self.green_win_length-1):
-            hour_index = (total_hours + t) %len(self.carbonIntensityList) 
-            assert hour_index <len(self.carbonIntensityList) 
+            hour_index = (total_hours + t) %self.total_slots 
+            assert hour_index <self.total_slots 
             forecast.append(self.carbonIntensityList[hour_index])
 
         carbon_encoding = np.concatenate((carbon_context, forecast))

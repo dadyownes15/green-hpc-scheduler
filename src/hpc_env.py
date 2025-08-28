@@ -129,12 +129,13 @@ class HPCenv(Env):
         super().reset(seed=seed)
         random.seed(seed)
 
-        #random_offset = random.randint(0, 8760)
-        random_offset = 0
-        self.episode_start_hour_offset = random_offset
+        green_offset = random.randint(0, self.carbon_intensity.total_slots)
+        
+        self.episode_start_hour_offset =green_offset 
+
 
         if self.config_dict['variable_carbon_intensities'] == True: 
-            self.carbon_intensity.reset(start_offset=random_offset)
+            self.carbon_intensity.reset(start_offset=green_offset)
         else:
             self.carbon_intensity.reset(start_offset=0)
 
