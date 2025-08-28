@@ -109,6 +109,7 @@ class HPCenv(Env):
         obs = self.build_observation()
         info = {}
 
+        assert obs.shape == self.observation_space.shape , "Shape mismatch between actual shape, and defined shape of observation space" 
         terminated = self.should_terminate()
 
         info['new_job_arrived'] = self.new_job_arrived_in_step
@@ -178,16 +179,23 @@ class HPCenv(Env):
         # Creating queued jobs encoding
         self.job_queue.sort(key=lambda job: job.submit_time)
         queue_vector = []
-
-        for job in self.job_queue:
+        max_visible_queue_length = self.config_dict['max_queue_size']
+    
+        for i in range(min(max_visible_queue_length, len(self.job_queue))):
+            job = self.job_queue[i]
             job_vector = job.encode_vector(self.current_timestamp)
             queue_vector.append(job_vector)
 
         # Fill in with empty jobs to maintain size
-        for _ in range(len(self.job_queue), self.config_dict['max_queue_size']):
+        for _ in range(len(queue_vector), max_visible_queue_length):
             empty_job_encoding = np.zeros((self.config_dict['job_feature'],), dtype=np.float32)
             queue_vector.append(empty_job_encoding)
 
+        if len(queue_vector) <= self.config_dict["max_queue_size"]:
+            print("Queue vector", len(queue_vector))
+            print(self.job_queue)
+
+        assert len(queue_vector) <= self.config_dict["max_queue_size"]
         # Flatten queue vector
         queue_flat = np.concatenate(queue_vector).astype(np.float32)
 
@@ -226,9 +234,7 @@ class HPCenv(Env):
         # Guard index
         if queue_index < 0 or queue_index >= len(self.job_queue):
             # Check if the the queue index was block
-            print(self.valid_action_mask())
             masked =  self.valid_action_mask()[queue_index]
-            print("mask at queue index: ", masked)
             raise IndexError("schedule_job: queue_index out of range")
 
         job = self.job_queue[queue_index]
@@ -364,7 +370,7 @@ class HPCenv(Env):
             mask[i] = False
 
         # Remove jobs that cannot fit
-        for idx, job in enumerate(self.job_queue):
+        for idx, job in enumerate(self.job_queue[:self.config_dict['max_queue_size']]):
             if not self.cluster.can_allocated(job):
                 mask[idx] = False
         
