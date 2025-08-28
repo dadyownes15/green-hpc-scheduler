@@ -53,6 +53,7 @@ class Train():
                          n_steps = self.config_dict['n_steps'],
                          ent_coef = self.config_dict['ent_coef'],
                          seed=self.config_dict['seed'],
+                         learning_rate = self.config_dict['learning_rate'],
                          policy_kwargs=policy_kwargs
                                   )
     
