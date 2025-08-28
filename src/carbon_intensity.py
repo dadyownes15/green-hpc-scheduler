@@ -4,11 +4,11 @@ import math
 import numpy as np
 
 class CarbonIntensity():
-    def __init__(self, year = 2021, green_win_length = 72, normalize = True) -> None: 
+    def __init__(self, year = 2021, green_win_length = 72, normalize = True, granularity = "hourly") -> None: 
         self.year = year
         self.green_win_length = green_win_length
+        self.granularity = granularity
         self.carbonIntensityList = self.loadCarbonIntensityData()
-        assert len(self.carbonIntensityList) == 8760 ## Class only implemented for a single year for now
         self.start_offset = 0
         self.normalize = normalize
 
@@ -54,8 +54,8 @@ class CarbonIntensity():
     
     def getCarbonItensityData(self, end_hour):
         data = []
-        if end_hour > 8760:
-            data = np.append(self.carbonIntensityList[self.start_offset : 8760],self.carbonIntensityList[0:end_hour-8760])
+        if end_hour > len(self.carbonIntensityList):
+            data = np.append(self.carbonIntensityList[self.start_offset : len(self.carbonIntensityList)],self.carbonIntensityList[0:end_hour-len(self.carbonIntensityList)])
         else: 
             data = self.carbonIntensityList[self.start_offset : end_hour]
         
@@ -66,8 +66,11 @@ class CarbonIntensity():
     def loadCarbonIntensityData(self):
         """Load carbon intensity data from CSV file"""
         current_dir = os.getcwd()
-        carbon_file = os.path.join(current_dir, "./data/DK-DK2_hourly_carbon_intensity_noFeb29.csv")
-        
+        if self.granularity == "minutely":
+            carbon_file = os.path.join(current_dir, "./data/DK-DK2_hourly_carbon_intensity_noFeb29.csv")
+        else:
+            carbon_file = os.path.join(current_dir, "./data/DK-DK2_minutely_carbon_intensity_noFeb29.csv")
+ 
         # Map year to column index
         year_to_col = {2021: 1, 2022: 2, 2023: 3, 2024: 4}
         col_index = year_to_col.get(self.year, 1)  # Default to 2021
@@ -92,7 +95,7 @@ class CarbonIntensity():
         # Cyclical encodings based on episode offset and current time
         assert self.start_offset is not None
 
-        total_hours = int(self.start_offset + (current_timestamp // 3600)) % 8760
+        total_hours = int(self.start_offset + (current_timestamp // 3600)) %len(self.carbonIntensityList) 
         time_left_before_new_ci = (current_timestamp % 3600) / 3600 # Normalized
         hour_of_day = total_hours % 24
         day_of_week = (total_hours // 24) % 7
@@ -106,14 +109,14 @@ class CarbonIntensity():
         year_sin = math.sin(two_pi * hour_of_year / (365.0 * 24.0))
         year_cos = math.cos(two_pi * hour_of_year / (365.0 * 24.0))
 
-        assert total_hours < 8760
+        assert total_hours <len(self.carbonIntensityList) 
         current_ci_norm = self.carbonIntensityList[total_hours]
         carbon_context = [current_ci_norm, time_left_before_new_ci, hour_sin, hour_cos, day_sin, day_cos, year_sin, year_cos]
 
         forecast = []
         for t in range(self.green_win_length-1):
-            hour_index = (total_hours + t) % 8760
-            assert hour_index < 8760
+            hour_index = (total_hours + t) %len(self.carbonIntensityList) 
+            assert hour_index <len(self.carbonIntensityList) 
             forecast.append(self.carbonIntensityList[hour_index])
 
         carbon_encoding = np.concatenate((carbon_context, forecast))

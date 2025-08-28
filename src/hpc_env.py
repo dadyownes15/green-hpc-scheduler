@@ -18,12 +18,10 @@ import matplotlib.patches as patches
 class HPCenv(Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, workload_path, config : configparser.ConfigParser, debug=False, generate_rendering = False, name = None,):
+    def __init__(self, workload_path, config_dict, debug=False, generate_rendering = False, name = None,):
         self.debug = debug
-
-        self.config_dict = get_config_as_dict(config)
+        self.config_dict = config_dict 
         assert self.config_dict is not None, "Config dict, did not parse"
-
         assert generate_rendering == False or (generate_rendering == True and name != None), "You must name the env, to be able to generate renderings" 
 
         self.name = name
@@ -61,7 +59,7 @@ class HPCenv(Env):
         self.loads = Workloads(workload_path, config_dict=self.config_dict)
         self.cluster = Cluster(self.loads.max_nodes, self.config_dict['procs_per_node'], self.config_dict['idle_power'])
         self.reward = Reward()
-        self.carbon_intensity = CarbonIntensity(year=self.config_dict['carbon_year'], green_win_length=self.config_dict['green_forecast_length'])
+        self.carbon_intensity = CarbonIntensity(year=self.config_dict['carbon_year'], green_win_length=self.config_dict['green_forecast_length'], granularity=config_dict['carbon_granularity'])
 
         # For visualization
         self.total_processors = self.loads.max_procs

@@ -27,11 +27,10 @@ class VideoGenerator():
         clip.write_videofile(path_name + "rendering.mp4", codec='libx264', fps=fps)
         print("Video saved as ", path_name + "rendering.my")
 
-
 def get_config_as_dict(config: configparser.ConfigParser) -> dict:
     """
     Reads a configparser object and returns a dictionary containing all
-    specified configuration values with their correct data types.
+    configuration values with their correct data types.
 
     Args:
         config: A configparser.ConfigParser object that has already read
@@ -43,61 +42,40 @@ def get_config_as_dict(config: configparser.ConfigParser) -> dict:
     """
     config_dict = {}
 
-    # Helper function to get a value with a default
-    def get_value(section, key, dtype, default=None):
-        try:
-            if dtype == 'int':
-                return config.getint(section, key)
-            elif dtype == 'float':
-                return config.getfloat(section, key)
-            elif dtype == 'bool':
-                return config.getboolean(section, key)
-            elif dtype == 'list':
-                return ast.literal_eval(config.get(section, key))
-            else:
-                return config.get(section, key)
-        except (configparser.NoSectionError, configparser.NoOptionError):
-            return default
+    for section in config.sections():
+        for key, value in config.items(section):
+            try:
+                # Attempt to convert to a specific type
+                if value.lower() in ('true', 'false'):
+                    parsed_value = config.getboolean(section, key)
+                elif value.isdigit() or (value.startswith('-') and value[1:].isdigit()):
+                    parsed_value = config.getint(section, key)
+                elif '.' in value and all(part.isdigit() for part in value.split('.', 1)):
+                    parsed_value = config.getfloat(section, key)
+                elif value.startswith('[') and value.endswith(']'):
+                    parsed_value = ast.literal_eval(value)
+                else:
+                    parsed_value = value
+            except (ValueError, SyntaxError):
+                # Fall back to string if conversion fails
+                parsed_value = value
+            
+            # The key 'eta' appears in two different sections, so we need a
+            # way to handle this, for example by including the section in the key
+            # to prevent overwriting. You can adjust this as needed.
+            # Example: 'reward_eta' instead of just 'eta'
+            
+            # For this example, we simply use the key and assume no duplicates.
+            # If you want to differentiate, a good practice is to create a nested dictionary:
+            # if section not in config_dict:
+            #     config_dict[section] = {}
+            # config_dict[section][key] = parsed_value
 
-    # Power settings
-    config_dict['use_constant_power'] = get_value('power settings', 'use_constant_power', 'bool')
-    config_dict['constant_power_per_processor'] = get_value('power settings', 'constant_power_per_processor', 'int')
-    config_dict['procs_per_node'] = get_value('power settings', 'procs_per_node', 'int')
-    config_dict['idle_power'] = get_value('power settings', 'idle_power', 'float')
-    config_dict['carbon_year'] = get_value('power settings', 'carbon_year', 'int')
-    config_dict['variable_carbon_intensities'] = get_value('power settings', 'variable_carbon_intensities', 'bool')
+            config_dict[key] = parsed_value
 
-    # Architecture
-    config_dict['green_forecast_length'] = get_value('architecture', 'green_forecast_length', 'int')
-    config_dict['eta'] = get_value('architecture', 'eta', 'float')
-    config_dict['max_queue_size'] = get_value('architecture', 'max_queue_size', 'int')
-    config_dict['run_win_length'] = get_value('architecture', 'run_win_length', 'int')
-    config_dict['delay_time_list'] = get_value('architecture', 'delay_time_list', 'list')
-    # delay_time_list_length can be calculated from the list itself
-    config_dict['delay_time_list_length'] = len(get_value('architecture', 'delay_time_list', 'list'))
-    config_dict['max_wait_n_jobs'] = get_value('architecture', 'max_wait_n_jobs', 'int')
-    config_dict['job_feature'] = get_value('architecture', 'job_feature', 'int')
-    config_dict['run_feature'] = get_value('architecture', 'run_feature', 'int')
-    config_dict['green_feature_pr_timeslot'] = get_value('architecture', 'green_feature_pr_timeslot', 'int')
-    config_dict['green_feature_constant'] = get_value('architecture', 'green_feature_constant', 'int')
-
-    # Training
-    config_dict['episode_length'] = get_value('training', 'episode_length', 'int')
-    config_dict['gamma'] = get_value('training', 'gamma', 'float')
-    config_dict['gae_lambda'] = get_value('training', 'gae_lambda', 'float')
-
-    # Reward
-    config_dict['base_line_wait_carbon_penality'] = get_value('reward', 'base_line_wait_carbon_penality', 'float')
-    config_dict['bounded_slowdown_threshhold'] = get_value('reward', 'bounded_slowdown_threshhold', 'int')
-    config_dict['eta'] = get_value('reward', 'eta', 'float')
-    config_dict['reward_type'] = get_value('reward', 'reward_type', 'str')
-
-    # Normalization constants
-    config_dict['max_power'] = get_value('normalization constants', 'max_power', 'int')
-    config_dict['max_green'] = get_value('normalization constants', 'max_green', 'int')
-    config_dict['max_wait_time'] = get_value('normalization constants', 'max_wait_time', 'int')
-    config_dict['max_run_time'] = get_value('normalization constants', 'max_run_time', 'int')
-    config_dict['max_requested_processors'] = get_value('normalization constants', 'max_requested_processors', 'int')
+    # Additional logic for derived values, like the length of a list.
+    if 'delay_time_list' in config_dict and isinstance(config_dict['delay_time_list'], list):
+        config_dict['delay_time_list_length'] = len(config_dict['delay_time_list'])
 
     return config_dict
 
