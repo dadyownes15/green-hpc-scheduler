@@ -21,7 +21,6 @@ class Reward():
 
     def get_reward(self,scheduled_job : Job | None, carbon_intensity : CarbonIntensity, current_timestamp):
         reward = 0
-        assert self.reward_type == "CO2_direct"
         if self.reward_type == "CO2_direct":
 
             if scheduled_job: 
