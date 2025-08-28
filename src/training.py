@@ -52,17 +52,21 @@ class Train():
                          n_epochs = self.config_dict['n_epochs'],
                          n_steps = self.config_dict['n_steps'],
                          ent_coef = self.config_dict['ent_coef'],
+                         seed=self.config_dict['seed']
                          policy_kwargs=policy_kwargs
                                   )
     
-    def run(self, seed = 0, save_checkpoints = False):
-        self.env.reset(seed=seed)
-
-        checkpoint_callback = CheckpointCallback(
+    def run(self, save_checkpoints = False):
+        self.env.reset()
+        checkpoint_callback = None   
+        
+        if save_checkpoints:
+            checkpoint_callback = CheckpointCallback(
             save_freq=100000,
             save_path=self.run_dir + "/logs/",
-            name_prefix="seed_"+str(seed),
+            name_prefix="seed_"+str(self.config_dict['seed']),
             )
+
         self.model.learn(total_timesteps=self.config_dict['total_timesteps'], 
-                         tb_log_name = "seed_" + str(seed), callback = checkpoint_callback)
+                         tb_log_name = "seed_" + str(self.config_dict['seed']), callback = checkpoint_callback)
         self.model.save(self.run_dir)
