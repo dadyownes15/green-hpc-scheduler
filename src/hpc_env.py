@@ -190,11 +190,7 @@ class HPCenv(Env):
         for _ in range(len(queue_vector), max_visible_queue_length):
             empty_job_encoding = np.zeros((self.config_dict['job_feature'],), dtype=np.float32)
             queue_vector.append(empty_job_encoding)
-
-        if len(queue_vector) <= self.config_dict["max_queue_size"]:
-            print("Queue vector", len(queue_vector))
-            print(self.job_queue)
-
+            
         assert len(queue_vector) <= self.config_dict["max_queue_size"]
         # Flatten queue vector
         queue_flat = np.concatenate(queue_vector).astype(np.float32)
