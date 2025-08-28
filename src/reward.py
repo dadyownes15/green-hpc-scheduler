@@ -38,7 +38,7 @@ class Reward():
             else: 
                 reward = 0
 
-        if self.reward_type == "carbon_ratio_reward":
+        if self.reward_type == "delay_vs_now_reward":
             if scheduled_job: 
                 start_time = current_timestamp
                 end_time = start_time + scheduled_job.run_time
