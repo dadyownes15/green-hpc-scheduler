@@ -153,7 +153,10 @@ class CarbonIntensity():
 
         forecast = []
         for t in range(1, self.green_win_length): # Start from 1 to get the *next* slots
-            future_slot_index = (current_slot + t) % self.total_slots
+            if self.granularity == "minutely":
+                future_slot_index = (current_slot + t*60) % self.total_slots
+            else:
+                future_slot_index = (current_slot + t) % self.total_slots
             forecast.append(self.carbonIntensityList[future_slot_index])
             
         # The forecast should contain green_win_length-1 future values
