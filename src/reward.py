@@ -45,7 +45,7 @@ class Reward():
 
                 carbon_emission_initial = carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
                 
-                carbon_ratio_reward = (carbon_emission_initial-carbon_emission_actual)/carbon_emission_initial
+                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual) +0.1)/(carbon_emission_initial + 0.1)
 
                 bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshhold, scheduled_job.run_time])
 
