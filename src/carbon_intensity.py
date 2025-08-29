@@ -4,12 +4,12 @@ import math
 import numpy as np
 
 class CarbonIntensity():
-    def __init__(self, year=2021, green_win_length=72, normalize=True, granularity="hourly") -> None:
+    def __init__(self, year=2021, green_win_length=72, normalize=True, granularity="hourly", custom_intensity = False) -> None:
         self.year = year
         self.green_win_length = green_win_length
         self.granularity = granularity.lower() # Ensure consistent casing
         self.normalize = normalize
-        
+        self.custom_intensity = custom_intensity        
         # CONFIGURATION BASED ON GRANULARITY
         # This is the key change to make the class adaptable
         if self.granularity == "hourly":
@@ -100,12 +100,15 @@ class CarbonIntensity():
     def loadCarbonIntensityData(self):
         """Load carbon intensity data from CSV file."""
         current_dir = os.getcwd()
-        
+
         if self.granularity == "hourly":
             carbon_file = os.path.join(current_dir, "data/DK-DK2_hourly_carbon_intensity_noFeb29.csv")
-        else: # minutely
-            carbon_file = os.path.join(current_dir, "data/DK-DK2_minutely_carbon_intensity.csv")
-
+        else: 
+            if self.custom_intensity: 
+                carbon_file = os.path.join(current_dir, "data/free_weekends_minutely.csv")
+            else:
+                carbon_file = os.path.join(current_dir, "data/DK-DK2_minutely_carbon_intensity.csv")
+        
         year_to_col = {2021: 1, 2022: 2, 2023: 3, 2024: 4}
         col_index = year_to_col.get(self.year, 1)  # Default to 2021
 

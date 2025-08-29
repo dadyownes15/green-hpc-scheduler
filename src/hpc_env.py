@@ -59,7 +59,7 @@ class HPCenv(Env):
         self.loads = Workloads(workload_path, config_dict=self.config_dict)
         self.cluster = Cluster(self.loads.max_nodes, self.config_dict['procs_per_node'], self.config_dict['idle_power'])
         self.reward = Reward(config_dict=config_dict)
-        self.carbon_intensity = CarbonIntensity(year=self.config_dict['carbon_year'], green_win_length=self.config_dict['green_forecast_length'], granularity=config_dict['carbon_granularity'])
+        self.carbon_intensity = CarbonIntensity(year=self.config_dict['carbon_year'], green_win_length=self.config_dict['green_forecast_length'], granularity=config_dict['carbon_granularity'], custom_intensity=config_dict['custom_intensity'])
 
         # For visualization
         self.total_processors = self.loads.max_procs
