@@ -10,8 +10,8 @@ from src.hpc_env import HPCenv
 from src.utils import get_config_as_dict
 
 class Baseline(abc.ABC):
-    def __init__(self, config: configparser.ConfigParser, env: HPCenv):
-        self.config_dict = get_config_as_dict(config)
+    def __init__(self, config_dict, env: HPCenv):
+        self.config_dict = config_dict
         self.env = env
         assert self.config_dict is not None, "Config dict, did not parse"
         
@@ -24,11 +24,11 @@ class Baseline(abc.ABC):
         pass
 
 class MedianBaseline(Baseline):
-    def __init__(self,config, env):
+    def __init__(self,config_dict, env):
         """
         Initializes the MedianBaseline, which schedules jobs based on carbon intensity.
         """
-        super().__init__(config,env)
+        super().__init__(config_dict,env)
         self.name = "Median Baseline"
         
     def run(self, seed=42, debug = False):
