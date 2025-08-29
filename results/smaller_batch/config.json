@@ -1,0 +1,48 @@
+{
+    "use_constant_power": true,
+    "constant_power_per_processor": 500,
+    "procs_per_node": 1,
+    "idle_power": 15,
+    "carbon_year": 2021,
+    "variable_carbon_intensities": false,
+    "carbon_granularity": "minutely",
+    "green_forecast_length": 24,
+    "eta": 0.0,
+    "max_queue_size": 10,
+    "run_win_length": 64,
+    "delay_time_list": [
+        300
+    ],
+    "delay_time_list_length": 1,
+    "max_wait_n_jobs": 1,
+    "job_feature": 5,
+    "run_feature": 2,
+    "green_feature_pr_timeslot": 1,
+    "green_feature_constant": 8,
+    "episode_length": 256,
+    "gamma": 0.999,
+    "gae_lambda": 0.97,
+    "batch_size": 1024,
+    "seed": 43,
+    "n_epochs": 5,
+    "pi_nn": [
+        256,
+        256
+    ],
+    "vf_nn": [
+        256,
+        256
+    ],
+    "n_steps": 10240,
+    "total_timesteps": 20480000,
+    "ent_coef": 0.05,
+    "learning_rate": 0.0001,
+    "base_line_wait_carbon_penality": 0.01,
+    "bounded_slowdown_threshhold": 10,
+    "reward_type": "delay_vs_now_reward",
+    "max_power": 19000,
+    "max_green": 19000,
+    "max_wait_time": 200000,
+    "max_run_time": 162754,
+    "max_requested_processors": 256
+}

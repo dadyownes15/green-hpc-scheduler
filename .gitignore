@@ -1,4 +1,5 @@
 .venv/
 .renderings/.
 .data/
+.results/
 model_test.zip

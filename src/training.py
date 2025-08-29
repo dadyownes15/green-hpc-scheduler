@@ -54,6 +54,7 @@ class Train():
                          ent_coef = self.config_dict['ent_coef'],
                          seed=self.config_dict['seed'],
                          learning_rate = self.config_dict['learning_rate'],
+                         clip_range = 0.05,
                          policy_kwargs=policy_kwargs
                                   )
     
@@ -63,7 +64,7 @@ class Train():
 
         if save_checkpoints:
             checkpoint_callback = CheckpointCallback(
-            save_freq=100000,
+            save_freq=1000000,
             save_path=self.run_dir + "/logs/",
             name_prefix="seed_"+str(self.config_dict['seed']),
             )

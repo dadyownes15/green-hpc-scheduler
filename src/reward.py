@@ -21,6 +21,9 @@ class Reward():
 
     def get_reward(self,scheduled_job : Job | None, carbon_intensity : CarbonIntensity, current_timestamp):
         reward = 0
+
+        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward"]
+
         if self.reward_type == "CO2_direct":
 
             if scheduled_job: 
@@ -51,8 +54,8 @@ class Reward():
 
                 bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([MIN_RUN_TIME_THRESHOLD, scheduled_job.run_time])
 
-                reward = - (carbon_ratio_reward + bounded_slowdown*ETA)
+                reward = carbon_ratio_reward # - bounded_slowdown*ETA
             else: 
                 reward = 0
-        return reward
+        return reward 
 
