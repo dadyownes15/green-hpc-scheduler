@@ -36,7 +36,6 @@ class Reward():
                 reward = 0
 
         if self.reward_type == "delay_vs_now_reward":
-            print("Delay vs now reward")
             if scheduled_job: 
                 start_time = current_timestamp
                 end_time = start_time + scheduled_job.run_time
