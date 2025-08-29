@@ -19,7 +19,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 class Train():
     def __init__(self, config_dict, run_id, workload_path = None) -> None:
         self.config_dict = config_dict
-        self.run_dir = "./" + run_id + "/"  
+        self.run_dir = "./results" + run_id + "/"  
         # --- NEW LOGIC TO CREATE REPOSITORY AND SAVE CONFIG ---
         # Create the directory for the run if it doesn't already exist.
         # exist_ok=True prevents an error if the directory already exists.
