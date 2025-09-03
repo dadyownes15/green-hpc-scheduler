@@ -176,7 +176,7 @@
 /*                          CONSTANTS                                          */
 /*#############################################################################*/
 
-#define MAX_END_TIME (365 * 24 * 3600) /* 1 year in seconds */
+#define MAX_END_TIME 28857600 /* 1 year in seconds */
 #define TOO_MUCH_TIME 12        /* no more than two days =exp(12) for runtime  */
 #define TOO_MUCH_ARRIVE_TIME 13 /* no more than 5 days =exp(13) for arrivetime */
 
