@@ -97,8 +97,6 @@ class CarbonIntensity():
        
         # DYNAMIC CALCULATION using self.seconds_per_slot
         current_slot = int(current_timestamp // self.seconds_per_slot) % self.total_slots
-        print("current timestamp: ", current_timestamp)
-        print("current slot: ", current_slot)
         time_left_before_new_ci = (self.seconds_per_slot - (current_timestamp % self.seconds_per_slot)) / self.seconds_per_slot # Normalized
 
         # Cyclical features are now correctly calculated based on the actual time slot

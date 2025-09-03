@@ -65,7 +65,7 @@ class Train():
 
         if save_checkpoints:
             checkpoint_callback = CheckpointCallback(
-            save_freq=1000000,
+            save_freq=500000,
             save_path=self.run_dir + "/logs/",
             name_prefix="seed_"+str(self.config_dict['seed']),
             )
