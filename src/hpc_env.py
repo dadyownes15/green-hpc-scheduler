@@ -59,7 +59,7 @@ class HPCenv(Env):
         self.loads = Workloads(workload_path, config_dict=self.config_dict)
         self.cluster = Cluster(self.loads.max_nodes, self.config_dict['procs_per_node'], self.config_dict['idle_power'])
         self.reward = Reward(config_dict=config_dict)
-        self.carbon_intensity = CarbonIntensity(year=self.config_dict['carbon_year'], green_win_length=self.config_dict['green_forecast_length'], granularity=config_dict['carbon_granularity'], custom_intensity=config_dict['custom_intensity'])
+        self.carbon_intensity = CarbonIntensity( green_win_length=self.config_dict['green_forecast_length'], custom_intensity=config_dict['custom_intensity'])
 
         # For visualization
         self.total_processors = self.loads.max_procs
@@ -67,8 +67,19 @@ class HPCenv(Env):
         self.delay_history = []
         self.new_job_arrived_in_step = False
         self.last_action_info: Dict[str, Any] = {'type': None, 'is_delay': False}
-
-
+        
+        #logging
+               # ### NEW: Reset logging variables at the start of an episode ###
+     # ### MODIFIED: Initialize variables for logging ###
+        self.episode_start_time = 0
+        # From simple counters to a dictionary holding lists for indexed actions
+        self.action_log = {
+            'schedule': 0,
+            'delay_fixed': 0,
+            'delay_wait': 0,
+            'delay_fixed_indices': [0] * self.config_dict['delay_time_list_length'],
+            'delay_wait_indices': [0] * self.config_dict['max_wait_n_jobs']
+        }
         # Episode-specific carbon-timeline offset (in hours)
         self.episode_start_hour_offset = 0
 
@@ -92,10 +103,19 @@ class HPCenv(Env):
             skip_time = self.config_dict['delay_time_list'][delay_idx]
             self.delay_fixed_amount(skip_time=skip_time)
 
+            # Logging
+            self.action_log['delay_fixed'] += 1
+            self.action_log['delay_fixed_indices'][delay_idx] += 1
+
         elif (self.config_dict['max_queue_size'] + self.config_dict['delay_time_list_length']) <= action < (self.config_dict['max_queue_size'] + self.config_dict['delay_time_list_length'] + self.config_dict['max_wait_n_jobs']):
             # action corresponds to waiting until `jobs_to_finish` running jobs complete
             jobs_to_finish = action - (self.config_dict['max_queue_size'] + self.config_dict['delay_time_list_length']) + 1
             self.delay_to_finished_job(jobs_to_finish=jobs_to_finish)
+
+            # logging
+            self.action_log['delay_wait'] += 1
+            wait_idx = jobs_to_finish - 1 # Convert 1-based count to 0-based index
+            self.action_log['delay_wait_indices'][wait_idx] += 1
 
         else:
             # Should not happen if action_space is correct
@@ -112,6 +132,10 @@ class HPCenv(Env):
 
         info['new_job_arrived'] = self.new_job_arrived_in_step
         info['action_is_delay'] = self.last_action_info['is_delay']
+
+        if terminated:
+            info = self.update_info_with_log(info)
+
         return obs, reward, terminated, truncated, info
 
     def should_terminate(self): 
@@ -128,19 +152,22 @@ class HPCenv(Env):
         # Randomize carbon offset and reset components
         super().reset(seed=seed)
         random.seed(seed)
-
-        green_offset = random.randint(0, self.carbon_intensity.total_slots)
         
-        self.episode_start_hour_offset =green_offset 
-
-
-        if self.config_dict['variable_carbon_intensities'] == True: 
-            self.carbon_intensity.reset(start_offset=green_offset)
-        else:
-            self.carbon_intensity.reset(start_offset=0)
-
-
         self.start_job_offset = random.randint(0, max(0, (self.loads.size() - self.config_dict['episode_length'] - 1)))
+        self.loads.reset(start_job_offset=self.start_job_offset)
+        first_job = self.loads.get_job(0)
+        time_offset = first_job.submit_time
+        
+        self.episode_start_hour_offset = time_offset // 3600 
+
+        self.action_log = {
+            'schedule': 0,
+            'delay_fixed': 0,
+            'delay_wait': 0,
+            'delay_fixed_indices': [0] * self.config_dict['delay_time_list_length'],
+            'delay_wait_indices': [0] * self.config_dict['max_wait_n_jobs']
+        }
+
 
         self.cluster.reset()
         self.loads.reset(start_job_offset=self.start_job_offset)
@@ -376,6 +403,7 @@ class HPCenv(Env):
             
         return mask
 
+
     def render(self, step_count, window_hours=12, show_median_forecast=True):
         if not self.generate_rendering:
             # print("Rendering is disabled for this environment instance.")
@@ -455,14 +483,23 @@ class HPCenv(Env):
 
         # Plot Carbon Intensity
         carbon_times, carbon_values = [], []
-        start_hour = int(start_time // 3600)
-        num_hours_to_plot = (window_hours * 2) + 1
+        # Use the correct seconds_per_slot from the carbon intensity object
+        seconds_per_slot = self.carbon_intensity.seconds_per_slot
         
-        for h_offset in range(num_hours_to_plot):
-            abs_hour = start_hour + h_offset
-            timestamp = abs_hour * 3600
-            hour_index = (self.episode_start_hour_offset + abs_hour) % len(self.carbon_intensity.carbonIntensityList)
-            ci_value = self.carbon_intensity.carbonIntensityList[hour_index]
+        # Calculate the number of slots to plot based on the total time window
+        num_slots_to_plot = (window_hours * 3600) // seconds_per_slot
+        
+        # Determine the starting slot index
+        start_slot_index = int(start_time // seconds_per_slot)
+        
+        for s_offset in range(num_slots_to_plot):
+            abs_slot = start_slot_index + s_offset
+            timestamp = abs_slot * seconds_per_slot
+            
+            # Use the modulo operator with total_slots to handle the cyclical data
+            slot_index_in_list = (self.episode_start_hour_offset * (3600 // seconds_per_slot) + abs_slot) % self.carbon_intensity.total_slots
+            
+            ci_value = self.carbon_intensity.carbonIntensityList[slot_index_in_list]
             carbon_times.append(timestamp)
             carbon_values.append(ci_value)
         ax2.plot(carbon_times, carbon_values, color='seagreen', label='Carbon Intensity')
@@ -498,3 +535,30 @@ class HPCenv(Env):
 
         plt.savefig(save_path, dpi=150)
         plt.close(fig)
+
+
+
+    def update_info_with_log(self, info):
+        simulation_duration_seconds = self.current_timestamp
+        average_carbon_intensity = self.carbon_intensity.get_average_intensity_for_period(self.current_timestamp) 
+        info['episode'] = {
+            "simulation_duration_hours": simulation_duration_seconds / 3600.0,
+            "avg_carbon_intensity": average_carbon_intensity,
+            "action_schedule_count": self.action_log['schedule'],
+            "action_delay_fixed_count": self.action_log['delay_fixed'],
+            "action_delay_wait_count": self.action_log['delay_wait'],
+        }
+
+        # Add the count for each specific "delay_fixed" action index
+        for i, count in enumerate(self.action_log['delay_fixed_indices']):
+            delay_time = self.config_dict['delay_time_list'][i]
+            key = f"actions/delay_fixed_{delay_time}s"
+            info['episode'][key] = count
+
+        # Add the count for each specific "delay_wait" action index
+        for i, count in enumerate(self.action_log['delay_wait_indices']):
+            num_jobs = i + 1  # Convert 0-based index back to 1-based job count
+            key = f"actions/delay_wait_{num_jobs}j"
+            info['episode'][key] = count
+
+        return info

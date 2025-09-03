@@ -2,7 +2,7 @@ from src.baseline import Baseline, MedianBaseline
 from sb3_contrib import MaskablePPO
 from stable_baselines3.common.evaluation import evaluate_policy
 from src.hpc_env import HPCenv
-from src.utils import get_config_as_dict, mask_fn
+from src.utils import VideoGenerator, get_config_as_dict, mask_fn
 from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.ppo_mask import MaskablePPO
 from stable_baselines3.common.monitor import Monitor
@@ -80,6 +80,7 @@ class Validation():
 
     def evaluate_policy(self,seed, model):
         obs, _ = self.env.reset(seed=seed, options={})
+        
         terminated = False
         total_reward = 0
         step_count = 0  # Add a counter
@@ -100,5 +101,33 @@ class Validation():
         return total_reward
 
 
-    def generate_renderings(self, step_interval = 5):
-        pass
+    def render_input_model(self, model_path: str, seed: int, step_interval=1, name="model_rendering"):
+        """
+        Renders an episode of a trained model by generating plots for each step and compiling them into a video.
+        """
+        # 1. Instantiate the environment with rendering enabled
+        self.config_dict['generate_rendering'] = True
+        self.config_dict['name'] = name
+        render_env = ActionMasker(HPCenv(workload_path=self.workload_path, config_dict=self.config_dict), action_mask_fn=mask_fn)
+
+        # 2. Load the trained model
+        model = MaskablePPO.load(model_path, env=render_env)
+
+        # 3. Run the episode and render each step
+        obs, _ = render_env.reset(seed=seed, options={})
+        terminated = False
+        step_count = 0
+
+        while not terminated:
+            if step_count % step_interval == 0:
+                render_env.render(step_count=step_count)
+
+            action_masks = get_action_masks(render_env)
+            action, _states = model.predict(obs, action_masks=action_masks, deterministic=True)
+            obs, reward, terminated, truncated, info = render_env.step(action)
+            step_count += 1
+
+        # 4. Generate the video from the saved images
+        video_gen = VideoGenerator(path=render_env.dir_path)
+        video_gen.generate_video()
+        print(f"Rendering complete. Video saved at {render_env.dir_path}/rendering.mp4")

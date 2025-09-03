@@ -5,6 +5,7 @@ from moviepy import ImageSequenceClip
 import glob
 import numpy as np
 import gymnasium as gym 
+import os
 
 class VideoGenerator():
     def __init__(self, path):
@@ -110,3 +111,77 @@ def mask_fn(env: gym.Env) -> np.ndarray:
     # for the current env. In this example, we assume the env has a
     # helpful method we can rely on.
     return env.valid_action_mask()
+
+
+def create_experiment_name(config: dict, workload_file: None) -> str:
+    """
+    Creates an experiment name string based on a configuration dictionary and an optional workload file.
+
+    Args:
+        config (dict): A dictionary containing experiment configuration parameters.
+        workload_file (str, optional): The path to the workload file. Defaults to None.
+
+    Returns:
+        str: A string representing the experiment name.
+    """
+    name_parts = []
+
+    # Handle variable_carbon_intensities
+    if config.get("variable_carbon_intensities"):
+        name_parts.append("VI")
+    else:
+        name_parts.append("CI")
+
+    # Handle batch_size
+    batch_size = config.get("batch_size")
+    if batch_size:
+        name_parts.append(f"B{batch_size}")
+
+    # Handle reward_type
+    reward_type = config.get("reward_type")
+    if "CO2_direct" == reward_type:
+        name_parts.append("DC")
+    if "CO2_direct_c" == reward_type:
+        name_parts.append("DC-A") 
+    elif "delay_vs_now_reward" == reward_type:
+        name_parts.append("RC")
+    else:
+        # A more generic way to handle other reward types if needed
+        name_parts.append("RC")
+
+    # Handle learning_rate
+    learning_rate = config.get("learning_rate")
+    if learning_rate:
+        # Format the learning rate string
+        lr_str = f"LR-{learning_rate:.4f}"
+        name_parts.append(lr_str.replace('.', '')) # Remove the dot
+
+    # Handle eta
+    eta = config.get("eta")
+    if eta is not None:
+        name_parts.append(f"ETA{int(eta)}")
+
+    # Handle carbon_granularity
+    carbon_granularity = config.get("carbon_granularity")
+    if carbon_granularity == "minutely":
+        name_parts.append("C-min")
+    elif carbon_granularity == "hourly":
+        name_parts.append("C-hour")
+    else:
+        name_parts.append(f"C-{carbon_granularity}")
+
+    custom_itensity = config.get("custom_intensity")
+    if custom_itensity == True:
+        name_parts.append("EASY")
+    # Handle Trace based on workload_file
+    if workload_file:
+        file_name = os.path.basename(workload_file).lower()
+        if "synthetic" in file_name:
+            name_parts.append("Lu-s")
+        else:
+            name_parts.append("Lu")
+    else:
+        name_parts.append("Lu")  # Default to "Lu" if no workload file is provided
+
+    # Join all parts with underscores to create the final name
+    return "_".join(name_parts)

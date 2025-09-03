@@ -17,10 +17,9 @@ class Reward():
     def get_reward(self,scheduled_job : Job | None, carbon_intensity : CarbonIntensity, current_timestamp):
         reward = 0
         
-        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward"]
+        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward", "CO2_direct_c"]
 
         if self.reward_type == "CO2_direct":
-            print("CO2 Direct Reward")
             if scheduled_job: 
                 start_time = current_timestamp
                 end_time = start_time + scheduled_job.run_time
@@ -28,9 +27,28 @@ class Reward():
                 
                 carbon_emission = carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
 
+
                 bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshhold, scheduled_job.run_time])
 
                 reward = - (carbon_emission + bounded_slowdown*self.eta)
+
+            else: 
+                reward = 0
+        if self.reward_type == "CO2_direct_c":
+            if scheduled_job: 
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+                power_usage = scheduled_job.power_usage
+                
+                carbon_emission = carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+
+                compute_req = scheduled_job.request_number_of_nodes * scheduled_job.request_time
+
+                normalized_carbon_emission = (carbon_emission)/(compute_req) * 100000
+                
+                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshhold, scheduled_job.run_time])
+
+                reward = - (normalized_carbon_emission + bounded_slowdown*self.eta)
 
             else: 
                 reward = 0

@@ -1,6 +1,8 @@
 import csv 
 import datetime
 import os
+
+
 def generate_custom_csv(type : str, non_weekday = 450, output_path = "data/"):
     type = type.lower()
     assert type in ["free_weekends"]

@@ -11,15 +11,16 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
 import matplotlib.pyplot as plt
 from sb3_contrib.common.maskable.utils import get_action_masks
-from src.utils import mask_fn
+from src.utils import mask_fn, create_experiment_name
 from src.hpc_env import HPCenv
 from stable_baselines3.common.callbacks import CheckpointCallback
 
 
 class Train():
-    def __init__(self, config_dict, run_id, workload_path = None) -> None:
+    def __init__(self, config_dict, workload_path = None) -> None:
         self.config_dict = config_dict
-        self.run_dir = "./results/" + run_id + "/"  
+        self.run_id = create_experiment_name(config=config_dict, workload_file=workload_path) 
+        self.run_dir = "./results/" + self.run_id + "/"  
         # --- NEW LOGIC TO CREATE REPOSITORY AND SAVE CONFIG ---
         # Create the directory for the run if it doesn't already exist.
         # exist_ok=True prevents an error if the directory already exists.
@@ -54,7 +55,7 @@ class Train():
                          ent_coef = self.config_dict['ent_coef'],
                          seed=self.config_dict['seed'],
                          learning_rate = self.config_dict['learning_rate'],
-                         clip_range = 0.05,
+                         clip_range = self.config_dict['clip_range'],
                          policy_kwargs=policy_kwargs
                                   )
     

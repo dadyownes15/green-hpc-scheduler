@@ -48,8 +48,8 @@ class Workloads:
                 s_array = re.split("\\s+", line)
                 
                 # Append to standard Python lists
-                processor_list.append(int(s_array[3]))
-                run_time_list.append(int(s_array[4]))
+                processor_list.append(int(s_array[4]))
+                run_time_list.append(int(s_array[3]))
 
         # Convert to numpy arrays outside the loop after all data is collected
         processor_list = np.array(processor_list)
@@ -119,8 +119,6 @@ class Workloads:
             job_copy = copy.deepcopy(job)
 
             # Ensure that submit times are relative to the first job
-            job_copy.submit_time -= start_submit
-            assert job_copy.submit_time >= 0
             assert job_copy.scheduled_time == -1
 
             self.episode_jobs.append(job_copy)
