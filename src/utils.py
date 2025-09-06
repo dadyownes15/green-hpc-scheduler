@@ -159,7 +159,7 @@ def create_experiment_name(config: dict, workload_file: None) -> str:
     # Handle eta
     eta = config.get("eta")
     if eta is not None:
-        name_parts.append(f"ETA{int(eta)}")
+        name_parts.append(f"ETA{float(eta)}")
 
     # Handle carbon_granularity
     carbon_granularity = config.get("carbon_granularity")

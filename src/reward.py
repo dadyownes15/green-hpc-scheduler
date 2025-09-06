@@ -47,7 +47,6 @@ class Reward():
                 normalized_carbon_emission = (carbon_emission/compute_req) * 100000
                 
                 bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshhold, scheduled_job.run_time])
-
                 reward = - (normalized_carbon_emission + bounded_slowdown*self.eta)
 
             else: 
