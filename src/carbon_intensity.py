@@ -23,17 +23,17 @@ class CarbonIntensity():
         self.slots_per_year = 365 * self.slots_per_day
 
         self.carbonIntensityList = self.loadCarbonIntensityData()
-        print("Carbon intensity list: ", self.carbonIntensityList)
         self.total_slots = len(self.carbonIntensityList)
         assert (self.total_slots) > 0  
         self.start_offset = 0
 
         if self.normalize:
-            mean = np.mean(self.carbonIntensityList)
-            std = np.std(self.carbonIntensityList)
+            self.mean = np.mean(self.carbonIntensityList)
+            self.std = np.std(self.carbonIntensityList)
+            
             # Avoid division by zero if all values are the same
-            if std > 0:
-                self.carbonIntensityList = (self.carbonIntensityList - mean) / std
+            if self.std > 0:
+                self.carbonIntensityList = (self.carbonIntensityList - self.mean) /self.std 
 
     def getCarbonEmissions(self, power, start, end):
         """
@@ -43,7 +43,8 @@ class CarbonIntensity():
         Returns: total carbon emissions in gCO2eq
         """
         totalEmissions = 0
-        
+        start = start + self.start_offset 
+        end = end + self.start_offset
         # DYNAMIC CALCULATION USING self.seconds_per_slot
         startIndex = int(start / self.seconds_per_slot)
         endIndex = int(end / self.seconds_per_slot)
@@ -89,12 +90,28 @@ class CarbonIntensity():
             return np.array([]) # Return empty array to avoid crash
         return np.array(carbon_list)
 
+    def set_mode(self, mode : str):
+        # Used to set offset from 2021-01-01 00:00:00 in secounds, allowing us to simply utilize the timestamps from the workfile, to map to a carbon intensity:
+
+        mode = mode.lower()
+        assert mode in ["training", "test", "validation"]
+
+        if mode == "training":
+            self.start_offset = 0
+        if mode == "validation":
+            self.start_offset = 94608000 # 1. Januar 2024
+        if mode == "test":
+            self.start_offset = 94608000 + 2678400
+        
+
     def create_carbon_forecast_enconding(self, current_timestamp):
         """
         Creates an encoding with current carbon context and future forecast.
         """
         assert self.start_offset is not None
-       
+
+        current_timestamp = current_timestamp + self.start_offset
+
         # DYNAMIC CALCULATION using self.seconds_per_slot
         current_slot = int(current_timestamp // self.seconds_per_slot) % self.total_slots
         time_left_before_new_ci = (self.seconds_per_slot - (current_timestamp % self.seconds_per_slot)) / self.seconds_per_slot # Normalized
@@ -130,50 +147,4 @@ class CarbonIntensity():
         assert len(carbon_encoding) == 8 + self.green_win_length - 1
         return carbon_encoding
     
-    def get_average_intensity_for_period(self, end_time_seconds: float) -> float:
-        """
-        Calculates the time-weighted average carbon intensity for a given period.
-        This correctly handles partial slots at the beginning and end of the period.
-
-        Args:
-            start_time_seconds (float): The start time of the period in seconds.
-            end_time_seconds (float): The end time of the period in seconds.
-
-        Returns:
-            float: The time-weighted average carbon intensity.
-        """
-        start_time_seconds = 0
-        if start_time_seconds >= end_time_seconds:
-            return 0.0
-
-        total_duration = end_time_seconds - start_time_seconds
-        total_weighted_intensity = 0.0
-        
-        start_index = int(start_time_seconds / self.seconds_per_slot)
-        end_index = int(end_time_seconds / self.seconds_per_slot)
-
-        current_time = start_time_seconds
-
-        for i in range(start_index, end_index + 1):
-            # Determine the end of the current time segment.
-            # It's either the end of the slot or the end of the total period, whichever comes first.
-            segment_end_time = min((i + 1) * self.seconds_per_slot, end_time_seconds)
-
-            # Calculate the duration spent in this specific slot
-            duration_in_slot = segment_end_time - current_time
-
-            if duration_in_slot <= 0:
-                continue
-
-            # Get the carbon intensity for this slot, accounting for offset and wrap-around
-            slot_index = (i + self.start_offset) % self.total_slots
-            carbon_intensity = self.carbonIntensityList[slot_index]
-
-            # Add the weighted intensity to the total
-            total_weighted_intensity += carbon_intensity * duration_in_slot
-
-            # Move time forward
-            current_time = segment_end_time
-
-        # The average is the total weighted intensity divided by the total duration
-        return total_weighted_intensity / total_duration
+    

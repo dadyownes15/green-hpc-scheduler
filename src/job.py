@@ -118,6 +118,21 @@ The rest are not used in are simplified envoriemnt
 
         return enconding
     def __str__(self):
-        return "J[" + str(self.job_id) + "]-[" + str(self.request_number_of_processors) + "]-[" + str(
-            self.submit_time) + "]-[" + str(self.request_time) + "]" + str(self.scheduled_time)
+        """
+        Returns a formatted string with key job attributes for easy readability.
+        """
+        status = "Queued"
+        if self.scheduled_time != -1:
+            status = f"Running (Scheduled at {self.scheduled_time}s)"
 
+        return (
+            f"--- Job Details ---\n"
+            f"Job ID: {self.job_id}\n"
+            f"Status: {status}\n"
+            f"Submitted: {self.submit_time}s\n"
+            f"Requested Cores: {self.request_number_of_processors}\n"
+            f"Requested Runtime: {self.request_time}s\n"
+            f"Wait Time: {self.wait_time}s\n"
+            f"Carbon Consideration: {self.carbon_consideration}\n"
+            f"-------------------"
+        )

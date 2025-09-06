@@ -18,15 +18,16 @@ import matplotlib.patches as patches
 class HPCenv(Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, workload_path, config_dict, debug=False, generate_rendering = False, name = None,):
+    def __init__(self, config_dict, mode = "training", debug=False, generate_rendering = False, name = None, ):
         self.debug = debug
         self.config_dict = config_dict 
         assert self.config_dict is not None, "Config dict, did not parse"
+        assert mode in ["training", "validation", "test"]
         assert generate_rendering == False or (generate_rendering == True and name != None), "You must name the env, to be able to generate renderings" 
 
         self.name = name
         self.generate_rendering = generate_rendering
-
+        self.mode = mode
 
         # Flat action space
         num_job_actions = self.config_dict['max_queue_size']
@@ -55,11 +56,23 @@ class HPCenv(Env):
         self.num_job_in_batch = 0
         self.scheduled_jobs = 0 
 
-                # Load workloads and cluster
-        self.loads = Workloads(workload_path, config_dict=self.config_dict)
+
+        # The idea is that we train from data in 2021 - 01 - 01 to 2023 - 31 - 12 only, and ensure that this is synched with the cycles defined in the lublin trace. 
+        if self.mode == "training":
+            self.workload_path = "data/workloads/training_workload.swf"
+        if self.mode == "validation":
+            self.config_dict["episode_length"] = 5643 # This value is hardcoded to be the length of the whole validation set
+            self.workload_path = "data/workloads/validation_workload.swf"
+        if self.mode == "test":
+            self.config_dict["episode_length"] = 54811 # this is hardcoded to be the length of the whole test set
+            self.workload_path = "data/workloads/test_workload.swf"
+
+        # Load workloads and cluster
+        self.loads = Workloads(self.workload_path, config_dict=self.config_dict)
         self.cluster = Cluster(self.loads.max_nodes, self.config_dict['procs_per_node'], self.config_dict['idle_power'])
         self.reward = Reward(config_dict=config_dict)
         self.carbon_intensity = CarbonIntensity( green_win_length=self.config_dict['green_forecast_length'], custom_intensity=config_dict['custom_intensity'])
+        self.carbon_intensity.set_mode(self.mode)
 
         # For visualization
         self.total_processors = self.loads.max_procs
@@ -133,8 +146,6 @@ class HPCenv(Env):
         info['new_job_arrived'] = self.new_job_arrived_in_step
         info['action_is_delay'] = self.last_action_info['is_delay']
 
-        if terminated:
-            info = self.update_info_with_log(info)
 
         return obs, reward, terminated, truncated, info
 
@@ -145,6 +156,7 @@ class HPCenv(Env):
             return False
 
     def reset(self, seed, options):
+
         if self.generate_rendering:
             self.dir_path = "renderings/" + str(self.name) + "/" + "seed_" + str(seed)
             create_directory_if_not_exists(directory_path=self.dir_path)
@@ -152,9 +164,14 @@ class HPCenv(Env):
         # Randomize carbon offset and reset components
         super().reset(seed=seed)
         random.seed(seed)
+
+        if self.mode == "validation" or "test":
+            self.start_job_offset = 0        
+        else:
+            self.start_job_offset = random.randint(0, max(0, (self.loads.size() - self.config_dict['episode_length'] - 1)))
         
-        self.start_job_offset = random.randint(0, max(0, (self.loads.size() - self.config_dict['episode_length'] - 1)))
         self.loads.reset(start_job_offset=self.start_job_offset)
+
         first_job = self.loads.get_job(0)
         time_offset = first_job.submit_time
         
@@ -537,28 +554,3 @@ class HPCenv(Env):
         plt.close(fig)
 
 
-
-    def update_info_with_log(self, info):
-        simulation_duration_seconds = self.current_timestamp
-        average_carbon_intensity = self.carbon_intensity.get_average_intensity_for_period(self.current_timestamp) 
-        info['episode'] = {
-            "simulation_duration_hours": simulation_duration_seconds / 3600.0,
-            "avg_carbon_intensity": average_carbon_intensity,
-            "action_schedule_count": self.action_log['schedule'],
-            "action_delay_fixed_count": self.action_log['delay_fixed'],
-            "action_delay_wait_count": self.action_log['delay_wait'],
-        }
-
-        # Add the count for each specific "delay_fixed" action index
-        for i, count in enumerate(self.action_log['delay_fixed_indices']):
-            delay_time = self.config_dict['delay_time_list'][i]
-            key = f"actions/delay_fixed_{delay_time}s"
-            info['episode'][key] = count
-
-        # Add the count for each specific "delay_wait" action index
-        for i, count in enumerate(self.action_log['delay_wait_indices']):
-            num_jobs = i + 1  # Convert 0-based index back to 1-based job count
-            key = f"actions/delay_wait_{num_jobs}j"
-            info['episode'][key] = count
-
-        return info

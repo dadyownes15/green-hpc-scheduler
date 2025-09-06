@@ -37,7 +37,7 @@ class Train():
         print(f"Repository created at {self.run_dir} and config saved to {config_path}")
 
         # --- END OF NEW LOGIC ---
-        self.env = Monitor(ActionMasker(HPCenv(workload_path=workload_path, config_dict=config_dict), mask_fn)) 
+        self.env = Monitor(ActionMasker(HPCenv(mode="training", config_dict=config_dict), mask_fn)) 
 
         policy_kwargs = dict(
             net_arch = dict(
