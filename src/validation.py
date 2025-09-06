@@ -75,7 +75,7 @@ class Validation():
     def deep_dive(self, seed, model):
        pass 
 
-    def evaluate_policy(self,seed, model):
+    def evaluate_policy(self,seed, model : MaskablePPO):
         obs, _ = self.env.reset(seed=seed, options={})
         
         terminated = False
@@ -91,7 +91,7 @@ class Validation():
                 print(f"Step {step_count}: Valid Actions = {num_valid_actions}, Mask = {action_masks}")
             # --------------------
 
-            action, _states = model.predict(obs, action_masks=action_masks)
+            action, _states = model.predict(obs, action_masks=action_masks, deterministic = True)
             obs, reward, terminated, truncated, info = self.env.step(action)
             total_reward += float(reward)
 
