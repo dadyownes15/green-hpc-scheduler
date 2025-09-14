@@ -66,7 +66,10 @@ class Reward():
 
                 bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshhold, scheduled_job.run_time])
 
-                reward = carbon_ratio_reward # - bounded_slowdown*ETA
+                print("carbon ratio reward")
+                print("wait reward: bounded_slowdown: ", bounded_slowdown*self.eta)
+
+                reward = carbon_ratio_reward - bounded_slowdown*self.eta
             else: 
                 reward = 0 
 

@@ -38,16 +38,20 @@ class Validation():
             raise ValueError(f"Configuration file at '{config_path}' is not a valid JSON file. Please check its syntax.")
 
 
-    def validate_policy(self, n_eval_episodes, checkpoints, mode):
+    def validate_policy(self, n_eval_episodes, checkpoints, mode, debug = False):
         self.mode = mode.lower()
+        assert self.mode in ["validation", "test"]
 
-        assert self.mode in ["validation", "testing"]
+        if debug:
+            print("Validating policy on data from: ", self.mode)
 
         self.env = ActionMasker(HPCenv(config_dict=self.config_dict, mode=self.mode), action_mask_fn= mask_fn)
 
         stats_dict = {}
  
         for checkpoint in checkpoints:
+            if debug:
+                print("Initating checkpoint: ", checkpoint)
             base_model =   MaskablePPO("MlpPolicy", self.env)
             base_model.load(self.model_dir + "/logs/"+checkpoint)
             stats_dict[checkpoint] = {}
@@ -57,6 +61,8 @@ class Validation():
             stats_dict[checkpoint]["action_log_history"] = []
             
             for i in range(n_eval_episodes):
+                    if debug and i % 10 == 0: 
+                        print("Val episode: ", i)
                     model_reward, delay_history, job_scheduled_history, actions_log = self.evaluate_policy(seed=i, model=base_model)
                     stats_dict[checkpoint]['rewards'].append(model_reward)
                     stats_dict[checkpoint]['delay_history'].append(delay_history)
