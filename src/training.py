@@ -16,7 +16,7 @@ from src.hpc_env import HPCenv
 from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback, CallbackList
 from src.validation import Validation
 import time
-from utils import convert_numpy_types
+from src.utils import convert_numpy_types
 
 class RewardLoggingCallback(BaseCallback):
     """Logs separate reward components to TensorBoard from env infos.
