@@ -196,7 +196,7 @@ class HPCenv(Env):
 
         # TODO: potential truncated logic or episode termination conditions
         
-        reward = self.get_reward(scheduled_job=scheduled_job, carbon_intensity=self.carbon_intensity, current_timestamp=self.current_timestamp)
+        reward = self.get_reward(scheduled_job=scheduled_job, current_timestamp=self.current_timestamp)
         obs = self.build_observation()
         info = {}
 
