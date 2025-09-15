@@ -29,6 +29,12 @@ class HPCenv(Env):
         self.generate_rendering = generate_rendering
         self.mode = mode
 
+        ## ------ Reward config --------
+        self.reward_type = config_dict["reward_type"]
+        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward", "CO2_direct_c", "delay_vs_now_reward_n","carbon_ratio_plus"]
+        self.eta = config_dict["eta"]
+        self.bounded_slowdown_threshold = config_dict["bounded_slowdown_threshhikd"]
+        self.alpha = config_dict["alpha"]
         # Flat action space
         num_job_actions = self.config_dict['max_queue_size']
         do_nothing_actions = self.config_dict['delay_time_list_length'] + self.config_dict['max_wait_n_jobs']
@@ -659,3 +665,109 @@ class HPCenv(Env):
 
         plt.savefig(save_path, dpi=150)
         plt.close(fig)
+    
+    def get_reward(self,scheduled_job : Job | None, carbon_intensity : CarbonIntensity, current_timestamp):
+        reward = 0
+
+        if self.reward_type == "CO2_direct":
+            if scheduled_job: 
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+                power_usage = scheduled_job.power_usage
+                
+                carbon_emission = carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+
+
+                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
+
+                reward = - (carbon_emission + bounded_slowdown*self.eta)
+
+            else: 
+                reward = 0
+        if self.reward_type == "CO2_direct_c":
+            if scheduled_job: 
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+                power_usage = scheduled_job.power_usage
+                
+                carbon_emission = carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+
+                compute_req = scheduled_job.request_number_of_nodes * scheduled_job.request_time
+
+                normalized_carbon_emission = (carbon_emission/compute_req) * 100000
+                
+                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
+                reward = - (normalized_carbon_emission + bounded_slowdown*self.eta)
+
+            else: 
+                reward = 0
+
+        if self.reward_type == "delay_vs_now_reward":
+            if scheduled_job: 
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+                power_usage = scheduled_job.power_usage
+                
+                carbon_emission_actual = carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+
+                carbon_emission_initial = carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
+                
+                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual) +0.1)/(carbon_emission_initial + 0.1)
+
+                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
+
+                print("carbon ratio reward")
+                print("wait reward: bounded_slowdown: ", bounded_slowdown*self.eta)
+
+                reward = carbon_ratio_reward - bounded_slowdown*self.eta
+            else: 
+                reward = 0 
+
+        if self.reward_type == "delay_vs_now_reward_n":
+            if scheduled_job: 
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+                power_usage = scheduled_job.power_usage
+  
+                compute_req = scheduled_job.request_number_of_nodes * scheduled_job.request_time
+
+                              
+                carbon_emission_actual_n = (carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time) / compute_req) * 100000 
+
+
+                carbon_emission_initial_n = (carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
+                /compute_req) * 100000
+
+                carbon_ratio_reward = ((carbon_emission_initial_n-carbon_emission_actual_n) +0.1)/(carbon_emission_initial_n + 0.1)
+
+                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
+
+                reward = carbon_ratio_reward - bounded_slowdown*self.eta
+            else: 
+                reward = 0 
+        if self.reward_type == "carbon_ratio_plus":
+            if scheduled_job: 
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+                power_usage = scheduled_job.power_usage
+  
+                compute_req = scheduled_job.request_number_of_nodes * scheduled_job.request_time
+
+                              
+                carbon_emission_actual_n = (carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time) / compute_req) * 100000 
+
+
+                carbon_emission_initial_n = (carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
+                /compute_req) * 100000
+
+                carbon_ratio_reward = ((carbon_emission_initial_n-carbon_emission_actual_n) +0.1)/(carbon_emission_initial_n + 0.1)
+
+                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
+
+                reward = self.alpha*carbon_ratio_reward - bounded_slowdown*self.eta
+            else: 
+                reward = 0 
+            
+
+
+        return reward 

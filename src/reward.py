@@ -8,7 +8,7 @@ class Reward():
     def __init__(self, config_dict) -> None:
         
         self.reward_type = config_dict['reward_type']
-        self.bounded_slowdown_threshhold = config_dict['bounded_slowdown_threshhold']
+        self.bounded_slowdown_threshold = config_dict['bounded_slowdown_threshold']
         self.eta = config_dict['eta']
 
     def get_invalid_action_reward(self):
@@ -28,7 +28,7 @@ class Reward():
                 carbon_emission = carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
 
 
-                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshhold, scheduled_job.run_time])
+                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
 
                 reward = - (carbon_emission + bounded_slowdown*self.eta)
 
@@ -46,7 +46,7 @@ class Reward():
 
                 normalized_carbon_emission = (carbon_emission/compute_req) * 100000
                 
-                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshhold, scheduled_job.run_time])
+                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
                 reward = - (normalized_carbon_emission + bounded_slowdown*self.eta)
 
             else: 
@@ -64,7 +64,7 @@ class Reward():
                 
                 carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual) +0.1)/(carbon_emission_initial + 0.1)
 
-                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshhold, scheduled_job.run_time])
+                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
 
                 print("carbon ratio reward")
                 print("wait reward: bounded_slowdown: ", bounded_slowdown*self.eta)
@@ -90,7 +90,7 @@ class Reward():
 
                 carbon_ratio_reward = ((carbon_emission_initial_n-carbon_emission_actual_n) +0.1)/(carbon_emission_initial_n + 0.1)
 
-                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshhold, scheduled_job.run_time])
+                bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
 
                 reward = carbon_ratio_reward - bounded_slowdown*self.eta
             else: 

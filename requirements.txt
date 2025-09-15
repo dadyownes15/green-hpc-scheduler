@@ -2,3 +2,6 @@ pytest==8.4.1
 numpy==2.3.2
 gymnasium==1.2.0
 stable-baselines3==2.7.0
+sb3_contrib==2.7.0
+moviepy==2.2.1
+tensorboard==2.20.0
