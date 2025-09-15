@@ -33,7 +33,7 @@ class HPCenv(Env):
         self.reward_type = config_dict["reward_type"]
         assert self.reward_type in ["CO2_direct", "delay_vs_now_reward", "CO2_direct_c", "delay_vs_now_reward_n","carbon_ratio_plus"]
         self.eta = config_dict["eta"]
-        self.bounded_slowdown_threshold = config_dict["bounded_slowdown_threshhikd"]
+        self.bounded_slowdown_threshold = config_dict["bounded_slowdown_threshold"]
         self.alpha = config_dict["alpha"]
         # Flat action space
         num_job_actions = self.config_dict['max_queue_size']
