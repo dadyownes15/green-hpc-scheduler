@@ -31,7 +31,7 @@ class HPCenv(Env):
 
         ## ------ Reward config --------
         self.reward_type = config_dict["reward_type"]
-        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward", "CO2_direct_c", "delay_vs_now_reward_n","carbon_ratio_plus"]
+        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward", "CO2_direct_c", "delay_vs_now_reward_n",""]
         self.eta = config_dict["eta"]
         self.bounded_slowdown_threshold = config_dict["bounded_slowdown_threshhikd"]
         self.alpha = config_dict["alpha"]
@@ -196,7 +196,7 @@ class HPCenv(Env):
 
         # TODO: potential truncated logic or episode termination conditions
         
-        reward = self.reward.get_reward(scheduled_job=scheduled_job, carbon_intensity=self.carbon_intensity, current_timestamp=self.current_timestamp)
+        reward = self.get_reward(scheduled_job=scheduled_job, carbon_intensity=self.carbon_intensity, current_timestamp=self.current_timestamp)
         obs = self.build_observation()
         info = {}
 
@@ -533,140 +533,7 @@ class HPCenv(Env):
             
         return mask
 
-
-    def render(self, step_count, window_hours=12, show_median_forecast=True):
-        if not self.generate_rendering:
-            # print("Rendering is disabled for this environment instance.")
-            return
-
-        save_path = os.path.join(self.dir_path, f"{str(step_count).zfill(4)}.png")
-        
-        # Use a layout that reserves space on the left for the job queue
-        fig = plt.figure(figsize=(20, 8), constrained_layout=True)
-        gs = fig.add_gridspec(1, 5)
-        ax_queue = fig.add_subplot(gs[0, 0])
-        ax1 = fig.add_subplot(gs[0, 1:])
-        ax2 = ax1.twinx()
-
-        # --- 1. Draw the Job Queue Panel ---
-        ax_queue.set_title("Job Queue")
-        ax_queue.set_xlim(0, 1)
-        ax_queue.set_ylim(0, self.config_dict['max_queue_size']*2)
-        ax_queue.set_xticks([])
-        ax_queue.set_yticks([])
-        
-        for i, job in enumerate(self.job_queue):
-            y_pos = 2*(self.config_dict['max_queue_size'] - i - 1)
-            wait_time = self.current_timestamp - job.submit_time
-            
-            # Color from green to red based on wait time
-            norm_wait = min(wait_time / self.config_dict['max_wait_time'], 1.0)
-            color = (norm_wait, 1 - norm_wait, 0) # (R, G, B)
-            
-            # Draw job box
-            rect = patches.Rectangle((0, y_pos), 1, 1, linewidth=1, edgecolor='black', facecolor=color, alpha=0.6)
-            ax_queue.add_patch(rect)
-            
-            # Add text
-            job_text = (
-                f"Wait: {int(wait_time // 60)}m\n"
-                f"Procs: {job.request_number_of_processors}\n"
-                f"Runtime: {int(job.run_time / 60)}m"
-            )
-            ax_queue.text(0.5, y_pos + 0.5, job_text, ha='center', va='center', fontsize=9, color='black')
-
-        # --- 2. Draw the Main Timeline Plot ---
-        now = self.current_timestamp
-        time_window_seconds = window_hours * 3600
-        start_time = now - time_window_seconds
-        end_time = now + time_window_seconds
-
-        # Plot Corrected System Utilization History
-        if self.total_processors > 0:
-            events = []
-            # Use the permanent history for a correct representation of the past
-            for job in self.scheduled_job_history:
-                events.append((job.scheduled_time, job.request_number_of_processors))
-                events.append((job.scheduled_time + job.run_time, -job.request_number_of_processors))
-            events.sort()
-
-            if events:
-                # Filter events to be within our drawing window for efficiency
-                visible_events = [e for e in events if e[0] > start_time or (e[0] < start_time and e[1] > 0)]
-                
-                util_times = [start_time]
-                initial_procs = sum(j.request_number_of_processors for j in self.scheduled_job_history if j.scheduled_time < start_time and (j.scheduled_time + j.run_time) > start_time)
-                current_procs = initial_procs
-                util_values = [(current_procs / self.total_processors) * 100]
-
-                for t, proc_change in visible_events:
-                    if t > start_time and t < now:
-                        util_times.append(t)
-                        util_values.append((current_procs / self.total_processors) * 100)
-                        current_procs += proc_change
-                        util_times.append(t)
-                        util_values.append((current_procs / self.total_processors) * 100)
-                
-                util_times.append(now)
-                util_values.append((current_procs / self.total_processors) * 100)
-                ax1.fill_between(util_times, util_values, step='post', color='lightgreen', alpha=0.7, label='System Utilization %')
-
-        # Plot Carbon Intensity
-        carbon_times, carbon_values = [], []
-        # Use the correct seconds_per_slot from the carbon intensity object
-        seconds_per_slot = self.carbon_intensity.seconds_per_slot
-        
-        # Calculate the number of slots to plot based on the total time window
-        num_slots_to_plot = (window_hours * 3600) // seconds_per_slot
-        
-        # Determine the starting slot index
-        start_slot_index = int(start_time // seconds_per_slot)
-        
-        for s_offset in range(num_slots_to_plot):
-            abs_slot = start_slot_index + s_offset
-            timestamp = abs_slot * seconds_per_slot
-            
-            # Use the modulo operator with total_slots to handle the cyclical data
-            slot_index_in_list = (self.episode_start_hour_offset * (3600 // seconds_per_slot) + abs_slot) % self.carbon_intensity.total_slots
-            
-            ci_value = self.carbon_intensity.carbonIntensityList[slot_index_in_list]
-            carbon_times.append(timestamp)
-            carbon_values.append(ci_value)
-        ax2.plot(carbon_times, carbon_values, color='seagreen', label='Carbon Intensity')
-
-        # Visualize Median Forecast
-        if show_median_forecast:
-            future_ci_values = [val for ts, val in zip(carbon_times, carbon_values) if ts >= now]
-            if future_ci_values:
-                median_ci = np.median(future_ci_values)
-                # xmin=0.5 means start plotting the line halfway across the x-axis (at "now")
-                ax2.axhline(y=median_ci, xmin=0.5, xmax=1.0, color='darkorange', linestyle='--', label=f'Forecast Median ({median_ci:.1f})')
-
-        # Visualize Skips/Delays
-        for delay_start, delay_end in self.delay_history:
-            if delay_end > start_time and delay_start < now:
-                rect = patches.Rectangle((delay_start, 0), delay_end - delay_start, 100, linewidth=1.5, edgecolor='red', facecolor='red', alpha=0.2, zorder=10)
-                ax1.add_patch(rect)
-        
-        # --- Formatting the Plot ---
-        ax1.axvline(x=now, color='r', linestyle='--', linewidth=2, label='Now')
-        ax1.set_xlim(start_time, end_time)
-        ax1.set_xticks([start_time, now, end_time])
-        ax1.set_xticklabels([f'{window_hours} hours ago', 'Now', f'{window_hours} hours in the future'])
-        ax1.set_xlabel('Timeline')
-        ax1.set_ylim(0, 101)
-        ax1.set_ylabel('System Utilization (%)', color='green')
-        ax2.set_ylabel('Carbon Intensity (gCO2/kWh)', color='seagreen')
-        fig.suptitle('HPC Scheduler State', fontsize=16)
-
-        lines, labels = ax1.get_legend_handles_labels()
-        lines2, labels2 = ax2.get_legend_handles_labels()
-        ax2.legend(lines + lines2, labels + labels2, loc='upper right')
-
-        plt.savefig(save_path, dpi=150)
-        plt.close(fig)
-    
-    def get_reward(self,scheduled_job : Job | None, carbon_intensity : CarbonIntensity, current_timestamp):
+    def get_reward(self,scheduled_job : Job | None, current_timestamp):
         reward = 0
 
         if self.reward_type == "CO2_direct":
@@ -675,7 +542,7 @@ class HPCenv(Env):
                 end_time = start_time + scheduled_job.run_time
                 power_usage = scheduled_job.power_usage
                 
-                carbon_emission = carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
 
 
                 bounded_slowdown = (scheduled_job.wait_time + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
@@ -690,7 +557,7 @@ class HPCenv(Env):
                 end_time = start_time + scheduled_job.run_time
                 power_usage = scheduled_job.power_usage
                 
-                carbon_emission = carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
 
                 compute_req = scheduled_job.request_number_of_nodes * scheduled_job.request_time
 
@@ -708,9 +575,9 @@ class HPCenv(Env):
                 end_time = start_time + scheduled_job.run_time
                 power_usage = scheduled_job.power_usage
                 
-                carbon_emission_actual = carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+                carbon_emission_actual = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
 
-                carbon_emission_initial = carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
+                carbon_emission_initial = self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
                 
                 carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual) +0.1)/(carbon_emission_initial + 0.1)
 
@@ -732,10 +599,10 @@ class HPCenv(Env):
                 compute_req = scheduled_job.request_number_of_nodes * scheduled_job.request_time
 
                               
-                carbon_emission_actual_n = (carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time) / compute_req) * 100000 
+                carbon_emission_actual_n = (self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time) / compute_req) * 100000 
 
 
-                carbon_emission_initial_n = (carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
+                carbon_emission_initial_n = (self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
                 /compute_req) * 100000
 
                 carbon_ratio_reward = ((carbon_emission_initial_n-carbon_emission_actual_n) +0.1)/(carbon_emission_initial_n + 0.1)
@@ -754,10 +621,10 @@ class HPCenv(Env):
                 compute_req = scheduled_job.request_number_of_nodes * scheduled_job.request_time
 
                               
-                carbon_emission_actual_n = (carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time) / compute_req) * 100000 
+                carbon_emission_actual_n = (self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time) / compute_req) * 100000 
 
 
-                carbon_emission_initial_n = (carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
+                carbon_emission_initial_n = (self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
                 /compute_req) * 100000
 
                 carbon_ratio_reward = ((carbon_emission_initial_n-carbon_emission_actual_n) +0.1)/(carbon_emission_initial_n + 0.1)
