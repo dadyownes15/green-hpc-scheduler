@@ -16,7 +16,44 @@ from src.hpc_env import HPCenv
 from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback, CallbackList
 from src.validation import Validation
 import time
+from utils import convert_numpy_types
 
+class RewardLoggingCallback(BaseCallback):
+    """Logs separate reward components to TensorBoard from env infos.
+
+    It expects info keys populated by HPCenv.step:
+      - 'reward_carbon'
+      - 'reward_wait_schedule'
+      - 'reward_delay_wait'
+      - 'reward_total'
+    """
+
+    def __init__(self, verbose: int = 0):
+        super().__init__(verbose)
+
+    def _on_step(self) -> bool:
+        infos = self.locals.get("infos") or []
+        # Support vectorized envs (list of dicts)
+        if isinstance(infos, dict):
+            infos = [infos]
+        # Aggregate simple means across envs for logging
+        if infos:
+            keys = [
+                ("reward/carbon", "reward_carbon"),
+                ("reward/wait_schedule", "reward_wait_schedule"),
+                ("reward/delay_wait", "reward_delay_wait"),
+                ("reward/total", "reward_total"),
+                ("queue/len_after", "queue_len_after"),
+            ]
+            for log_key, info_key in keys:
+                vals = [i.get(info_key) for i in infos if info_key in i]
+                if vals:
+                    try:
+                        self.logger.record(log_key, float(np.mean(vals)))
+                    except Exception:
+                        # Be resilient to any type issues
+                        pass
+        return True
 
 class ValidationCallback(BaseCallback):
     """
@@ -61,6 +98,7 @@ class ValidationCallback(BaseCallback):
                     debug=False,
                 )
 
+                results = convert_numpy_types(results)
                 # Persist/append results to a JSON file for later inspection
                 results_path = os.path.join(self.run_dir, "validation_metrics.json")
                 if os.path.exists(results_path):
@@ -130,6 +168,7 @@ class Train():
         self.env.reset()
         checkpoint_callback = None
         validation_callback = None
+        reward_logging_callback = RewardLoggingCallback(verbose=0)
 
         if save_checkpoints:
             save_freq = 500000
@@ -148,9 +187,9 @@ class Train():
                 verbose=1,
             )
 
-        callback = None
+        callback = reward_logging_callback
         if save_checkpoints:
-            callback = CallbackList([checkpoint_callback, validation_callback])
+            callback = CallbackList([checkpoint_callback, validation_callback, reward_logging_callback])
 
         self.model.learn(
             total_timesteps=self.config_dict['total_timesteps'],

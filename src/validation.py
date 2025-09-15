@@ -120,14 +120,7 @@ class Validation():
         total_reward = 0
         step_count = 0  # Add a counter
         while not terminated:
-            # Retrieve current action mask
             action_masks = get_action_masks(self.env)
-            # --- DEBUGGING STEP ---
-            # Print the mask and the number of valid actions
-            num_valid_actions = sum(action_masks)
-            if num_valid_actions <= 1 and step_count < 10: # Print for the first 10 steps
-                print(f"Step {step_count}: Valid Actions = {num_valid_actions}, Mask = {action_masks}")
-            # --------------------
             action, _states = model.predict(obs, action_masks=action_masks, deterministic = True)
             dist = model.policy.get_distribution(obs=model.policy.features_extractor(model.policy.obs_to_tensor(obs)[0]),action_masks=action_masks)
             obs, reward, terminated, truncated, info = self.env.step(action)
