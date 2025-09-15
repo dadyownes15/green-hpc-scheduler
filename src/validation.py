@@ -344,6 +344,7 @@ class Validation():
 
         return processed_stats
 
+
     def _compute_timeseries(self, job_scheduled_history, mode='validation', step_seconds=None):
         """
         Computes time series for: carbon intensity, used processors, avg queue wait, new arrivals.
