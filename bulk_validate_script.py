@@ -17,7 +17,8 @@ args = parser.parse_args()
 
 for model in args.models:
     model_dir =  "results/" + model
-    val = Validation(model_dir=model_dir)
+    val = Validation()
+    val.load_dir(model_dir=model_dir)
     stats = val.validate_policy(
         n_eval_episodes=args.n_vals,
         checkpoints=args.checkpoints,

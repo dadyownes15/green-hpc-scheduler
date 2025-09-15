@@ -13,7 +13,74 @@ import matplotlib.pyplot as plt
 from sb3_contrib.common.maskable.utils import get_action_masks
 from src.utils import mask_fn, create_experiment_name
 from src.hpc_env import HPCenv
-from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback, CallbackList
+from src.validation import Validation
+import time
+
+
+class ValidationCallback(BaseCallback):
+    """
+    Runs validation on the latest checkpoint at a fixed frequency using
+    Validation.validate_policy in "validation" mode.
+
+    It expects checkpoints to be saved with Stable-Baselines3's CheckpointCallback
+    naming convention: {name_prefix}_{num_timesteps}_steps under `<run_dir>/logs/`.
+    """
+
+    def __init__(self, run_dir: str, name_prefix: str, val_freq: int = 500000, n_eval_episodes: int = 3, verbose: int = 0):
+        super().__init__(verbose)
+        self.run_dir = run_dir.rstrip("/")
+        self.name_prefix = name_prefix
+        self.val_freq = int(val_freq)
+        self.n_eval_episodes = int(n_eval_episodes)
+
+    def _on_step(self) -> bool:
+        # Trigger validation right after a checkpoint save frequency
+        if self.num_timesteps > 0 and (self.num_timesteps % self.val_freq == 0):
+            ckpt_name = f"{self.name_prefix}_{self.num_timesteps}_steps"
+            ckpt_dir = os.path.join(self.run_dir, "logs")
+            ckpt_path = os.path.join(ckpt_dir, ckpt_name)
+
+            # Small wait to ensure checkpoint file is fully written to disk
+            # (Callback order should already make this safe when used after CheckpointCallback.)
+            for _ in range(3):
+                if os.path.exists(ckpt_path) or os.path.exists(ckpt_path + ".zip"):
+                    break
+                time.sleep(0.1)
+
+            if self.verbose:
+                print(f"[ValidationCallback] Running validation for checkpoint: {ckpt_name}")
+
+            try:
+                validator = Validation()
+                validator.load_dir(self.run_dir)
+                results = validator.validate_policy(
+                    n_eval_episodes=self.n_eval_episodes,
+                    checkpoints=[ckpt_name],
+                    mode="validation",
+                    debug=False,
+                )
+
+                # Persist/append results to a JSON file for later inspection
+                results_path = os.path.join(self.run_dir, "validation_metrics.json")
+                if os.path.exists(results_path):
+                    try:
+                        with open(results_path, "r") as f:
+                            existing = json.load(f)
+                    except Exception:
+                        existing = {}
+                else:
+                    existing = {}
+                existing.update(results or {})
+                with open(results_path, "w") as f:
+                    json.dump(existing, f, indent=2)
+
+                if self.verbose:
+                    print(f"[ValidationCallback] Validation metrics saved to {results_path}")
+            except Exception as e:
+                print(f"[ValidationCallback] Validation failed for {ckpt_name}: {e}")
+
+        return True
 
 
 class Train():
@@ -61,15 +128,33 @@ class Train():
     
     def run(self, save_checkpoints = False):
         self.env.reset()
-        checkpoint_callback = None   
+        checkpoint_callback = None
+        validation_callback = None
 
         if save_checkpoints:
+            save_freq = 500000
+            name_prefix = "seed_" + str(self.config_dict['seed'])
             checkpoint_callback = CheckpointCallback(
-            save_freq=500000,
-            save_path=self.run_dir + "/logs/",
-            name_prefix="seed_"+str(self.config_dict['seed']),
+                save_freq=save_freq,
+                save_path=self.run_dir + "/logs/",
+                name_prefix=name_prefix,
+            )
+            # Run validation on every checkpoint
+            validation_callback = ValidationCallback(
+                run_dir=self.run_dir,
+                name_prefix=name_prefix,
+                val_freq=save_freq,
+                n_eval_episodes=int(self.config_dict.get('n_eval_episodes', 3)),
+                verbose=1,
             )
 
-        self.model.learn(total_timesteps=self.config_dict['total_timesteps'], 
-                         tb_log_name = "seed_" + str(self.config_dict['seed']), callback = checkpoint_callback)
+        callback = None
+        if save_checkpoints:
+            callback = CallbackList([checkpoint_callback, validation_callback])
+
+        self.model.learn(
+            total_timesteps=self.config_dict['total_timesteps'],
+            tb_log_name="seed_" + str(self.config_dict['seed']),
+            callback=callback,
+        )
         self.model.save(self.run_dir)

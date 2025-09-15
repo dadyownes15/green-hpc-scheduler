@@ -87,5 +87,78 @@ class MedianBaseline(Baseline):
             if debug:
                 print("Step: ", step_count, " Reward: ", rwd, " Action: ", action)
             self.env.render(step_count=step_count)
+
+        delay_history = self.env.unwrapped.delay_history
+        job_scheduled_history = self.env.unwrapped.scheduled_job_history
+        action_log = self.env.unwrapped.action_log
+ 
+        return reward, delay_history, job_scheduled_history, action_log
+
+class FCFSBaseline(Baseline):
+    def __init__(self, config_dict, env):
+        """
+        Initializes the FCFSBaseline, which schedules jobs on a first-come, first-served basis.
+        """
+        super().__init__(config_dict, env)
+        self.name = "FCFS Baseline"
+
+    def run(self, seed=42, debug=False):
+        """
+        Runs the FCFS scheduling algorithm.
+
+        The logic is as follows:
+        1. Check if any jobs in the queue can be scheduled based on the valid action mask.
+        2. If yes, schedule the one that arrived first (i.e., has the lowest index in the queue).
+        3. If no schedulable jobs are available, the agent waits. It prioritizes skipping
+           time until the next running job completes. If that is not possible, it takes a default
+           small delay action.
+        """
+        self.env.reset(seed=seed, options={})
+        terminated = False
+        reward = 0
+        step_count = 0
+
+        assert len(self.env.job_queue) != 0, "Job queue is empty at the start, this may cause an error."
+        self.env.render(step_count=step_count)
+
+        while not terminated:
+            # Get the mask of all valid actions from the environment
+            mask = self.env.valid_action_mask()
             
-        return reward
+            # The first part of the action mask corresponds to scheduling jobs from the queue
+            job_mask = mask[:self.config_dict['max_queue_size']]
+            
+            # Check if there is any valid job to schedule
+            if job_mask.any():
+                # FCFS policy: find the index of the first 'True' value in the job mask,
+                # which corresponds to the earliest arrived, schedulable job.
+                action = np.where(job_mask)[0][0]
+            else:
+                # If no job can be scheduled, the agent must wait.
+                # The index for the "skip to next event" action.
+                skip_action_idx = self.config_dict['max_queue_size'] + self.config_dict['delay_time_list_length']
+                
+                # Prioritize skipping to the next job completion event if it's a valid move.
+                if mask[skip_action_idx]:
+                    action = skip_action_idx
+                else:
+                    # Otherwise, take the default delay action (e.g., wait 300 seconds).
+                    # This is typically the first action after the job actions.
+                    action = self.config_dict['max_queue_size']
+
+            # Execute the chosen action in the environment
+            obs, rwd, terminated, truncated, info = self.env.step(action)
+            reward += rwd
+            
+            step_count += 1
+            if debug:
+                print(f"Step: {step_count}, Action: {action}, Reward: {rwd:.2f}")
+            
+            self.env.render(step_count=step_count)
+
+        # Retrieve logs and histories from the environment after the simulation is complete
+        delay_history = self.env.unwrapped.delay_history
+        job_scheduled_history = self.env.unwrapped.scheduled_job_history
+        action_log = self.env.unwrapped.action_log
+
+        return reward, delay_history, job_scheduled_history, action_log

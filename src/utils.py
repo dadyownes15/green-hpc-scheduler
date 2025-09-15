@@ -9,24 +9,23 @@ import os
 
 class VideoGenerator():
     def __init__(self, path):
-        self.path = path
+        self.path = path  # directory containing frames
 
-
-    def generate_video(self):
+    def generate_video(self, fps: int = 2, output_name: str = "rendering.mp4"):
         # Get a list of all PNG files and sort them
-        path_name = self.path + "/*.png"
-        image_files = sorted(glob.glob(path_name))
+        image_pattern = os.path.join(self.path, "*.png")
+        image_files = sorted(glob.glob(image_pattern))
 
         assert len(image_files) > 0, "Could not find imagefiles"
-        # Set the frames per second
-        fps = 2
 
         # Create a clip from the image sequence
         clip = ImageSequenceClip(image_files, fps=fps)
 
         # Write the video file to disk
-        clip.write_videofile(path_name + "rendering.mp4", codec='libx264', fps=fps)
-        print("Video saved as ", path_name + "rendering.my")
+        output_path = os.path.join(self.path, output_name)
+        clip.write_videofile(output_path, codec='libx264', fps=fps)
+        print("Video saved as", output_path)
+        return output_path
 
 def get_config_as_dict(config: configparser.ConfigParser) -> dict:
     """
@@ -185,3 +184,17 @@ def create_experiment_name(config: dict, workload_file: None) -> str:
 
     # Join all parts with underscores to create the final name
     return "_".join(name_parts)
+
+
+def convert_numpy_types(obj):
+    """Recursively converts numpy types to standard Python types."""
+    if isinstance(obj, (np.int64, np.int32, np.int16, np.int8)):
+        return int(obj)
+    elif isinstance(obj, (np.float64, np.float32, np.float16)):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    else:
+        return obj
