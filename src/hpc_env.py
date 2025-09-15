@@ -112,7 +112,16 @@ class HPCenv(Env):
         scheduled_job = None
         terminated = False
         truncated = False
-        # For action trace
+
+        # Auto-advance: if the queue is empty and there are future arrivals,
+        # advance time to the next job submission so the agent doesn't need
+        # to issue a manual delay action.
+        if len(self.job_queue) == 0:
+            next_submit_time = self._update_next_job_submit_time()
+            if next_submit_time != sys.maxsize and next_submit_time > self.current_timestamp:
+                self._process_events_until(next_submit_time)
+
+        # For action trace (after potential auto-advance so dt reflects only the chosen action)
         t_before = self.current_timestamp
         qlen_before = len(self.job_queue)
         rlen_before = len(self.running_jobs)
