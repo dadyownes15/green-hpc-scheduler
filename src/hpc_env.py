@@ -590,6 +590,25 @@ class HPCenv(Env):
 
             else: 
                 reward = 0
+        if self.reward_type == "wait":
+            if scheduled_job: 
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+                power_usage = scheduled_job.power_usage
+                
+                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+
+
+                # Use actual wait (current time - submit time), not trace wait_time
+                actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
+
+                normalized_wait = actual_wait / self.config_dict["max_wait_time"]
+
+                components['wait_schedule'] = -normalized_wait
+                reward = components['wait_schedule']
+
+            else: 
+                reward = 0
         if self.reward_type == "CO2_direct_c":
             if scheduled_job: 
                 start_time = current_timestamp

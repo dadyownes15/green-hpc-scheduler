@@ -18,7 +18,7 @@ from src.baseline import MedianBaseline
 from src.utils import mask_fn, get_config_as_dict
 from src.carbon_intensity import CarbonIntensity
 
-WORKLOAD_PATH = "data/workloads/training_workload.swf"
+WORKLOAD_PATH = "data/workloads/lublin_256.swf"
 
 # Load config with explicit path and typed parsing
 config = configparser.ConfigParser()
