@@ -14,7 +14,7 @@ from sb3_contrib.common.maskable.utils import get_action_masks
 from src.hpc_env import HPCenv
 from src.validation import Validation
 from src.training import Train
-from src.baseline import MedianBaseline
+from src.baseline import PercentileBaseline
 from src.utils import mask_fn, get_config_as_dict
 from src.carbon_intensity import CarbonIntensity
 

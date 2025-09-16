@@ -23,13 +23,14 @@ class Baseline(abc.ABC):
         """
         pass
 
-class MedianBaseline(Baseline):
-    def __init__(self,config_dict, env):
+class PercentileBaseline(Baseline):
+    def __init__(self,config_dict, env, percentile):
         """
         Initializes the MedianBaseline, which schedules jobs based on carbon intensity.
         """
         super().__init__(config_dict,env)
-        self.name = "Median Baseline"
+        self.name = f"{percentile}-percentile Baseline"
+        self.percentile = percentile
         
     def run(self, seed=42, debug = False):
         self.env.reset(seed=seed, options={})
@@ -39,7 +40,6 @@ class MedianBaseline(Baseline):
         step_count = 0
         
         assert len(self.env.job_queue) != 0, "NO jobs are start, will lead to error"
-        self.env.render(step_count=step_count)
         
         while not terminated:
             # Replace all constants with config_dict keys
@@ -55,9 +55,9 @@ class MedianBaseline(Baseline):
             assert len(carbon_forecast) == (self.config_dict['green_forecast_length'] - 1) * self.config_dict['green_feature_pr_timeslot']
             assert (self.config_dict['green_feature_pr_timeslot'] == 1), "NOT IMPLEMENTED FOR NON multiple green feature pr timeslot"
             
-            carbon_forecast_median = np.median(carbon_forecast)
+            carbon_forecast_percentile = np.percentile(carbon_forecast, q=self.percentile)
             
-            if current_carbon_intensity < carbon_forecast_median:
+            if current_carbon_intensity < carbon_forecast_percentile:
                 mask = self.env.valid_action_mask()
                 job_mask = mask[:self.config_dict['max_queue_size']]
                 
@@ -86,13 +86,9 @@ class MedianBaseline(Baseline):
             step_count += 1
             if debug:
                 print("Step: ", step_count, " Reward: ", rwd, " Action: ", action)
-            self.env.render(step_count=step_count)
 
-        delay_history = self.env.unwrapped.delay_history
-        job_scheduled_history = self.env.unwrapped.scheduled_job_history
-        action_log = self.env.unwrapped.action_log
  
-        return reward, delay_history, job_scheduled_history, action_log
+        return reward, self.env.get_action_trace() 
 
 class FCFSBaseline(Baseline):
     def __init__(self, config_dict, env):
@@ -119,8 +115,6 @@ class FCFSBaseline(Baseline):
         step_count = 0
 
         assert len(self.env.job_queue) != 0, "Job queue is empty at the start, this may cause an error."
-        self.env.render(step_count=step_count)
-
         while not terminated:
             # Get the mask of all valid actions from the environment
             mask = self.env.valid_action_mask()
@@ -154,11 +148,4 @@ class FCFSBaseline(Baseline):
             if debug:
                 print(f"Step: {step_count}, Action: {action}, Reward: {rwd:.2f}")
             
-            self.env.render(step_count=step_count)
-
-        # Retrieve logs and histories from the environment after the simulation is complete
-        delay_history = self.env.unwrapped.delay_history
-        job_scheduled_history = self.env.unwrapped.scheduled_job_history
-        action_log = self.env.unwrapped.action_log
-
-        return reward, delay_history, job_scheduled_history, action_log
+        return reward, self.env.get_action_trace() 

@@ -1,6 +1,4 @@
-from src.baseline import Baseline, MedianBaseline, FCFSBaseline
-from sb3_contrib import MaskablePPO
-from stable_baselines3.common.evaluation import evaluate_policy
+from src.baseline import Baseline, PercentileBaseline, FCFSBaseline
 from src.hpc_env import HPCenv
 from src.utils import VideoGenerator, get_config_as_dict, mask_fn
 from sb3_contrib.common.wrappers import ActionMasker
@@ -39,29 +37,29 @@ class Validation():
         if debug:
             print("Validating policy on data from: ", self.mode)
 
-        self.env = ActionMasker(HPCenv(config_dict=self.config_dict, mode=self.mode, debug=debug), action_mask_fn= mask_fn)
+        # Enable tracing in env so we can collect action traces for analysis
+        self.env = ActionMasker(HPCenv(config_dict=self.config_dict, mode=self.mode, debug=debug, trace_enabled=True), action_mask_fn= mask_fn)
 
         stats_dict = {}
- 
+
         for checkpoint in checkpoints:
             if debug:
-                print("Initating checkpoint: ", checkpoint)
-            base_model =   MaskablePPO("MlpPolicy", self.env)
-            base_model.load(self.model_dir + "/logs/"+checkpoint)
-            stats_dict[checkpoint] = {}
-            stats_dict[checkpoint]["rewards"] = []
-            stats_dict[checkpoint]["delay_history"] = []
-            stats_dict[checkpoint]["job_scheduled_history"] = []
-            stats_dict[checkpoint]["action_log_history"] = []
-            
+                print("Initating checkpoint:", checkpoint)
+            model_path = os.path.join(self.model_dir, "logs", checkpoint)
+            model = MaskablePPO.load(model_path, env=self.env)
+            stats_dict[checkpoint] = {
+                "rewards": [],
+                "job_scheduled_history": [],
+                "action_traces": [],
+            }
+
             for i in range(n_eval_episodes):
-                    if debug and i % 10 == 0: 
-                        print("Val episode: ", i)
-                    model_reward, delay_history, job_scheduled_history, actions_log = self.evaluate_policy(seed=i, model=base_model)
-                    stats_dict[checkpoint]['rewards'].append(model_reward)
-                    stats_dict[checkpoint]['delay_history'].append(delay_history)
-                    stats_dict[checkpoint]['job_scheduled_history'].append(job_scheduled_history)
-                    stats_dict[checkpoint]['action_log_history'].append(actions_log)
+                if debug and i % 10 == 0:
+                    print("Val episode:", i)
+                total_reward, job_hist, action_trace = self.evaluate_policy(seed=i, model=model, debug=debug)
+                stats_dict[checkpoint]['rewards'].append(total_reward)
+                stats_dict[checkpoint]['job_scheduled_history'].append(job_hist)
+                stats_dict[checkpoint]['action_traces'].append(action_trace)
 
 
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
@@ -70,7 +68,6 @@ class Validation():
  
     def load_dir(self,model_dir):
         self.model_dir = model_dir 
-        config = configparser.ConfigParser()
         config_path = os.path.join(os.getcwd(), self.model_dir, 'config.json')
 
         try:
@@ -82,105 +79,53 @@ class Validation():
             raise ValueError(f"Configuration file at '{config_path}' is not a valid JSON file. Please check its syntax.")
 
        
-    def run_baselines(self, n_eval_episodes, mode, debug = False):
+    def run_baselines(self, n_eval_episodes, mode, debug = False, generate_renderings = False):
 
         baselines = [
-            MedianBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug)),
-            FCFSBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug)) 
+            PercentileBaseline(config_dict=self.config_dict, percentile=10, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
+            PercentileBaseline(config_dict=self.config_dict, percentile=25, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
+            PercentileBaseline(config_dict=self.config_dict, percentile = 50, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
+            FCFSBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)) 
         ]
         
         stats_dict = {}
         for baseline in baselines:
-            print("running baseline: ", baseline.name)
-            stats_dict[baseline.name] = {}
-            stats_dict[baseline.name]["rewards"] = []
-            stats_dict[baseline.name]["delay_history"] = []
-            stats_dict[baseline.name]["job_scheduled_history"] = []
-            stats_dict[baseline.name]["action_log_history"] = []
-    
+            stats_dict[baseline.name] = {"rewards": [], "action_traces": [], "job_scheduled_history": []}
             for i in range(n_eval_episodes): 
-                reward, delay_history, job_scheduled_history, action_log_history = baseline.run(seed=i, debug=debug)
-                stats_dict[baseline.name]['rewards'].append(reward)
-                stats_dict[baseline.name]['delay_history'].append(delay_history)
-                stats_dict[baseline.name]['job_scheduled_history'].append(job_scheduled_history)
-                stats_dict[baseline.name]['action_log_history'].append(action_log_history)
-
+                reward, action_trace = baseline.run(seed=i, debug=debug)
+                print(action_trace)
+                stats_dict[baseline.name]["rewards"].append(reward)
+                stats_dict[baseline.name]["action_traces"].append(action_trace)
+                stats_dict[baseline.name]["job_scheduled_history"].append(baseline.env.scheduled_job_history)
+            if generate_renderings: 
+                self.render_timeseries_plot(stats_dict[baseline.name]["action_traces"][0], name=baseline.name) 
 
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
         return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict) 
     
 
-    def deep_dive(self, seed, model):
-       pass 
-
     def evaluate_policy(self,seed, model : MaskablePPO, debug = False):
         obs, _ = self.env.reset(seed=seed, options={})
         
         terminated = False
-        total_reward = 0
-        step_count = 0  # Add a counter
+        total_reward = 0.0
         while not terminated:
             action_masks = get_action_masks(self.env)
             action, _states = model.predict(obs, action_masks=action_masks, deterministic = True)
-            dist = model.policy.get_distribution(obs=model.policy.features_extractor(model.policy.obs_to_tensor(obs)[0]),action_masks=action_masks)
             obs, reward, terminated, truncated, info = self.env.step(action)
             total_reward += float(reward)
 
-        delay_history = self.env.unwrapped.delay_history
         job_scheduled_history = self.env.unwrapped.scheduled_job_history
-        action_log = self.env.unwrapped.action_log
-
-        return total_reward, delay_history, job_scheduled_history, action_log
+        action_trace = self.env.unwrapped.get_action_trace() if hasattr(self.env.unwrapped, 'get_action_trace') else []
+        return total_reward, job_scheduled_history, action_trace
 
     def evaluate_policy_with_trace(self, seed, model: MaskablePPO, debug=False):
         """Runs a single episode and also returns the per-step action trace."""
-        obs, _ = self.env.reset(seed=seed, options={})
-        terminated = False
-        total_reward = 0
-        while not terminated:
-            action_masks = get_action_masks(self.env)
-            action, _states = model.predict(obs, action_masks=action_masks, deterministic=True)
-            obs, reward, terminated, truncated, info = self.env.step(action)
-            total_reward += float(reward)
-
-        delay_history = self.env.unwrapped.delay_history
-        job_scheduled_history = self.env.unwrapped.scheduled_job_history
-        action_log = self.env.unwrapped.action_log
-        action_trace = self.env.unwrapped.get_action_trace() if hasattr(self.env.unwrapped, 'get_action_trace') else []
-
-        return total_reward, delay_history, job_scheduled_history, action_log, action_trace
+        total_reward, job_scheduled_history, action_trace = self.evaluate_policy(seed=seed, model=model, debug=debug)
+        action_log = self._action_log_from_trace(action_trace)
+        return total_reward, job_scheduled_history, action_log, action_trace
 
 
-    def render_input_model(self, model_path: str, seed: int, step_interval=1, name="model_rendering"):
-        """
-        Renders an episode of a trained model by generating plots for each step and compiling them into a video.
-        """
-        # 1. Instantiate the environment with rendering enabled
-        self.config_dict['generate_rendering'] = True
-        self.config_dict['name'] = name
-        render_env = ActionMasker(HPCenv(workload_path=self.workload_path, config_dict=self.config_dict), action_mask_fn=mask_fn)
-
-        # 2. Load the trained model
-        model = MaskablePPO.load(model_path, env=render_env)
-
-        # 3. Run the episode and render each step
-        obs, _ = render_env.reset(seed=seed, options={})
-        terminated = False
-        step_count = 0
-
-        while not terminated:
-            if step_count % step_interval == 0:
-                render_env.render(step_count=step_count)
-
-            action_masks = get_action_masks(render_env)
-            action, _states = model.predict(obs, action_masks=action_masks, deterministic=True)
-            obs, reward, terminated, truncated, info = render_env.step(action)
-            step_count += 1
-
-        # 4. Generate the video from the saved images
-        video_gen = VideoGenerator(path=render_env.dir_path)
-        video_gen.generate_video()
-        print(f"Rendering complete. Video saved at {render_env.dir_path}/rendering.mp4")
 
 
     def process_metrics(self, stats_dict, carbon_intensity_calculator, config_dict):
@@ -235,7 +180,8 @@ class Validation():
                 continue
 
             for i in range(num_episodes):
-                job_scheduled_history = data['job_scheduled_history'][i]
+                job_scheduled_history = data.get('job_scheduled_history', [])[i] if 'job_scheduled_history' in data else []
+                action_trace = data.get('action_traces', [])[i] if 'action_traces' in data else []
                 
                 # Carbon and Utilization Calculations
                 total_time_span = 0
@@ -247,20 +193,31 @@ class Validation():
                 episode_weighted_carbon_emissions = 0
                 utilization_events = collections.defaultdict(int)
                 
-                # Action Log for this episode
-                action_log = data['action_log_history'][i]
-                total_schedule_actions += action_log['schedule']
-                total_delay_fixed_actions += action_log['delay_fixed']
-                total_delay_wait_actions += action_log['delay_wait']
-                
-                # Aggregate granular delay counts
-                for idx, count in enumerate(action_log['delay_fixed_indices']):
-                    delay_time = config_dict['delay_time_list'][idx]
-                    fixed_delay_counts[delay_time] += count
-                
-                for idx, count in enumerate(action_log['delay_wait_indices']):
-                    num_jobs = idx + 1
-                    wait_job_counts[num_jobs] += count
+                # Action analysis: prefer traces if present, otherwise expect legacy action_log_history
+                if action_trace:
+                    for entry in action_trace:
+                        if entry.get('action_type') == 'schedule':
+                            total_schedule_actions += 1
+                        elif entry.get('action_type') == 'delay':
+                            kind = entry.get('delay_kind')
+                            val = int(entry.get('delay_value') or 0)
+                            if kind == 'fixed':
+                                total_delay_fixed_actions += 1
+                                fixed_delay_counts[val] += 1
+                            elif kind == 'wait':
+                                total_delay_wait_actions += 1
+                                wait_job_counts[val] += 1
+                elif 'action_log_history' in data:
+                    action_log = data['action_log_history'][i]
+                    total_schedule_actions += action_log['schedule']
+                    total_delay_fixed_actions += action_log['delay_fixed']
+                    total_delay_wait_actions += action_log['delay_wait']
+                    for idx, count in enumerate(action_log['delay_fixed_indices']):
+                        delay_time = config_dict['delay_time_list'][idx]
+                        fixed_delay_counts[delay_time] += count
+                    for idx, count in enumerate(action_log['delay_wait_indices']):
+                        num_jobs = idx + 1
+                        wait_job_counts[num_jobs] += count
 
                 # Metrics for each job
                 episode_wait_times = []
@@ -301,14 +258,19 @@ class Validation():
                     if total_time_span > last_time:
                         total_time_procs += current_procs * (total_time_span - last_time)
 
+                    # NOTE: If cluster size differs, consider using
+                    # config or trace-derived capacity instead of constant.
                     total_procs = 256
                     avg_utilization = (total_time_procs / total_time_span) / total_procs
                     all_utilization_data.append(avg_utilization)
                 
-                # Store per-episode results
-                all_wait_times.extend(episode_wait_times)
-                all_response_times.extend(episode_response_times)
-                all_slowdowns.extend(episode_slowdowns)
+                # Store per-episode results: average across jobs within the episode
+                if len(episode_wait_times) > 0:
+                    all_wait_times.append(float(np.mean(episode_wait_times)))
+                if len(episode_response_times) > 0:
+                    all_response_times.append(float(np.mean(episode_response_times)))
+                if len(episode_slowdowns) > 0:
+                    all_slowdowns.append(float(np.mean(episode_slowdowns)))
                 all_carbon_emissions.append(episode_carbon_emissions)
                 all_weighted_carbon_emissions.append(episode_weighted_carbon_emissions)
 
@@ -337,17 +299,44 @@ class Validation():
 
         return processed_stats
 
+    @staticmethod
+    def _action_log_from_trace(action_trace):
+        """Create an action_log-style dict from a trace list."""
+        fixed_counts = collections.defaultdict(int)
+        wait_counts = collections.defaultdict(int)
+        schedule = delay_fixed = delay_wait = 0
+        for e in action_trace or []:
+            if e.get('action_type') == 'schedule':
+                schedule += 1
+            elif e.get('action_type') == 'delay':
+                kind = e.get('delay_kind')
+                v = int(e.get('delay_value') or 0)
+                if kind == 'fixed':
+                    delay_fixed += 1
+                    fixed_counts[v] += 1
+                elif kind == 'wait':
+                    delay_wait += 1
+                    wait_counts[v] += 1
+        return {
+            'schedule': schedule,
+            'delay_fixed': delay_fixed,
+            'delay_wait': delay_wait,
+            'fixed_delay_counts': dict(fixed_counts),
+            'wait_job_counts': dict(wait_counts),
+        }
 
-    def _compute_timeseries(self, job_scheduled_history, mode='validation', step_seconds=None):
-        """
-        Computes time series for: carbon intensity, used processors, avg queue wait, new arrivals.
-        Returns (times, ci_values, used_procs, avg_waits, new_arrivals, seconds_per_slot).
-        """
-        assert job_scheduled_history is not None and len(job_scheduled_history) > 0
 
-        # Determine episode bounds
-        start_time = min(j.submit_time for j in job_scheduled_history)
-        end_time = max(j.scheduled_time + j.run_time for j in job_scheduled_history)
+    def _compute_timeseries_from_trace(self, action_trace, mode='validation', rolling_window: int = 10):
+        """
+        Builds exact node utilization from schedule events in action_trace.
+        Returns (usage_segments, delay_spans, ci_times, ci_values, wait_times_x, wait_rolling_avg, queue_times, queue_lengths) where:
+          - usage_segments: list of {start, end, used_nodes}
+          - delay_spans: list of (start, end) for shaded skipped periods
+          - ci_times/ci_values: carbon intensity line
+          - wait_times_x/wait_rolling_avg: job-schedule-time indexed rolling average wait (seconds)
+          - queue_times/queue_lengths: per-step queue length at timestamp_after
+        """
+        assert action_trace and len(action_trace) > 0
 
         # Carbon setup
         ci = CarbonIntensity(green_win_length=24, normalize=False)
@@ -355,124 +344,255 @@ class Validation():
             ci.set_mode(mode)
         except Exception:
             ci.set_mode('validation')
-        seconds_per_slot = ci.seconds_per_slot if step_seconds is None else step_seconds
-        assert seconds_per_slot > 0
 
-        # Sampling grid
-        n_slots = max(1, int((end_time - start_time) // seconds_per_slot) + 1)
-        times = [start_time + i * seconds_per_slot for i in range(n_slots)]
+        def ci_at_time(t):
+            idx = int((t + ci.start_offset) // ci.seconds_per_slot) % ci.total_slots
+            return ci.carbonIntensityList[idx]
 
-        # Carbon intensity samples aligned similarly to env encoding
-        episode_start_hour_offset = start_time // 3600
-        ci_values = []
-        for i, t in enumerate(times):
-            slot_idx = int(t // seconds_per_slot)
-            list_idx = (episode_start_hour_offset * (3600 // ci.seconds_per_slot) + slot_idx) % ci.total_slots
-            ci_values.append(ci.carbonIntensityList[list_idx])
+        # Build event list from schedule entries
+        procs_per_node = max(1, int(self.config_dict.get('procs_per_node', 1)))
+        events = []  # (time, delta_nodes)
+        t_min = None
+        t_max = None
+        # For rolling wait-time series
+        schedule_times = []
+        wait_values = []
+        # For queue length over time
+        queue_times = []
+        queue_lengths = []
+        for e in action_trace:
+            t_before = int(e.get('timestamp_before') or 0)
+            t_after = int(e.get('timestamp_after') or t_before)
+            t_min = t_before if t_min is None else min(t_min, t_before)
+            t_max = t_after if t_max is None else max(t_max, t_after)
+            q_after = e.get('queue_len_after')
+            if q_after is not None:
+                queue_times.append(t_after)
+                try:
+                    queue_lengths.append(int(q_after))
+                except Exception:
+                    pass
+            if e.get('action_type') == 'schedule':
+                start = t_before
+                run_time = int(e.get('scheduled_job_run_time') or 0)
+                end = start + run_time
+                nodes = e.get('scheduled_job_nodes')
+                if nodes is None:
+                    procs = int(e.get('scheduled_job_procs') or 0)
+                    # Approximate nodes if nodes not present
+                    nodes = (procs + procs_per_node - 1) // procs_per_node
+                nodes = int(nodes)
+                if nodes > 0 and run_time > 0:
+                    events.append((start, nodes))
+                    events.append((end, -nodes))
+                # Collect wait for rolling average if available
+                w = e.get('scheduled_job_wait_time')
+                if w is not None:
+                    schedule_times.append(start)
+                    wait_values.append(int(w))
 
-        # Used processors via event scan
-        events = []
-        for j in job_scheduled_history:
-            events.append((j.scheduled_time, j.request_number_of_processors))
-            events.append((j.scheduled_time + j.run_time, -j.request_number_of_processors))
         events.sort()
-        used_procs = []
-        current = 0
-        e_idx = 0
-        for t in times:
-            # apply all events at or before t
-            while e_idx < len(events) and events[e_idx][0] <= t:
-                current += events[e_idx][1]
-                e_idx += 1
-            used_procs.append(current)
 
-        # Average queue wait (event-driven) and new arrivals per slot
-        # Build arrival counts per slot
-        arrivals_by_slot = {}
-        for j in job_scheduled_history:
-            a_slot = int((j.submit_time - start_time) // seconds_per_slot)
-            arrivals_by_slot[a_slot] = arrivals_by_slot.get(a_slot, 0) + 1
+        # Build usage segments from events (piecewise constant)
+        usage_segments = []
+        used_nodes = 0
+        if not events:
+            # No schedules; flat zero usage over episode bounds
+            if t_min is None or t_max is None or t_max <= t_min:
+                return [], [], [], []
+            usage_segments.append({'start': t_min, 'end': t_max, 'used_nodes': 0})
+        else:
+            last_time = events[0][0] if t_min is None else t_min
+            # If first event happens after t_min, include initial zero segment
+            if last_time > (t_min or last_time):
+                usage_segments.append({'start': t_min, 'end': last_time, 'used_nodes': 0})
+            idx = 0
+            n = len(events)
+            while idx < n:
+                t = events[idx][0]
+                if t > last_time:
+                    usage_segments.append({'start': last_time, 'end': t, 'used_nodes': used_nodes})
+                    last_time = t
+                # Apply all deltas at time t
+                while idx < n and events[idx][0] == t:
+                    used_nodes += events[idx][1]
+                    idx += 1
+            # Tail segment to t_max if available
+            if t_max is not None and t_max > last_time:
+                usage_segments.append({'start': last_time, 'end': t_max, 'used_nodes': used_nodes})
 
-        # Prepare sorted events for arrivals/departures
-        arrivals_sorted = sorted(job_scheduled_history, key=lambda j: j.submit_time)
-        departures_sorted = sorted(job_scheduled_history, key=lambda j: j.scheduled_time)
-        ai = di = 0
-        waiting_count = 0
-        waiting_submit_sum = 0.0
-        waiting_present = set()
+        # Collect delay spans from trace
+        delay_spans = []
+        for e in action_trace:
+            if e.get('action_type') == 'delay':
+                s = int(e.get('timestamp_before') or 0)
+                e_t = int(e.get('timestamp_after') or s)
+                if e_t > s:
+                    delay_spans.append((s, e_t))
 
-        avg_waits = []
-        new_arrivals = []
-        for t in times:
-            # Remove any jobs that start running at or before t
-            while di < len(departures_sorted) and departures_sorted[di].scheduled_time <= t:
-                job = departures_sorted[di]
-                if job.job_id in waiting_present:
-                    waiting_present.remove(job.job_id)
-                    waiting_count -= 1
-                    waiting_submit_sum -= job.submit_time
-                di += 1
-            # Add any arrivals up to t (that are not already running at t)
-            while ai < len(arrivals_sorted) and arrivals_sorted[ai].submit_time <= t:
-                job = arrivals_sorted[ai]
-                if job.scheduled_time > t and job.job_id not in waiting_present:
-                    waiting_present.add(job.job_id)
-                    waiting_count += 1
-                    waiting_submit_sum += job.submit_time
-                ai += 1
-            # Average waiting time at t
-            avg_waits.append(t - (waiting_submit_sum / waiting_count) if waiting_count > 0 else 0.0)
-            # New arrivals in this slot index
-            slot = int((t - start_time) // seconds_per_slot)
-            new_arrivals.append(arrivals_by_slot.get(slot, 0))
+        # Carbon intensity at boundaries
+        ci_times = []
+        if usage_segments:
+            ci_times = [usage_segments[0]['start']] + [seg['end'] for seg in usage_segments]
+        ci_values = [ci_at_time(t) for t in ci_times]
 
-        return times, ci_values, used_procs, avg_waits, new_arrivals, seconds_per_slot
+        # Rolling average of wait values aligned to schedule times
+        wait_times_x = []
+        wait_rolling_avg = []
+        if schedule_times:
+            # Sort by time to be safe
+            pairs = sorted(zip(schedule_times, wait_values), key=lambda x: x[0])
+            times_sorted, waits_sorted = zip(*pairs)
+            window = max(1, int(rolling_window))
+            csum = 0
+            q = collections.deque()
+            for t, w in zip(times_sorted, waits_sorted):
+                q.append(w)
+                csum += w
+                if len(q) > window:
+                    csum -= q.popleft()
+                wait_times_x.append(t)
+                wait_rolling_avg.append(csum / len(q))
 
-    def render_timeseries_plot(self, job_scheduled_history, name="timeseries", output_dir="renderings", mode='validation', step_seconds=None):
+        return usage_segments, delay_spans, ci_times, ci_values, wait_times_x, wait_rolling_avg, queue_times, queue_lengths
+
+    def render_timeseries_plot(self, action_trace, name="timeseries", output_dir="renderings", mode='validation', rolling_window: int = 10, shade_delays: bool = True, max_delay_spans: int | None = None, debug: bool = False, save_png: bool = True):
         """
-        Renders a static 4-line timeseries plot across the full episode timeframe.
-        Lines: carbon intensity, used processors, avg wait in queue (s), new arrivals per slot.
+        Renders a segment-based timeseries plot using the action_trace.
+        Visualizes carbon intensity, used processors, rolling avg wait, queue length, and shades skipped (delay) periods.
+        Saves a PNG (optional). Returns a Plotly Figure for inline, zoomable display in notebooks.
         """
+        import time
+        t0 = time.time()
         os.makedirs(output_dir, exist_ok=True)
-        save_path = os.path.join(output_dir, f"{name}.png")
+        png_path = os.path.join(output_dir, f"{name}.png")
 
-        times, ci_values, used_procs, avg_waits, new_arrivals, step = self._compute_timeseries(
-            job_scheduled_history, mode=mode, step_seconds=step_seconds
-        )
+        usage_segments, delay_spans, ci_times, ci_values, wait_x, wait_avg, q_times, q_lens = self._compute_timeseries_from_trace(action_trace, mode=mode, rolling_window=rolling_window)
+        if debug:
+            print(f"[render] series: usage={len(usage_segments)}, delays={len(delay_spans)}, ci_points={len(ci_times)}, wait_points={len(wait_x)}, queue_points={len(q_times)}")
 
-        # Build multi-axis plot with true units
+        # Matplotlib static PNG
         fig, ax_ci = plt.subplots(figsize=(18, 6))
         ax_ci.set_title('Episode Timeseries Overview')
         ax_ci.set_xlabel('Time (s)')
-        ci_line, = ax_ci.plot(times, ci_values, color='seagreen', label='Carbon Intensity')
+        ci_line, = ax_ci.plot(ci_times, ci_values, color='seagreen', label='Carbon Intensity')
         ax_ci.set_ylabel('gCO2/kWh', color='seagreen')
 
-        # Used processors on first right axis as histogram
+        # Used nodes on first right axis as duration bars per segment
         ax_proc = ax_ci.twinx()
-        proc_bar = ax_proc.bar(times, used_procs, width=(step or 1), align='edge', alpha=0.25, color='royalblue', label='Used Processors')
-        ax_proc.set_ylabel('Processors', color='royalblue')
+        proc_bars = []
+        for seg in usage_segments:
+            width = max(0, seg['end'] - seg['start'])
+            if width == 0:
+                continue
+            bar = ax_proc.bar(seg['start'], seg['used_nodes'], width=width, align='edge', alpha=0.25, color='royalblue')
+            proc_bars.append(bar)
+        ax_proc.set_ylabel('Nodes', color='royalblue')
 
-        # Additional right axes for avg wait and arrivals
-        ax_wait = ax_ci.twinx()
-        ax_wait.spines["right"].set_position(("axes", 1.08))
-        wait_line, = ax_wait.plot(times, avg_waits, color='darkorange', label='Avg Wait (s)')
-        ax_wait.set_ylabel('Avg Wait (s)', color='darkorange')
+        # Add rolling wait and queue length lines on a third axis (offset on right)
+        ax_wait = None
+        wait_line = None
+        queue_line = None
+        if (wait_x and wait_avg) or (q_times and q_lens):
+            ax_wait = ax_ci.twinx()
+            ax_wait.spines['right'].set_position(('axes', 1.1))
+            if wait_x and wait_avg:
+                wait_line, = ax_wait.plot(wait_x, wait_avg, color='darkorange', linestyle='--', label=f'Rolling Wait (last {rolling_window})')
+            if q_times and q_lens:
+                queue_line, = ax_wait.plot(q_times, q_lens, color='purple', label='Queue Length')
+            ax_wait.set_ylabel('Avg Wait (s) / Queue', color='darkorange')
 
-        ax_arr = ax_ci.twinx()
-        ax_arr.spines["right"].set_position(("axes", 1.16))
-        arr_bar = ax_arr.bar(times, new_arrivals, width=(step or 1), align='edge', alpha=0.4, color='crimson', label='New Arrivals')
-        ax_arr.set_ylabel('Arrivals per slot', color='crimson')
+        # Shade skipped (delay) segments on the carbon axis
+        added_label = False
+        for s, e in delay_spans:
+            if e > s:
+                ax_ci.axvspan(s, e, color='gray', alpha=0.15, label='Skipped' if not added_label else None)
+                added_label = True
 
-        # Compose legend
-        lines = [ci_line, wait_line]
-        labels = [l.get_label() for l in lines]
-        labels += ['Used Processors', 'New Arrivals']
-        lines += [proc_bar, arr_bar]
-        ax_ci.legend(lines, labels, loc='upper right')
+        # Legend
+        labels = ['Carbon Intensity', 'Used Nodes']
+        handles = [ci_line]
+        if proc_bars:
+            handles.append(proc_bars[0])
+        if wait_line is not None:
+            labels.append(f'Rolling Wait (last {rolling_window})')
+            handles.append(wait_line)
+        if queue_line is not None:
+            labels.append('Queue Length')
+            handles.append(queue_line)
+        if added_label:
+            # Add a proxy patch for skipped shading
+            from matplotlib.patches import Patch
+            handles.append(Patch(facecolor='gray', alpha=0.15, label='Skipped'))
+            labels.append('Skipped')
+        ax_ci.legend(handles, labels, loc='upper right')
 
-        fig.savefig(save_path, dpi=150)
+        if save_png:
+            fig.savefig(png_path, dpi=150)
         plt.close(fig)
-        return save_path
+
+        # Build interactive Plotly figure for inline display
+        try:
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+
+            fig_i = make_subplots(specs=[[{"secondary_y": True}]])
+
+            # Carbon intensity on primary y
+            fig_i.add_trace(
+                go.Scatter(x=ci_times, y=ci_values, name='Carbon Intensity', line=dict(color='seagreen')),
+                secondary_y=False,
+            )
+
+            # Rolling wait on secondary y (right)
+            if wait_x and wait_avg:
+                fig_i.add_trace(
+                    go.Scatter(x=wait_x, y=wait_avg, name=f'Rolling Wait (last {rolling_window})', line=dict(color='darkorange', dash='dash')),
+                    secondary_y=True,
+                )
+
+            # Queue length on secondary y (right), step line
+            if q_times and q_lens:
+                fig_i.add_trace(
+                    go.Scatter(x=q_times, y=q_lens, name='Queue Length', line=dict(color='purple'), line_shape='hv'),
+                    secondary_y=True,
+                )
+
+            # Used nodes as wide bars (on secondary y to avoid scale issues)
+            if usage_segments:
+                x_vals = [seg['start'] for seg in usage_segments]
+                y_vals = [seg['used_nodes'] for seg in usage_segments]
+                widths = [max(0, seg['end'] - seg['start']) for seg in usage_segments]
+                fig_i.add_trace(
+                    go.Bar(x=x_vals, y=y_vals, width=widths, name='Used Nodes', marker_color='royalblue', opacity=0.3),
+                    secondary_y=True,
+                )
+
+            # Shade delay spans
+            if shade_delays:
+                spans_iter = delay_spans
+                if isinstance(max_delay_spans, int) and max_delay_spans is not None and max_delay_spans >= 0:
+                    spans_iter = delay_spans[:max_delay_spans]
+                for s, e in spans_iter:
+                    if e > s:
+                        fig_i.add_shape(type="rect", x0=s, x1=e, y0=0, y1=1, xref='x', yref='paper', fillcolor='gray', opacity=0.15, line_width=0)
+
+            fig_i.update_layout(
+                title_text='Episode Timeseries Overview',
+                barmode='overlay',
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+            )
+            fig_i.update_xaxes(title_text='Time (s)')
+            fig_i.update_yaxes(title_text='gCO2/kWh', secondary_y=False)
+            fig_i.update_yaxes(title_text='Avg Wait / Nodes / Queue', secondary_y=True)
+
+            if debug:
+                print(f"[render] Built Plotly figure in {time.time() - t0:.3f}s")
+            return (png_path if save_png else None), fig_i
+        except Exception as e:
+            if debug:
+                print(f"[render] Plotly import failed: {e}")
+            return (png_path if save_png else None)
 
 
 
@@ -484,20 +604,19 @@ class Validation():
         assert self.model_dir is not None
         self.mode = mode.lower()
         assert self.mode in ["validation", "test"]
-        self.env = ActionMasker(HPCenv(config_dict=self.config_dict, mode=self.mode, debug=debug), action_mask_fn= mask_fn)
+        self.env = ActionMasker(HPCenv(config_dict=self.config_dict, mode=self.mode, debug=debug, trace_enabled=True), action_mask_fn= mask_fn)
 
-        model = MaskablePPO("MlpPolicy", self.env)
-        model.load(self.model_dir + "/logs/" + checkpoint)
+        model_path = os.path.join(self.model_dir, "logs", checkpoint)
+        model = MaskablePPO.load(model_path, env=self.env)
 
         episodes = []
         for i in range(n_eval_episodes):
             if debug and i % 10 == 0:
                 print("Trace episode:", i)
-            total_reward, delay_history, job_scheduled_history, action_log, action_trace = self.evaluate_policy_with_trace(seed=i, model=model, debug=debug)
+            total_reward, job_scheduled_history, action_log, action_trace = self.evaluate_policy_with_trace(seed=i, model=model, debug=debug)
             episodes.append({
                 'seed': i,
                 'reward': total_reward,
-                'delay_history': delay_history,
                 'job_scheduled_history': job_scheduled_history,
                 'action_log': action_log,
                 'action_trace': action_trace,
