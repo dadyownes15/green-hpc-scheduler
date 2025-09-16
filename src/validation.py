@@ -79,7 +79,7 @@ class Validation():
             raise ValueError(f"Configuration file at '{config_path}' is not a valid JSON file. Please check its syntax.")
 
        
-    def run_baselines(self, n_eval_episodes, mode, debug = False, generate_renderings = False):
+    def run_baselines(self, n_eval_episodes, mode, debug = False):
 
         baselines = [
             PercentileBaseline(config_dict=self.config_dict, percentile=10, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
@@ -91,17 +91,15 @@ class Validation():
         stats_dict = {}
         for baseline in baselines:
             stats_dict[baseline.name] = {"rewards": [], "action_traces": [], "job_scheduled_history": []}
+            print("Executing baseline: ", baseline.name)
             for i in range(n_eval_episodes): 
+                print("Episode ", i)
                 reward, action_trace = baseline.run(seed=i, debug=debug)
-                print(action_trace)
                 stats_dict[baseline.name]["rewards"].append(reward)
                 stats_dict[baseline.name]["action_traces"].append(action_trace)
                 stats_dict[baseline.name]["job_scheduled_history"].append(baseline.env.scheduled_job_history)
-            if generate_renderings: 
-                self.render_timeseries_plot(stats_dict[baseline.name]["action_traces"][0], name=baseline.name) 
-
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
-        return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict) 
+        return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
     
 
     def evaluate_policy(self,seed, model : MaskablePPO, debug = False):
@@ -326,6 +324,43 @@ class Validation():
         }
 
 
+    def _select_episode_trace(self, action_trace, episode_index: int | None = None):
+        """Normalize action_trace input to a single episode trace list.
+
+        Accepts either a single trace (list of dict-like entries) or a collection
+        of traces as produced by validation stats (list of per-episode traces).
+        """
+        if action_trace is None:
+            return []
+
+        # Allow callers to pass the stats dict directly.
+        if isinstance(action_trace, dict) and 'action_traces' in action_trace:
+            return self._select_episode_trace(action_trace['action_traces'], episode_index=episode_index)
+
+        # Convert numpy arrays or other sequence-like containers to lists.
+        if hasattr(action_trace, 'tolist') and not isinstance(action_trace, list):
+            return self._select_episode_trace(action_trace.tolist(), episode_index=episode_index)
+
+        if isinstance(action_trace, (list, tuple)):
+            action_list = list(action_trace)
+            if not action_list:
+                return []
+            first = action_list[0]
+            # Already a single trace (list of dict-like entries)
+            if hasattr(first, 'get'):
+                return action_list
+            # A list of traces -> select requested episode (default first)
+            if isinstance(first, (list, tuple)):
+                idx = episode_index if episode_index is not None else 0
+                if idx < 0 or idx >= len(action_list):
+                    raise IndexError(f"Episode index {idx} out of range for {len(action_list)} traces")
+                return self._select_episode_trace(action_list[idx], episode_index=None)
+
+        raise TypeError(
+            "action_trace must be a per-episode trace (list of dict-like entries) or a collection of traces."
+        )
+
+
     def _compute_timeseries_from_trace(self, action_trace, mode='validation', rolling_window: int = 10):
         """
         Builds exact node utilization from schedule events in action_trace.
@@ -336,7 +371,13 @@ class Validation():
           - wait_times_x/wait_rolling_avg: job-schedule-time indexed rolling average wait (seconds)
           - queue_times/queue_lengths: per-step queue length at timestamp_after
         """
-        assert action_trace and len(action_trace) > 0
+        if not action_trace:
+            return [], [], [], [], [], [], [], []
+
+        if not hasattr(action_trace[0], 'get'):
+            raise TypeError(
+                "Each action trace entry must provide a dict-like interface. Did you pass the list of traces instead of a single episode trace?"
+            )
 
         # Carbon setup
         ci = CarbonIntensity(green_win_length=24, normalize=False)
@@ -399,7 +440,7 @@ class Validation():
         if not events:
             # No schedules; flat zero usage over episode bounds
             if t_min is None or t_max is None or t_max <= t_min:
-                return [], [], [], []
+                return [], [], [], [], [], [], [], []
             usage_segments.append({'start': t_min, 'end': t_max, 'used_nodes': 0})
         else:
             last_time = events[0][0] if t_min is None else t_min
@@ -456,23 +497,49 @@ class Validation():
 
         return usage_segments, delay_spans, ci_times, ci_values, wait_times_x, wait_rolling_avg, queue_times, queue_lengths
 
-    def render_timeseries_plot(self, action_trace, name="timeseries", output_dir="renderings", mode='validation', rolling_window: int = 10, shade_delays: bool = True, max_delay_spans: int | None = None, debug: bool = False, save_png: bool = True):
+    def render_timeseries_plot(self, action_trace, name="timeseries", output_dir="renderings", mode='validation', rolling_window: int = 10, shade_delays: bool = True, max_delay_spans: int | None = None, debug: bool = False, save_png: bool = True, episode_index: int | None = None):
         """
         Renders a segment-based timeseries plot using the action_trace.
-        Visualizes carbon intensity, used processors, rolling avg wait, queue length, and shades skipped (delay) periods.
-        Saves a PNG (optional). Returns a Plotly Figure for inline, zoomable display in notebooks.
+        Visualizes carbon intensity, used processors, rolling avg wait, queue length, and optional delay shading.
+
+        Interactive display in notebooks uses mpl-interactions pan/zoom. In your
+        notebook, enable the ipympl backend first:
+          %matplotlib widget
+
+        Returns (png_path_or_None, matplotlib_figure). A PNG is saved if requested.
+
+        Args:
+            action_trace: Either a single episode trace (list of dict entries) or a
+                collection of traces such as stats['action_traces'].
+            episode_index: Optional index when passing a collection of traces.
         """
         import time
+        from typing import Optional, Tuple
+        from IPython.display import display
+        try:
+            # panhandler + zoom_factory provide interaction helpers
+            from mpl_interactions import panhandler, zoom_factory
+        except Exception:
+            panhandler = None
+            zoom_factory = None
+            if debug:
+                print("[render] mpl_interactions unavailable; falling back to static Matplotlib figure.")
+
         t0 = time.time()
         os.makedirs(output_dir, exist_ok=True)
         png_path = os.path.join(output_dir, f"{name}.png")
 
-        usage_segments, delay_spans, ci_times, ci_values, wait_x, wait_avg, q_times, q_lens = self._compute_timeseries_from_trace(action_trace, mode=mode, rolling_window=rolling_window)
+        selected_trace = self._select_episode_trace(action_trace, episode_index=episode_index)
+        usage_segments, delay_spans, ci_times, ci_values, wait_x, wait_avg, q_times, q_lens = self._compute_timeseries_from_trace(selected_trace, mode=mode, rolling_window=rolling_window)
         if debug:
             print(f"[render] series: usage={len(usage_segments)}, delays={len(delay_spans)}, ci_points={len(ci_times)}, wait_points={len(wait_x)}, queue_points={len(q_times)}")
+            if q_lens:
+                print(f"[render] queue stats: min={min(q_lens)}, max={max(q_lens)}")
 
-        # Matplotlib static PNG
-        fig, ax_ci = plt.subplots(figsize=(18, 6))
+        # Build interactive Matplotlib figure (shown via ipympl widget backend)
+        with plt.ioff():
+            fig, ax_ci = plt.subplots(figsize=(18, 6))
+
         ax_ci.set_title('Episode Timeseries Overview')
         ax_ci.set_xlabel('Time (s)')
         ci_line, = ax_ci.plot(ci_times, ci_values, color='seagreen', label='Carbon Intensity')
@@ -490,109 +557,119 @@ class Validation():
         ax_proc.set_ylabel('Nodes', color='royalblue')
 
         # Add rolling wait and queue length lines on a third axis (offset on right)
-        ax_wait = None
-        wait_line = None
+        ax_queue = None
         queue_line = None
-        if (wait_x and wait_avg) or (q_times and q_lens):
-            ax_wait = ax_ci.twinx()
-            ax_wait.spines['right'].set_position(('axes', 1.1))
-            if wait_x and wait_avg:
-                wait_line, = ax_wait.plot(wait_x, wait_avg, color='darkorange', linestyle='--', label=f'Rolling Wait (last {rolling_window})')
-            if q_times and q_lens:
-                queue_line, = ax_wait.plot(q_times, q_lens, color='purple', label='Queue Length')
-            ax_wait.set_ylabel('Avg Wait (s) / Queue', color='darkorange')
+        if q_times and q_lens:
+            ax_queue = ax_ci.twinx()
+            ax_queue.spines['right'].set_position(('axes', 1.1))
+            # Step-like appearance for queue (holds until next change)
+            queue_line, = ax_queue.plot(q_times, q_lens, color='purple', drawstyle='steps-post', label='Queue Length')
+            ax_queue.set_ylabel('Queue Length', color='purple')
+            ax_queue.set_ylim(0, max(q_lens) + 1)
 
         # Shade skipped (delay) segments on the carbon axis
         added_label = False
-        for s, e in delay_spans:
-            if e > s:
-                ax_ci.axvspan(s, e, color='gray', alpha=0.15, label='Skipped' if not added_label else None)
-                added_label = True
+        if shade_delays and delay_spans:
+            spans_iter = delay_spans
+            if isinstance(max_delay_spans, int) and max_delay_spans is not None and max_delay_spans >= 0:
+                spans_iter = delay_spans[:max_delay_spans]
+            for s, e in spans_iter:
+                if e > s:
+                    ax_ci.axvspan(s, e, color='gray', alpha=0.15, label='Skipped' if not added_label else None)
+                    added_label = True
 
         # Legend
-        labels = ['Carbon Intensity', 'Used Nodes']
+        labels = ['Carbon Intensity']
         handles = [ci_line]
         if proc_bars:
             handles.append(proc_bars[0])
-        if wait_line is not None:
-            labels.append(f'Rolling Wait (last {rolling_window})')
-            handles.append(wait_line)
+            labels.append('Used Nodes')
         if queue_line is not None:
             labels.append('Queue Length')
             handles.append(queue_line)
         if added_label:
-            # Add a proxy patch for skipped shading
             from matplotlib.patches import Patch
             handles.append(Patch(facecolor='gray', alpha=0.15, label='Skipped'))
             labels.append('Skipped')
         ax_ci.legend(handles, labels, loc='upper right')
 
+        use_plotly = panhandler is None or zoom_factory is None
+
+        # Hook up interactions: scroll-zoom on primary axis; pan on figure
+        if not use_plotly:
+            _disconnect_zoom = zoom_factory(ax_ci)
+            _pan_handler = panhandler(fig)
+
+        # Save PNG if requested
         if save_png:
             fig.savefig(png_path, dpi=150)
-        plt.close(fig)
 
-        # Build interactive Plotly figure for inline display
+        if use_plotly:
+            try:
+                import plotly.graph_objects as go
+                from plotly.subplots import make_subplots
+
+                fig_i = make_subplots(specs=[[{"secondary_y": True}]])
+
+                # Carbon intensity on primary y
+                fig_i.add_trace(
+                    go.Scatter(x=ci_times, y=ci_values, name='Carbon Intensity', line=dict(color='seagreen')),
+                    secondary_y=False,
+                )
+
+                # Queue length on secondary y (right), step line
+                if q_times and q_lens:
+                    fig_i.add_trace(
+                        go.Scatter(x=q_times, y=q_lens, name='Queue Length', line=dict(color='purple'), line_shape='hv'),
+                        secondary_y=True,
+                    )
+
+                # Used nodes as wide bars (on secondary y to avoid scale issues)
+                if usage_segments:
+                    x_vals = [seg['start'] for seg in usage_segments]
+                    y_vals = [seg['used_nodes'] for seg in usage_segments]
+                    widths = [max(0, seg['end'] - seg['start']) for seg in usage_segments]
+                    fig_i.add_trace(
+                        go.Bar(x=x_vals, y=y_vals, width=widths, name='Used Nodes', marker_color='royalblue', opacity=0.3),
+                        secondary_y=True,
+                    )
+
+                # Shade delay spans
+                if shade_delays and delay_spans:
+                    spans_iter = delay_spans
+                    if isinstance(max_delay_spans, int) and max_delay_spans is not None and max_delay_spans >= 0:
+                        spans_iter = delay_spans[:max_delay_spans]
+                    for s, e in spans_iter:
+                        if e > s:
+                            fig_i.add_shape(type="rect", x0=s, x1=e, y0=0, y1=1, xref='x', yref='paper', fillcolor='gray', opacity=0.15, line_width=0)
+
+                fig_i.update_layout(
+                    title_text='Episode Timeseries Overview',
+                    barmode='overlay',
+                    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+                )
+                fig_i.update_xaxes(title_text='Time (s)')
+                fig_i.update_yaxes(title_text='gCO2/kWh', secondary_y=False)
+                fig_i.update_yaxes(title_text='Queue / Nodes', secondary_y=True)
+
+                if debug:
+                    print(f"[render] Built Plotly figure in {time.time() - t0:.3f}s")
+                return (png_path if save_png else None), fig_i
+            except Exception as e:
+                if debug:
+                    print(f"[render] Plotly fallback failed: {e}")
+
+        # Display interactive canvas in notebooks (ipympl path or Plotly fallback failure)
         try:
-            import plotly.graph_objects as go
-            from plotly.subplots import make_subplots
+            display(fig.canvas if not use_plotly else fig)
+        except Exception:
+            # Fall back to plt.show() if display is unavailable
+            plt.show()
 
-            fig_i = make_subplots(specs=[[{"secondary_y": True}]])
+        if debug:
+            print(f"[render] Built interactive Matplotlib figure in {time.time() - t0:.3f}s")
 
-            # Carbon intensity on primary y
-            fig_i.add_trace(
-                go.Scatter(x=ci_times, y=ci_values, name='Carbon Intensity', line=dict(color='seagreen')),
-                secondary_y=False,
-            )
-
-            # Rolling wait on secondary y (right)
-            if wait_x and wait_avg:
-                fig_i.add_trace(
-                    go.Scatter(x=wait_x, y=wait_avg, name=f'Rolling Wait (last {rolling_window})', line=dict(color='darkorange', dash='dash')),
-                    secondary_y=True,
-                )
-
-            # Queue length on secondary y (right), step line
-            if q_times and q_lens:
-                fig_i.add_trace(
-                    go.Scatter(x=q_times, y=q_lens, name='Queue Length', line=dict(color='purple'), line_shape='hv'),
-                    secondary_y=True,
-                )
-
-            # Used nodes as wide bars (on secondary y to avoid scale issues)
-            if usage_segments:
-                x_vals = [seg['start'] for seg in usage_segments]
-                y_vals = [seg['used_nodes'] for seg in usage_segments]
-                widths = [max(0, seg['end'] - seg['start']) for seg in usage_segments]
-                fig_i.add_trace(
-                    go.Bar(x=x_vals, y=y_vals, width=widths, name='Used Nodes', marker_color='royalblue', opacity=0.3),
-                    secondary_y=True,
-                )
-
-            # Shade delay spans
-            if shade_delays:
-                spans_iter = delay_spans
-                if isinstance(max_delay_spans, int) and max_delay_spans is not None and max_delay_spans >= 0:
-                    spans_iter = delay_spans[:max_delay_spans]
-                for s, e in spans_iter:
-                    if e > s:
-                        fig_i.add_shape(type="rect", x0=s, x1=e, y0=0, y1=1, xref='x', yref='paper', fillcolor='gray', opacity=0.15, line_width=0)
-
-            fig_i.update_layout(
-                title_text='Episode Timeseries Overview',
-                barmode='overlay',
-                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
-            )
-            fig_i.update_xaxes(title_text='Time (s)')
-            fig_i.update_yaxes(title_text='gCO2/kWh', secondary_y=False)
-            fig_i.update_yaxes(title_text='Avg Wait / Nodes / Queue', secondary_y=True)
-
-            if debug:
-                print(f"[render] Built Plotly figure in {time.time() - t0:.3f}s")
-            return (png_path if save_png else None), fig_i
-        except Exception as e:
-            if debug:
-                print(f"[render] Plotly import failed: {e}")
-            return (png_path if save_png else None)
+        return (png_path if save_png else None), fig
 
 
 
