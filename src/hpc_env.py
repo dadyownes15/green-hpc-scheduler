@@ -17,24 +17,31 @@ import matplotlib.patches as patches
 class HPCenv(Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, config_dict, mode = "training", debug=False, generate_rendering = False, name = None, ):
+    def __init__(self, config_dict, mode = "training", debug=False, name = None, ):
+        
         self.debug = debug
         self.config_dict = config_dict 
-        assert self.config_dict is not None, "Config dict, did not parse"
-        assert mode in ["training", "validation", "test"]
-        assert generate_rendering == False or (generate_rendering == True and name != None), "You must name the env, to be able to generate renderings" 
-
         self.name = name
-        self.generate_rendering = generate_rendering
         self.mode = mode
 
-        ## ------ Reward config --------
+        ## ------ Reward config -------
         self.reward_type = config_dict["reward_type"]
-        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward", "CO2_direct_c", "delay_vs_now_reward_n","carbon_ratio_plus"]
         self.eta = config_dict["eta"]
-        self.bounded_slowdown_threshold = config_dict["bounded_slowdown_threshold"]
         self.alpha = config_dict["alpha"]
-        # Flat action space
+        self.bounded_slowdown_threshold = config_dict["bounded_slowdown_threshold"]
+
+
+        ## ------ Training data config -------
+        if self.mode == "training":
+            self.workload_path = "data/workloads/training_workload.swf"
+        if self.mode == "validation":
+            self.config_dict["episode_length"] = 5643 # This value is hardcoded to be the length of the whole validation set
+            self.workload_path = "data/workloads/validation_workload.swf"
+        if self.mode == "test":
+            self.config_dict["episode_length"] = 54811 # this is hardcoded to be the length of the whole test set
+            self.workload_path = "data/workloads/test_workload.swf"
+
+       # Flat action space
         num_job_actions = self.config_dict['max_queue_size']
         do_nothing_actions = self.config_dict['delay_time_list_length'] + self.config_dict['max_wait_n_jobs']
         self.action_space_size = num_job_actions + do_nothing_actions
@@ -62,16 +69,6 @@ class HPCenv(Env):
         self.scheduled_jobs = 0 
 
 
-        # The idea is that we train from data in 2021 - 01 - 01 to 2023 - 31 - 12 only, and ensure that this is synched with the cycles defined in the lublin trace. 
-        if self.mode == "training":
-            self.workload_path = "data/workloads/training_workload.swf"
-        if self.mode == "validation":
-            self.config_dict["episode_length"] = 5643 # This value is hardcoded to be the length of the whole validation set
-            self.workload_path = "data/workloads/validation_workload.swf"
-        if self.mode == "test":
-            self.config_dict["episode_length"] = 54811 # this is hardcoded to be the length of the whole test set
-            self.workload_path = "data/workloads/test_workload.swf"
-
         # Load workloads and cluster
         self.loads = Workloads(self.workload_path, config_dict=self.config_dict)
         self.cluster = Cluster(self.loads.max_nodes, self.config_dict['procs_per_node'], self.config_dict['idle_power'])
@@ -85,26 +82,17 @@ class HPCenv(Env):
         self.new_job_arrived_in_step = False
         self.last_action_info: Dict[str, Any] = {'type': None, 'is_delay': False}
         
-        #logging
-        self.episode_start_time = 0
-        # From simple counters to a dictionary holding lists for indexed actions
-        self.action_log = {
-            'schedule': 0,
-            'delay_fixed': 0,
-            'delay_wait': 0,
-            'delay_fixed_indices': [0] * self.config_dict['delay_time_list_length'],
-            'delay_wait_indices': [0] * self.config_dict['max_wait_n_jobs']
-        }
-        # Step-by-step action trace for exact replay
+        # logging and tracing
+        # Step-by-step action trace for exact replay (single source of truth)
         self.action_trace = []  # list of dict entries, one per env.step()
         self.step_counter = 0
-        # Internal event recording during delays
-        self._record_events = False
-        self._recorder_arrivals = []
-        self._recorder_completions = []
         # Episode-specific carbon-timeline offset (in hours)
         self.episode_start_hour_offset = 0
 
+        assert self.config_dict is not None, "Config dict, did not parse"
+        assert self.mode in ["training", "validation", "test"]
+        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward", "CO2_direct_c", "delay_vs_now_reward_n","carbon_ratio_plus"]
+ 
     def step(self, action):
         self.new_job_arrived_in_step = False
         self.last_action_info['type'] = action
@@ -121,81 +109,39 @@ class HPCenv(Env):
             if next_submit_time != sys.maxsize and next_submit_time > self.current_timestamp:
                 self._process_events_until(next_submit_time)
 
-        # For action trace (after potential auto-advance so dt reflects only the chosen action)
-        t_before = self.current_timestamp
-        qlen_before = len(self.job_queue)
-        rlen_before = len(self.running_jobs)
-        trace_entry: Dict[str, Any] = {
-            'step': self.step_counter,
-            'action_index': int(action),
-            'action_type': None,
-            'timestamp_before': t_before,
-            'timestamp_after': None,
-            'scheduled_job_id': None,
-            'scheduled_job_procs': None,
-            'scheduled_job_run_time': None,
-            'delay_kind': None,
-            'delay_value': None,
-            'events': {'arrivals': [], 'completions': []},
-            'queue_len_before': qlen_before,
-            'running_len_before': rlen_before,
-            'queue_len_after': None,
-            'running_len_after': None,
-        }
+        # Initialize trace entry for this step
+        trace_entry = self._init_trace_entry(int(action))
 
-        # Schedule job [0 ... max_queue_size-1]
-        # Delay fixed amount [max_queue_size ... max_queue_size + delay_time_list_length - 1]
-        # Wait until N jobs are finished [max_queue_size + delay_time_list_length ... max_queue_size + delay_time_list_length + max_wait_n_jobs - 1]
 
+        ## Scheduling action
         if 0 <= action < self.config_dict['max_queue_size']:
-            scheduled_job = self.schedule_job(action)
-            trace_entry['action_type'] = 'schedule'
+            # Perform action
+            scheduled_job = self.schedule_job(int(action))
+            # Log trace
+            self._log_trace_schedule(scheduled_job=scheduled_job, trace_entry=trace_entry)
             self.last_action_info['is_delay'] = False
-            if scheduled_job is not None:
-                trace_entry['scheduled_job_id'] = scheduled_job.job_id
-                trace_entry['scheduled_job_procs'] = scheduled_job.request_number_of_processors
-                trace_entry['scheduled_job_run_time'] = scheduled_job.run_time
 
+        ## Fixed delay action
         elif self.config_dict['max_queue_size'] <= action < (self.config_dict['max_queue_size'] + self.config_dict['delay_time_list_length']):
             delay_idx = action - self.config_dict['max_queue_size']
-            skip_time = self.config_dict['delay_time_list'][delay_idx]
-            # Record intermediate events during delay
-            self._record_events = True
-            self._recorder_arrivals = []
-            self._recorder_completions = []
-            self.delay_fixed_amount(skip_time=skip_time)
-            trace_entry['action_type'] = 'delay'
-            trace_entry['delay_kind'] = 'fixed'
-            trace_entry['delay_value'] = int(skip_time)
-            trace_entry['events']['arrivals'] = list(self._recorder_arrivals)
-            trace_entry['events']['completions'] = list(self._recorder_completions)
-            self._record_events = False
+            skip_time = int(self.config_dict['delay_time_list'][delay_idx])
+            events = {'arrivals': [], 'completions': []}
+            # Perform action
+            self.delay_fixed_amount(skip_time=skip_time, events=events)
+            # Log trace
+            self._log_trace_delay_fixed(skip_time=skip_time, events=events, trace_entry=trace_entry)
             self.last_action_info['is_delay'] = True
 
-            # Logging
-            self.action_log['delay_fixed'] += 1
-            self.action_log['delay_fixed_indices'][delay_idx] += 1
-
+        # Wait til n jobs are finished action
         elif (self.config_dict['max_queue_size'] + self.config_dict['delay_time_list_length']) <= action < (self.config_dict['max_queue_size'] + self.config_dict['delay_time_list_length'] + self.config_dict['max_wait_n_jobs']):
             # action corresponds to waiting until `jobs_to_finish` running jobs complete
-            jobs_to_finish = action - (self.config_dict['max_queue_size'] + self.config_dict['delay_time_list_length']) + 1
-            # Record intermediate events during delay
-            self._record_events = True
-            self._recorder_arrivals = []
-            self._recorder_completions = []
-            self.delay_to_finished_job(jobs_to_finish=jobs_to_finish)
-            trace_entry['action_type'] = 'delay'
-            trace_entry['delay_kind'] = 'wait'
-            trace_entry['delay_value'] = int(jobs_to_finish)
-            trace_entry['events']['arrivals'] = list(self._recorder_arrivals)
-            trace_entry['events']['completions'] = list(self._recorder_completions)
-            self._record_events = False
+            jobs_to_finish = int(action - (self.config_dict['max_queue_size'] + self.config_dict['delay_time_list_length']) + 1)
+            events = {'arrivals': [], 'completions': []}
+            # Perform action
+            self.delay_to_finished_job(jobs_to_finish=jobs_to_finish, events=events)
+            # Log trace
+            self._log_trace_entry_wait_jobs(jobs_to_finish=jobs_to_finish, events=events, trace_entry=trace_entry)
             self.last_action_info['is_delay'] = True
-
-            # logging
-            self.action_log['delay_wait'] += 1
-            wait_idx = jobs_to_finish - 1 # Convert 1-based count to 0-based index
-            self.action_log['delay_wait_indices'][wait_idx] += 1
 
         else:
             # Should not happen if action_space is correct
@@ -206,7 +152,7 @@ class HPCenv(Env):
         # Compute reward for the action
         # Note: for delay actions, time may have advanced. We capture the delta
         # to attribute a small waiting penalty per-second to all queued jobs.
-        dt = self.current_timestamp - t_before
+        dt = self.current_timestamp - trace_entry['timestamp_before']
         reward, components = self.get_reward(
             scheduled_job=scheduled_job,
             current_timestamp=self.current_timestamp,
@@ -228,15 +174,12 @@ class HPCenv(Env):
             'reward_carbon': float(components.get('carbon', 0.0)),
             'reward_delay_wait': float(components.get('delay_wait', 0.0)),
             'time_advanced': float(dt),
-            'queue_len_before': int(qlen_before),
+            'queue_len_before': int(trace_entry['queue_len_before']),
             'queue_len_after': int(len(self.job_queue)),
         })
 
         # finalize trace entry
-        trace_entry['timestamp_after'] = self.current_timestamp
-        trace_entry['queue_len_after'] = len(self.job_queue)
-        trace_entry['running_len_after'] = len(self.running_jobs)
-        self.action_trace.append(trace_entry)
+        self._finalize_trace_entry(trace_entry)
         self.step_counter += 1
 
         return obs, reward, terminated, truncated, info
@@ -270,18 +213,8 @@ class HPCenv(Env):
         
         self.episode_start_hour_offset = time_offset // 3600 
 
-        self.action_log = {
-            'schedule': 0,
-            'delay_fixed': 0,
-            'delay_wait': 0,
-            'delay_fixed_indices': [0] * self.config_dict['delay_time_list_length'],
-            'delay_wait_indices': [0] * self.config_dict['max_wait_n_jobs']
-        }
         self.action_trace = []
         self.step_counter = 0
-        self._record_events = False
-        self._recorder_arrivals = []
-        self._recorder_completions = []
 
 
         self.cluster.reset()
@@ -397,16 +330,12 @@ class HPCenv(Env):
         self.job_queue.remove(job)
         self.scheduled_jobs += 1 
 
-        # logging
-        if 'schedule' in self.action_log:
-            self.action_log['schedule'] += 1
-
         # rendering
         self.scheduled_job_history.append(job)
 
         return job
 
-    def delay_to_finished_job(self, jobs_to_finish):
+    def delay_to_finished_job(self, jobs_to_finish, events: Dict[str, list] | None = None):
         """
         Advances the simulation time until a specific number of running jobs have finished,
         while processing intermediate events like other job completions or new arrivals.
@@ -434,12 +363,12 @@ class HPCenv(Env):
             release_time = (self.running_jobs[target_index].scheduled_time + self.running_jobs[target_index].run_time)
             next_time_after_skip = min(release_time, self.current_timestamp + 3600)
 
-        self._process_events_until(next_time_after_skip)
+        self._process_events_until(next_time_after_skip, events=events)
         if self.current_timestamp > start_delay_time:
             self.delay_history.append((start_delay_time, self.current_timestamp))
 
 
-    def delay_fixed_amount(self, skip_time):
+    def delay_fixed_amount(self, skip_time, events: Dict[str, list] | None = None):
         """
         Advances the simulation time by a fixed amount, while processing intermediate events.
         """
@@ -453,9 +382,10 @@ class HPCenv(Env):
             print("Nodes free, ", self.cluster.free_node)
         start_delay_time = self.current_timestamp
         next_time_after_skip = self.current_timestamp + skip_time
-        self._process_events_until(next_time_after_skip)
+        self._process_events_until(next_time_after_skip, events=events)
         if self.current_timestamp > start_delay_time:
             self.delay_history.append((start_delay_time, self.current_timestamp))
+
     def _update_next_job_submit_time(self):
         """Gets the submit time of the next job in the batch, or sys.maxsize if none."""
         if self.next_arriving_job_idx < self.last_job_in_batch and self.next_arriving_job_idx < self.loads.size():
@@ -474,7 +404,7 @@ class HPCenv(Env):
             return release_time, release_machines
         return sys.maxsize, []
 
-    def _process_events_until(self, next_time_after_skip):
+    def _process_events_until(self, next_time_after_skip, events: Dict[str, list] | None = None):
         """
         Event loop that processes job arrivals and completions until next_time_after_skip.
         """
@@ -499,8 +429,8 @@ class HPCenv(Env):
                     self.current_timestamp = max(self.current_timestamp, next_job_submit_time)
                     arriving_job = self.loads[self.next_arriving_job_idx]
                     self.job_queue.append(arriving_job)
-                    if self._record_events:
-                        self._recorder_arrivals.append(arriving_job.job_id)
+                    if events is not None:
+                        events['arrivals'].append(arriving_job.job_id)
                     self.next_arriving_job_idx += 1
                     # Rendering
                     self.new_job_arrived_in_step = True
@@ -515,8 +445,8 @@ class HPCenv(Env):
                 # Release cluster resources
                 if self.running_jobs:
                     finished_job = self.running_jobs[0]
-                    if self._record_events:
-                        self._recorder_completions.append(finished_job.job_id)
+                    if events is not None:
+                        events['completions'].append(finished_job.job_id)
                     if next_resource_release_machines:
                         self.cluster.release(next_resource_release_machines)
                     # Remove the completed job from running_jobs if present
@@ -525,6 +455,101 @@ class HPCenv(Env):
 
     def get_action_trace(self):
         return list(self.action_trace)
+
+    @property
+    def action_log(self) -> Dict[str, Any]:
+        """
+        Backwards-compatible summary derived from action_trace. Keeps external
+        code working while we simplify logging to a single source of truth.
+        """
+        return self._summarize_action_trace()
+
+    # -----------------
+    # Logging helpers
+    # -----------------
+    def _init_trace_entry(self, action_index: int) -> Dict[str, Any]:
+        t_before = self.current_timestamp
+        qlen_before = len(self.job_queue)
+        rlen_before = len(self.running_jobs)
+        return {
+            'step': self.step_counter,
+            'action_index': int(action_index),
+            'action_type': None,
+            'timestamp_before': t_before,
+            'timestamp_after': None,
+            'scheduled_job_id': None,
+            'scheduled_job_procs': None,
+            'scheduled_job_run_time': None,
+            'delay_kind': None,
+            'delay_value': None,
+            'events': {'arrivals': [], 'completions': []},
+            'queue_len_before': qlen_before,
+            'running_len_before': rlen_before,
+            'queue_len_after': None,
+            'running_len_after': None,
+        }
+
+    def _finalize_trace_entry(self, trace_entry: Dict[str, Any]) -> None:
+        trace_entry['timestamp_after'] = self.current_timestamp
+        trace_entry['queue_len_after'] = len(self.job_queue)
+        trace_entry['running_len_after'] = len(self.running_jobs)
+        self.action_trace.append(trace_entry)
+
+    def _log_trace_schedule(self, scheduled_job: Job | None, trace_entry: Dict[str, Any]) -> None:
+        trace_entry['action_type'] = 'schedule'
+        if scheduled_job is not None:
+            trace_entry['scheduled_job_id'] = scheduled_job.job_id
+            trace_entry['scheduled_job_procs'] = scheduled_job.request_number_of_processors
+            trace_entry['scheduled_job_run_time'] = scheduled_job.run_time
+
+    def _log_trace_delay_fixed(self, skip_time: int, events: Dict[str, list], trace_entry: Dict[str, Any]) -> None:
+        trace_entry['action_type'] = 'delay'
+        trace_entry['delay_kind'] = 'fixed'
+        trace_entry['delay_value'] = int(skip_time)
+        trace_entry['events'] = events
+
+    def _log_trace_entry_wait_jobs(self, jobs_to_finish: int, events: Dict[str, list], trace_entry: Dict[str, Any]) -> None:
+        trace_entry['action_type'] = 'delay'
+        trace_entry['delay_kind'] = 'wait'
+        trace_entry['delay_value'] = int(jobs_to_finish)
+        trace_entry['events'] = events
+
+    def _summarize_action_trace(self) -> Dict[str, Any]:
+        schedule = 0
+        delay_fixed = 0
+        delay_wait = 0
+        fixed_indices = [0] * self.config_dict['delay_time_list_length']
+        wait_indices = [0] * self.config_dict['max_wait_n_jobs']
+
+        delay_time_list = list(self.config_dict.get('delay_time_list', []))
+        for entry in self.action_trace:
+            if entry.get('action_type') == 'schedule':
+                schedule += 1
+            elif entry.get('action_type') == 'delay':
+                kind = entry.get('delay_kind')
+                val = entry.get('delay_value')
+                if kind == 'fixed':
+                    delay_fixed += 1
+                    try:
+                        idx = delay_time_list.index(val)
+                        if 0 <= idx < len(fixed_indices):
+                            fixed_indices[idx] += 1
+                    except ValueError:
+                        pass
+                elif kind == 'wait':
+                    delay_wait += 1
+                    if isinstance(val, int):
+                        idx = val - 1
+                        if 0 <= idx < len(wait_indices):
+                            wait_indices[idx] += 1
+
+        return {
+            'schedule': schedule,
+            'delay_fixed': delay_fixed,
+            'delay_wait': delay_wait,
+            'delay_fixed_indices': fixed_indices,
+            'delay_wait_indices': wait_indices,
+        }
 
     def valid_action_mask(self):
         mask = np.full(self.action_space_size, True, dtype=bool)
