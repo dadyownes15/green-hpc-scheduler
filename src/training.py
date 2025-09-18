@@ -122,7 +122,7 @@ class ValidationCallback(BaseCallback):
 
 
 class Train():
-    def __init__(self, config_dict, workload_path = None) -> None:
+    def __init__(self, config_dict, workload_path = None, trace_enabled = False) -> None:
         self.config_dict = config_dict
         self.run_id = create_experiment_name(config=config_dict, workload_file=workload_path) 
         self.run_dir = "./results/" + self.run_id + "/"  
@@ -142,7 +142,7 @@ class Train():
         print(f"Repository created at {self.run_dir} and config saved to {config_path}")
 
         # --- END OF NEW LOGIC ---
-        self.env = Monitor(ActionMasker(HPCenv(mode="training", config_dict=config_dict, trace_enabled=False), mask_fn)) 
+        self.env = Monitor(ActionMasker(HPCenv(mode="training", config_dict=config_dict, trace_enabled=trace_enabled), mask_fn)) 
 
         policy_kwargs = dict(
             net_arch = dict(

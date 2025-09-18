@@ -102,7 +102,7 @@ class HPCenv(Env):
 
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]
-        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward", "CO2_direct_c", "delay_vs_now_reward_n","carbon_ratio_plus"]
+        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward", "CO2_direct_c", "delay_vs_now_reward_n","carbon_ratio_plus", "waittime"]
  
     def step(self, action):
         self.new_job_arrived_in_step = False
@@ -110,6 +110,7 @@ class HPCenv(Env):
         scheduled_job = None
         terminated = False
         truncated = False
+        self.step_counter += 1
 
         # Auto-advance: if the queue is empty and there are future arrivals,
         # advance time to the next job submission so the agent doesn't need
@@ -194,11 +195,9 @@ class HPCenv(Env):
             'queue_len_before': int(qlen_before),
             'queue_len_after': int(len(self.job_queue)),
         })
-
-        # finalize trace entry
+            
         if self.trace_enabled:
             self._finalize_trace_entry(trace_entry)
-        self.step_counter += 1
 
         return obs, reward, terminated, truncated, info
 
@@ -574,7 +573,22 @@ class HPCenv(Env):
         """
         reward = 0.0
         components = {'carbon': 0.0, 'wait_schedule': 0.0, 'delay_wait': 0.0}
+        if self.reward_type == "waittime":
+            if scheduled_job: 
+                start_time = current_timestamp
+                
 
+
+                # Use actual wait (current time - submit time), not trace wait_time
+                assert current_timestamp >= scheduled_job.submit_time
+                actual_wait = current_timestamp - scheduled_job.submit_time
+
+                components['wait_schedule'] = - actual_wait / self.config_dict["max_wait_time"]
+                reward = components['wait_schedule']
+
+            else: 
+                reward = 0
+ 
         if self.reward_type == "CO2_direct":
             if scheduled_job: 
                 start_time = current_timestamp
@@ -707,17 +721,35 @@ class HPCenv(Env):
 
         # Add an incremental waiting penalty when time advances due to a delay action.
         # This ensures the policy is penalized for stalling even before scheduling.
-            if was_delay and time_advanced > 0:
-                dt = float(time_advanced)
-                total_inc = 0.0
-                for job in self.job_queue:
-                    # Waiting accrued for each job during [t_before, t_after]
-                    inc = max(0.0, dt if job.submit_time <= (current_timestamp - dt) else (current_timestamp - job.submit_time))
-                    denom = max(self.bounded_slowdown_threshold, job.run_time)
-                    total_inc += inc / float(denom)
-                delay_penalty = - self.eta * total_inc
-                components['delay_wait'] = float(delay_penalty)
-                reward += delay_penalty
+        """  if was_delay and time_advanced > 0:
+            dt = float(time_advanced)
+        
+            total_inc = 0.0
+
+            for job in self.job_queue:
+                # How long this job has been waiting in the interval [t_before, t_after]
+             
+                job_wait_time = (
+                    dt 
+                    if job.submit_time <= (current_timestamp - dt) # If the job was submitted before the time before the advanced
+                    else (current_timestamp - job.submit_time) ## the job appeared while the advancing of time, this 
+                )
+
+                # Clip at 0 so we don't add negative waiting time
+                job_wait_time = max(0.0, job_wait_time)
+
+                # Normalization factor: either the slowdown threshold or the job's run time
+                normalization = max(self.bounded_slowdown_threshold, job.run_time)
+
+                # Increment total slowdown contribution
+                total_inc += job_wait_time / float(normalization)
+
+            # Apply delay penalty
+            delay_penalty = -self.eta * total_inc
+            
+            components["delay_wait"] = float(delay_penalty)
+            reward += delay_penalty """
+
 
         components['total'] = float(reward)
         return float(reward), components
