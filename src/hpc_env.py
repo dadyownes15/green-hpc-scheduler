@@ -102,7 +102,7 @@ class HPCenv(Env):
 
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]
-        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward", "CO2_direct_c", "delay_vs_now_reward_n","carbon_ratio_plus", "waittime", "shaped_waittime"]
+        assert self.reward_type in ["wait_abs_ems", "bd_abs_ems","wait_relative_ems", "bd_relative_ems"]
  
     def step(self, action):
         self.new_job_arrived_in_step = False
