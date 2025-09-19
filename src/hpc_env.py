@@ -719,36 +719,36 @@ class HPCenv(Env):
             else: 
                 reward = 0.0
 
-            if self.reward_type == "shaped_waittime":
-                if was_delay and time_advanced > 0:
-                    dt = float(time_advanced)
+        if self.reward_type == "shaped_waittime":
+            if was_delay and time_advanced > 0:
+                dt = float(time_advanced)
+            
+                total_inc = 0.0
+
+                for job in self.job_queue:
+                    # How long this job has been waiting in the interval [t_before, t_after]
                 
-                    total_inc = 0.0
+                    job_wait_time = (
+                        dt 
+                        if job.submit_time <= (current_timestamp - dt) # If the job was submitted before the time before the advanced
+                        else (current_timestamp - job.submit_time) ## the job appeared while the advancing of time, this 
+                    )
 
-                    for job in self.job_queue:
-                        # How long this job has been waiting in the interval [t_before, t_after]
-                    
-                        job_wait_time = (
-                            dt 
-                            if job.submit_time <= (current_timestamp - dt) # If the job was submitted before the time before the advanced
-                            else (current_timestamp - job.submit_time) ## the job appeared while the advancing of time, this 
-                        )
+                    # Clip at 0 so we don't add negative waiting time
+                    job_wait_time = max(0.0, job_wait_time)
 
-                        # Clip at 0 so we don't add negative waiting time
-                        job_wait_time = max(0.0, job_wait_time)
+                    # Normalization factor: either the slowdown threshold or the job's run time
+                    normalization = max(self.bounded_slowdown_threshold, job.run_time)
 
-                        # Normalization factor: either the slowdown threshold or the job's run time
-                        normalization = max(self.bounded_slowdown_threshold, job.run_time)
+                    # Increment total slowdown contribution
+                    total_inc += job_wait_time / float(normalization)
 
-                        # Increment total slowdown contribution
-                        total_inc += job_wait_time / float(normalization)
-
-                    # Apply delay penalty
-                    delay_penalty = -self.eta * total_inc
-                    
-                    components["delay_wait"] = float(delay_penalty)
-                    reward += delay_penalty 
-                else: 
-                    reward = 0
-            components['total'] = float(reward)
-            return float(reward), components
+                # Apply delay penalty
+                delay_penalty = -self.eta * total_inc
+                
+                components["delay_wait"] = float(delay_penalty)
+                reward += delay_penalty 
+            else: 
+                reward = 0
+        components['total'] = float(reward)
+        return float(reward), components
