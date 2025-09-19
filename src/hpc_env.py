@@ -612,10 +612,19 @@ class HPCenv(Env):
                 start_time = current_timestamp
                 end_time = start_time + scheduled_job.run_time
                 power_usage = scheduled_job.power_usage
-                
-                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+                 
+                carbon_emission_actual = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
 
-                components['carbon'] = -float(carbon_emission)*self.alpha
+                carbon_emission_initial = self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
+
+                print("carbon emission actual: ", carbon_emission_actual)
+                print("carbon emission initial: ", carbon_emission_initial)
+            
+                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual) +1)/(carbon_emission_initial + 1)
+
+
+
+                components['carbon'] = float(carbon_ratio_reward)*self.alpha
                 components['wait_schedule'] = - (actual_wait / self.config_dict["max_wait_time"])*self.eta
                 reward = components['wait_schedule'] + components['carbon']
 
@@ -631,10 +640,10 @@ class HPCenv(Env):
 
                 carbon_emission_initial = self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
                 
-                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual) +0.1)/(carbon_emission_initial + 0.1)
+                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual))/(carbon_emission_initial )
 
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
-                bounded_slowdown = (actual_wait + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
+                bounded_slowdown = (actual_wait + scheduled_job.run_time) / max([0, scheduled_job.run_time])
 
                 components['carbon'] = float(carbon_ratio_reward)
                 components['wait_schedule'] = -float(bounded_slowdown * self.eta)
@@ -642,7 +651,7 @@ class HPCenv(Env):
             else: 
                 reward = 0 
 
-        if self.reward_type == "bd_relative_ems":
+        if self.reward_type == "wait_relative_ems":
             if scheduled_job: 
                 start_time = current_timestamp
                 end_time = start_time + scheduled_job.run_time
@@ -658,13 +667,13 @@ class HPCenv(Env):
                 /compute_req) * 100000
 
                 carbon_ratio_reward = ((carbon_emission_initial_n-carbon_emission_actual_n) +0.1)/(carbon_emission_initial_n + 0.1)
-
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
-                bounded_slowdown = (actual_wait + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
 
                 components['carbon'] = float(carbon_ratio_reward)
-                components['wait_schedule'] = -float(bounded_slowdown * self.eta)
+                components['wait_schedule'] = - (actual_wait / self.config_dict['max_wait_time']) * self.eta               
                 reward = components['carbon'] + components['wait_schedule']
+
+
             else: 
                 reward = 0 
         if self.reward_type == "shaped_waittime":
