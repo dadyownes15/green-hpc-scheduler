@@ -102,7 +102,7 @@ class HPCenv(Env):
 
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]
-        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward", "CO2_direct_c", "delay_vs_now_reward_n","carbon_ratio_plus", "waittime"]
+        assert self.reward_type in ["CO2_direct", "delay_vs_now_reward", "CO2_direct_c", "delay_vs_now_reward_n","carbon_ratio_plus", "waittime", "shaped_waittime"]
  
     def step(self, action):
         self.new_job_arrived_in_step = False
@@ -719,37 +719,36 @@ class HPCenv(Env):
             else: 
                 reward = 0.0
 
-        # Add an incremental waiting penalty when time advances due to a delay action.
-        # This ensures the policy is penalized for stalling even before scheduling.
-        """  if was_delay and time_advanced > 0:
-            dt = float(time_advanced)
-        
-            total_inc = 0.0
-
-            for job in self.job_queue:
-                # How long this job has been waiting in the interval [t_before, t_after]
-             
-                job_wait_time = (
-                    dt 
-                    if job.submit_time <= (current_timestamp - dt) # If the job was submitted before the time before the advanced
-                    else (current_timestamp - job.submit_time) ## the job appeared while the advancing of time, this 
-                )
-
-                # Clip at 0 so we don't add negative waiting time
-                job_wait_time = max(0.0, job_wait_time)
-
-                # Normalization factor: either the slowdown threshold or the job's run time
-                normalization = max(self.bounded_slowdown_threshold, job.run_time)
-
-                # Increment total slowdown contribution
-                total_inc += job_wait_time / float(normalization)
-
-            # Apply delay penalty
-            delay_penalty = -self.eta * total_inc
+        if self.reward_type == "shaped_waittime":
+            if was_delay and time_advanced > 0:
+                dt = float(time_advanced)
             
-            components["delay_wait"] = float(delay_penalty)
-            reward += delay_penalty """
+                total_inc = 0.0
 
+                for job in self.job_queue:
+                    # How long this job has been waiting in the interval [t_before, t_after]
+                
+                    job_wait_time = (
+                        dt 
+                        if job.submit_time <= (current_timestamp - dt) # If the job was submitted before the time before the advanced
+                        else (current_timestamp - job.submit_time) ## the job appeared while the advancing of time, this 
+                    )
 
-        components['total'] = float(reward)
-        return float(reward), components
+                    # Clip at 0 so we don't add negative waiting time
+                    job_wait_time = max(0.0, job_wait_time)
+
+                    # Normalization factor: either the slowdown threshold or the job's run time
+                    normalization = max(self.bounded_slowdown_threshold, job.run_time)
+
+                    # Increment total slowdown contribution
+                    total_inc += job_wait_time / float(normalization)
+
+                # Apply delay penalty
+                delay_penalty = -self.eta * total_inc
+                
+                components["delay_wait"] = float(delay_penalty)
+                reward += delay_penalty 
+            else: 
+                reward = 0
+            components['total'] = float(reward)
+            return float(reward), components
