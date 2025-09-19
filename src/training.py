@@ -122,8 +122,9 @@ class ValidationCallback(BaseCallback):
 
 
 class Train():
-    def __init__(self, config_dict, workload_path = None, trace_enabled = False) -> None:
+    def __init__(self, config_dict, workload_path = None, save_freq=500_000, trace_enabled = False) -> None:
         self.config_dict = config_dict
+        self.save_freq = save_freq
         self.run_id = create_experiment_name(config=config_dict, workload_file=workload_path) 
         self.run_dir = "./results/" + self.run_id + "/"  
         # --- NEW LOGIC TO CREATE REPOSITORY AND SAVE CONFIG ---
@@ -171,10 +172,9 @@ class Train():
         reward_logging_callback = RewardLoggingCallback(verbose=0)
 
         if save_checkpoints:
-            save_freq = 500000
             name_prefix = "seed_" + str(self.config_dict['seed'])
             checkpoint_callback = CheckpointCallback(
-                save_freq=save_freq,
+                save_freq=self.save_freq,
                 save_path=self.run_dir + "/logs/",
                 name_prefix=name_prefix,
             )
@@ -182,7 +182,7 @@ class Train():
             validation_callback = ValidationCallback(
                 run_dir=self.run_dir,
                 name_prefix=name_prefix,
-                val_freq=save_freq,
+                val_freq=self.save_freq,
                 n_eval_episodes=int(self.config_dict.get('n_eval_episodes', 3)),
                 verbose=1,
             )
