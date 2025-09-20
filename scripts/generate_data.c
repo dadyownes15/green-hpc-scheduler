@@ -176,7 +176,7 @@
 /*                          CONSTANTS                                          */
 /*#############################################################################*/
 
-#define MAX_END_TIME 3*365*24*60*60 
+#define MAX_END_TIME 31*24*60*60 
 #define TOO_MUCH_TIME 12        /* no more than two days =exp(12) for runtime  */
 #define TOO_MUCH_ARRIVE_TIME 13 /* no more than 5 days =exp(13) for arrivetime */
 
