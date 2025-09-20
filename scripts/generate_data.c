@@ -176,7 +176,7 @@
 /*                          CONSTANTS                                          */
 /*#############################################################################*/
 
-#define MAX_END_TIME 28857600 /* 1 year in seconds */
+#define MAX_END_TIME 3*365*24*60*60 
 #define TOO_MUCH_TIME 12        /* no more than two days =exp(12) for runtime  */
 #define TOO_MUCH_ARRIVE_TIME 13 /* no more than 5 days =exp(13) for arrivetime */
 
@@ -257,16 +257,16 @@
  * parameters.
  */
 #define A1_BATCH          6.57
-#define B1_BATCH          1.5
+#define B1_BATCH          3
 #define A2_BATCH          639.1
 #define B2_BATCH          0.0156
 #define PA_BATCH          -0.003
 #define PB_BATCH          0.6986
 
 #define A1_ACTIVE         3.8351 
-#define B1_ACTIVE         0.6605
+#define B1_ACTIVE         3
 #define A2_ACTIVE         7.073 
-#define B2_ACTIVE         0.6856 
+#define B2_ACTIVE         1.5
 #define PA_ACTIVE         -0.0118 
 #define PB_ACTIVE         0.9156 
 
