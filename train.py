@@ -27,6 +27,6 @@ config.read(config_path)
 
 config_dict = get_config_as_dict(config) 
 print(config_dict)
-train = Train(config_dict=config_dict, workload_path=WORKLOAD_PATH, save_freq=100_000)
+train = Train(config_dict=config_dict, workload_path=WORKLOAD_PATH, save_freq=500000)
 
 train.run(save_checkpoints=True)
