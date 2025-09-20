@@ -15,6 +15,7 @@ from src.utils import mask_fn, create_experiment_name
 from src.hpc_env import HPCenv
 from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback, CallbackList
 from src.validation import Validation
+from src.features import AttentionPoolFeaturesExtractor
 import time
 from src.utils import convert_numpy_types
 
@@ -145,10 +146,22 @@ class Train():
         # --- END OF NEW LOGIC ---
         self.env = Monitor(ActionMasker(HPCenv(mode="training", config_dict=config_dict, trace_enabled=trace_enabled), mask_fn)) 
 
+        extractor_kwargs = {
+            "config": self.config_dict,
+            "queue_hidden_dim": int(self.config_dict.get("queue_hidden_dim", 128)),
+            "running_hidden_dim": int(self.config_dict.get("running_hidden_dim", 64)),
+            "forecast_hidden_dim": int(self.config_dict.get("forecast_hidden_dim", 64)),
+            "carbon_context_dim": int(self.config_dict.get("carbon_context_dim", 32)),
+            "final_dim": int(self.config_dict.get("features_final_dim", 256)),
+            "dropout": float(self.config_dict.get("attention_dropout", 0.1)),
+        }
+
         policy_kwargs = dict(
-            net_arch = dict(
-                pi = self.config_dict['pi_nn'],
-                vf = self.config_dict['vf_nn']
+            features_extractor_class=AttentionPoolFeaturesExtractor,
+            features_extractor_kwargs=extractor_kwargs,
+            net_arch=dict(
+                pi=self.config_dict['pi_nn'],
+                vf=self.config_dict['vf_nn']
             )
         )
 
