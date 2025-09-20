@@ -572,41 +572,7 @@ class HPCenv(Env):
           - total: sum of the above
         """
         reward = 0.0
-        components = {'carbon': 0.0, 'wait_schedule': 0.0, 'delay_wait': 0.0}
-        if self.reward_type == "wait_abs_ems":
-            if scheduled_job: 
-                start_time = current_timestamp
-                end_time = start_time + scheduled_job.run_time
-                power_usage = scheduled_job.power_usage
-                
-                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
-                actual_wait = current_timestamp - scheduled_job.submit_time
-
-                components['carbon'] = -float(carbon_emission) * self.alpha
-                components['wait_schedule'] = - (actual_wait / self.config_dict["max_wait_time"]) * self.eta
-
-                reward = components['wait_schedule'] + components['carbon']
-
-            else: 
-                reward = 0
- 
-        if self.reward_type == "bd_abs_ems":
-            if scheduled_job: 
-                start_time = current_timestamp
-                end_time = start_time + scheduled_job.run_time
-                power_usage = scheduled_job.power_usage
-                
-                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
-
-                actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
-                bounded_slowdown = (actual_wait + scheduled_job.run_time) / max([self.bounded_slowdown_threshold, scheduled_job.run_time])
-
-                components['carbon'] = -float(carbon_emission) * self.alpha
-                components['wait_schedule'] = -float(bounded_slowdown * self.eta)
-                reward = components['carbon'] + components['wait_schedule']
-
-            else: 
-                reward = 0
+        components = {'carbon': 0.0, 'wait': 0.0}
         if self.reward_type == "wait_relative_ems":
             if scheduled_job: 
                 start_time = current_timestamp
@@ -617,16 +583,13 @@ class HPCenv(Env):
 
                 carbon_emission_initial = self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
 
-                print("carbon emission actual: ", carbon_emission_actual)
-                print("carbon emission initial: ", carbon_emission_initial)
-            
                 carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual) +1)/(carbon_emission_initial + 1)
 
-
+                actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
 
                 components['carbon'] = float(carbon_ratio_reward)*self.alpha
-                components['wait_schedule'] = - (actual_wait / self.config_dict["max_wait_time"])*self.eta
-                reward = components['wait_schedule'] + components['carbon']
+                components['wait'] = - (actual_wait / self.config_dict["max_wait_time"])*self.eta
+                reward = components['wait'] + components['carbon']
 
             else: 
                 reward = 0
@@ -646,8 +609,8 @@ class HPCenv(Env):
                 bounded_slowdown = (actual_wait + scheduled_job.run_time) / max([0, scheduled_job.run_time])
 
                 components['carbon'] = float(carbon_ratio_reward)
-                components['wait_schedule'] = -float(bounded_slowdown * self.eta)
-                reward = components['carbon'] + components['wait_schedule']
+                components['wait'] = -float(bounded_slowdown * self.eta)
+                reward = components['carbon'] + components['wait']
             else: 
                 reward = 0 
 
@@ -659,9 +622,7 @@ class HPCenv(Env):
   
                 compute_req = scheduled_job.request_number_of_nodes * scheduled_job.request_time
 
-                              
                 carbon_emission_actual_n = (self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time) / compute_req) * 100000 
-
 
                 carbon_emission_initial_n = (self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
                 /compute_req) * 100000
@@ -670,8 +631,8 @@ class HPCenv(Env):
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
 
                 components['carbon'] = float(carbon_ratio_reward)
-                components['wait_schedule'] = - (actual_wait / self.config_dict['max_wait_time']) * self.eta               
-                reward = components['carbon'] + components['wait_schedule']
+                components['wait'] = - (actual_wait / self.config_dict['max_wait_time']) * self.eta               
+                reward = components['carbon'] + components['wait']
 
 
             else: 
@@ -703,7 +664,7 @@ class HPCenv(Env):
                 # Apply delay penalty
                 delay_penalty = -self.eta * total_inc
                 
-                components["delay_wait"] = float(delay_penalty)
+                components["wait"] = float(delay_penalty)
                 reward += delay_penalty 
             else: 
                 reward = 0

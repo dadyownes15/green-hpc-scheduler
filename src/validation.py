@@ -1,4 +1,4 @@
-from src.baseline import Baseline, PercentileBaseline, FCFSBaseline
+from src.baseline import Baseline, PercentileBaseline, FCFSBaseline, FCFSEasyBackfillBaseline
 from src.hpc_env import HPCenv
 from src.utils import VideoGenerator, get_config_as_dict, mask_fn
 from sb3_contrib.common.wrappers import ActionMasker
@@ -85,8 +85,8 @@ class Validation():
             PercentileBaseline(config_dict=self.config_dict, percentile=10, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
             PercentileBaseline(config_dict=self.config_dict, percentile=25, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
             PercentileBaseline(config_dict=self.config_dict, percentile = 50, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
-            FCFSBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)) 
-        ]
+            FCFSBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), FCFSEasyBackfillBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
+                    ]
         
         stats_dict = {}
         for baseline in baselines:
