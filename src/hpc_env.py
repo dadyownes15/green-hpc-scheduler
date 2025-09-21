@@ -52,10 +52,10 @@ class HPCenv(Env):
         if self.mode == "training":
             self.workload_path = "data/workloads/training_workload.swf"
         if self.mode == "validation":
-            self.config_dict["episode_length"] = 5901 # This value is hardcoded to be the length of the whole validation set
+            self.config_dict["episode_length"] = 3841 # This value is hardcoded to be the length of the whole validation set
             self.workload_path = "data/workloads/validation_workload.swf"
         if self.mode == "test":
-            self.config_dict["episode_length"] = 54811 # this is hardcoded to be the length of the whole test set
+            self.config_dict["episode_length"] = 55216 # this is hardcoded to be the length of the whole test set
             self.workload_path = "data/workloads/test_workload.swf"
 
         ## -------- Action and observation space def -------
