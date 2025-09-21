@@ -65,7 +65,7 @@ class ValidationCallback(BaseCallback):
     naming convention: {name_prefix}_{num_timesteps}_steps under `<run_dir>/logs/`.
     """
 
-    def __init__(self, run_dir: str, name_prefix: str, val_freq: int = 500000, n_eval_episodes: int = 3, verbose: int = 0):
+    def __init__(self, run_dir: str, name_prefix: str, val_freq: int = 500000, n_eval_episodes: int = 1, verbose: int = 0):
         super().__init__(verbose)
         self.run_dir = run_dir.rstrip("/")
         self.name_prefix = name_prefix
