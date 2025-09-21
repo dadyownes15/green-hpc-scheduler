@@ -146,6 +146,7 @@ class Train():
         # --- END OF NEW LOGIC ---
         self.env = Monitor(ActionMasker(HPCenv(mode="training", config_dict=config_dict, trace_enabled=trace_enabled), mask_fn)) 
 
+        """     
         extractor_kwargs = {
             "config": self.config_dict,
             "queue_hidden_dim": int(self.config_dict.get("queue_hidden_dim", 512)),
@@ -154,11 +155,12 @@ class Train():
             "carbon_context_dim": int(self.config_dict.get("carbon_context_dim", 32)),
             "final_dim": int(self.config_dict.get("features_final_dim", 256)),
             "dropout": float(self.config_dict.get("attention_dropout", 0.0)),
-        }
+        } 
+        """
 
         policy_kwargs = dict(
-            features_extractor_class=AttentionPoolFeaturesExtractor,
-            features_extractor_kwargs=extractor_kwargs,
+            #features_extractor_class=AttentionPoolFeaturesExtractor,
+           # features_extractor_kwargs=extractor_kwargs,
             net_arch=dict(
                 pi=self.config_dict['pi_nn'],
                 vf=self.config_dict['vf_nn']
