@@ -583,7 +583,7 @@ class HPCenv(Env):
 
                 carbon_emission_initial = self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
 
-                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual) +1)/(carbon_emission_initial + 1)
+                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual))/(carbon_emission_initial + 1)
 
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
 
@@ -608,7 +608,7 @@ class HPCenv(Env):
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
                 bounded_slowdown = (actual_wait + scheduled_job.run_time) / max([0, scheduled_job.run_time])
 
-                components['carbon'] = float(carbon_ratio_reward)
+                components['carbon'] = float(carbon_ratio_reward)*self.alpha
                 components['wait'] = -float(bounded_slowdown * self.eta)
                 reward = components['carbon'] + components['wait']
             else: 

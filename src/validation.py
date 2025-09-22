@@ -42,6 +42,19 @@ class Validation():
 
         stats_dict = {}
 
+        if checkpoints is None:
+            logs_dir = os.path.join(self.model_dir, "logs")
+            if not os.path.isdir(logs_dir):
+                raise FileNotFoundError(f"No logs directory found at '{logs_dir}'.")
+            checkpoints = sorted(
+                entry
+                for entry in os.listdir(logs_dir)
+                if os.path.isfile(os.path.join(logs_dir, entry))
+            )
+            if not checkpoints:
+                raise ValueError(f"No checkpoints found in '{logs_dir}'.")
+
+
         for checkpoint in checkpoints:
             if debug:
                 print("Initating checkpoint:", checkpoint)
@@ -80,12 +93,15 @@ class Validation():
 
        
     def run_baselines(self, n_eval_episodes, mode, debug = False):
-
-        baselines = [
+        """             
             PercentileBaseline(config_dict=self.config_dict, percentile=10, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
             PercentileBaseline(config_dict=self.config_dict, percentile=25, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
-            PercentileBaseline(config_dict=self.config_dict, percentile = 50, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
-            FCFSBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), FCFSEasyBackfillBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
+            PercentileBaseline(config_dict=self.config_dict, percentile = 50, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
+            FCFSEasyBackfillBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
+            """
+        baselines = [
+
+            FCFSBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
                     ]
         
         stats_dict = {}
@@ -497,7 +513,7 @@ class Validation():
 
         return usage_segments, delay_spans, ci_times, ci_values, wait_times_x, wait_rolling_avg, queue_times, queue_lengths
 
-    def render_timeseries_plot(self, action_trace, name="timeseries", output_dir="renderings", mode='validation', rolling_window: int = 10, shade_delays: bool = True, max_delay_spans: int | None = None, debug: bool = False, save_png: bool = True, episode_index: int | None = None):
+    def render_timeseries_plot(self, action_trace, name="timeseries", output_dir="renderings", mode='validation', rolling_window: int = 10, shade_delays: bool = True, max_delay_spans: int | None = None, debug: bool = False, save_png: bool = True, episode_index: int | None = None, display_carbon_itensity = True):
         """
         Renders a segment-based timeseries plot using the action_trace.
         Visualizes carbon intensity, used processors, rolling avg wait, queue length, and optional delay shading.
@@ -540,10 +556,11 @@ class Validation():
         with plt.ioff():
             fig, ax_ci = plt.subplots(figsize=(18, 6))
 
-        ax_ci.set_title('Episode Timeseries Overview')
-        ax_ci.set_xlabel('Time (s)')
-        ci_line, = ax_ci.plot(ci_times, ci_values, color='seagreen', label='Carbon Intensity')
-        ax_ci.set_ylabel('gCO2/kWh', color='seagreen')
+        if display_carbon_itensity:
+            ax_ci.set_title('Episode Timeseries Overview')
+            ax_ci.set_xlabel('Time (s)')
+            ci_line, = ax_ci.plot(ci_times, ci_values, color='seagreen', label='Carbon Intensity')
+            ax_ci.set_ylabel('gCO2/kWh', color='seagreen')
 
         # Used nodes on first right axis as duration bars per segment
         ax_proc = ax_ci.twinx()

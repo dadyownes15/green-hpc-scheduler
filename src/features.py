@@ -58,6 +58,7 @@ class AttentionPoolFeaturesExtractor(BaseFeaturesExtractor):
         running_hidden_dim: int = 64,
         forecast_hidden_dim: int = 64,
         carbon_context_dim: int = 32,
+        joint_hidden_dim: int = 128,
         final_dim: int = 256,
         dropout: float = 0.1,
     ) -> None:
@@ -91,18 +92,42 @@ class AttentionPoolFeaturesExtractor(BaseFeaturesExtractor):
         self.running_pool = AttentionPool(
             AttentionPoolConfig(input_dim=self.run_feature, hidden_dim=running_hidden_dim, dropout=dropout)
         )
-        self.forecast_pool = AttentionPool(
-            AttentionPoolConfig(input_dim=max(self.green_features_per_slot, 1), hidden_dim=forecast_hidden_dim, dropout=dropout)
-        )
+        self.has_forecast = self.forecast_dim > 0
+        if self.has_forecast:
+            self.forecast_pool = AttentionPool(
+                AttentionPoolConfig(
+                    input_dim=max(self.green_features_per_slot, 1), hidden_dim=forecast_hidden_dim, dropout=dropout
+                )
+            )
+        else:
+            self.forecast_pool = None
 
         carbon_layers = [nn.Linear(self.green_constant_features, carbon_context_dim), nn.LayerNorm(carbon_context_dim), nn.ReLU()]
         if dropout > 0:
             carbon_layers.append(nn.Dropout(dropout))
         self.carbon_context = nn.Sequential(*carbon_layers)
 
-        combined_dim = queue_hidden_dim + running_hidden_dim + forecast_hidden_dim + carbon_context_dim
+        def make_joint_proj(input_dim: int) -> nn.Sequential:
+            layers = [nn.Linear(input_dim, joint_hidden_dim), nn.LayerNorm(joint_hidden_dim), nn.ReLU()]
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
+            return nn.Sequential(*layers)
+
+        self.modality_proj = nn.ModuleDict(
+            {
+                "queue": make_joint_proj(queue_hidden_dim),
+                "running": make_joint_proj(running_hidden_dim),
+                "carbon": make_joint_proj(carbon_context_dim),
+            }
+        )
+        if self.has_forecast:
+            self.modality_proj["forecast"] = make_joint_proj(forecast_hidden_dim)
+
+        self.modality_pool = AttentionPool(
+            AttentionPoolConfig(input_dim=joint_hidden_dim, hidden_dim=joint_hidden_dim, dropout=dropout)
+        )
         self.final_mlp = nn.Sequential(
-            nn.Linear(combined_dim, final_dim),
+            nn.Linear(joint_hidden_dim, final_dim),
             nn.ReLU(),
             nn.LayerNorm(final_dim),
         )
@@ -128,13 +153,34 @@ class AttentionPoolFeaturesExtractor(BaseFeaturesExtractor):
         queue_repr = self.queue_pool(queue, queue_mask)
         running_repr = self.running_pool(running, running_mask)
 
-        if self.forecast_dim > 0:
-            forecast_seq = forecast_flat.view(batch_size, self.forecast_steps, max(self.green_features_per_slot, 1))
-            forecast_repr = self.forecast_pool(forecast_seq)
-        else:
-            forecast_repr = torch.zeros(batch_size, 0, device=observations.device)
-
         carbon_repr = self.carbon_context(carbon_constant)
 
-        features = torch.cat([queue_repr, running_repr, forecast_repr, carbon_repr], dim=-1)
-        return self.final_mlp(features)
+        modality_tokens = []
+        modality_mask = []
+
+        queue_token = self.modality_proj["queue"](queue_repr)
+        queue_valid = queue_mask.any(dim=1)
+        modality_tokens.append(queue_token)
+        modality_mask.append(queue_valid)
+
+        running_token = self.modality_proj["running"](running_repr)
+        running_valid = running_mask.any(dim=1)
+        modality_tokens.append(running_token)
+        modality_mask.append(running_valid)
+
+        carbon_token = self.modality_proj["carbon"](carbon_repr)
+        modality_tokens.append(carbon_token)
+        modality_mask.append(torch.ones(batch_size, dtype=torch.bool, device=observations.device))
+
+        if self.has_forecast:
+            forecast_seq = forecast_flat.view(batch_size, self.forecast_steps, max(self.green_features_per_slot, 1))
+            forecast_repr = self.forecast_pool(forecast_seq)
+            forecast_token = self.modality_proj["forecast"](forecast_repr)
+            modality_tokens.append(forecast_token)
+            modality_mask.append(torch.ones(batch_size, dtype=torch.bool, device=observations.device))
+
+        modality_tensor = torch.stack(modality_tokens, dim=1)
+        modality_mask_tensor = torch.stack(modality_mask, dim=1)
+
+        joint_features = self.modality_pool(modality_tensor, modality_mask_tensor)
+        return self.final_mlp(joint_features)
