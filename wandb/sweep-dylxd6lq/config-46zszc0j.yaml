@@ -1,0 +1,32 @@
+wandb_version: 1
+
+batch_size:
+  value: 2048
+clip_range:
+  value: 0.1
+ent_coef:
+  value: 1.013365500056978
+episode_length:
+  value: 3200
+gae_lambda:
+  value: 0.93657059070308
+gamma:
+  value: 0.963307844201656
+learning_rate:
+  value: 1e-5
+n_epochs:
+  value: 1
+n_steps:
+  value: 16384
+pi_nn:
+  value:
+  - 2048
+  - 512
+seed:
+  value: 42
+total_timesteps:
+  value: 500000
+vf_nn:
+  value:
+  - 2048
+  - 512

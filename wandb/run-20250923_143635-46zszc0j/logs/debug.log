@@ -1,0 +1,28 @@
+2025-09-23 14:36:35,459 INFO    Thread-2 (_run_job):49776 [wandb_setup.py:_flush():81] Current SDK version is 0.22.0
+2025-09-23 14:36:35,459 INFO    Thread-2 (_run_job):49776 [wandb_setup.py:_flush():81] Configure stats pid to 49776
+2025-09-23 14:36:35,459 INFO    Thread-2 (_run_job):49776 [wandb_setup.py:_flush():81] Loading settings from /Users/mikkeldahl/.config/wandb/settings
+2025-09-23 14:36:35,459 INFO    Thread-2 (_run_job):49776 [wandb_setup.py:_flush():81] Loading settings from /Users/mikkeldahl/green_scheduler_v2/wandb/settings
+2025-09-23 14:36:35,459 INFO    Thread-2 (_run_job):49776 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2025-09-23 14:36:35,459 INFO    Thread-2 (_run_job):49776 [wandb_init.py:setup_run_log_directory():686] Logging user logs to /Users/mikkeldahl/green_scheduler_v2/wandb/run-20250923_143635-46zszc0j/logs/debug.log
+2025-09-23 14:36:35,459 INFO    Thread-2 (_run_job):49776 [wandb_init.py:setup_run_log_directory():687] Logging internal logs to /Users/mikkeldahl/green_scheduler_v2/wandb/run-20250923_143635-46zszc0j/logs/debug-internal.log
+2025-09-23 14:36:35,459 INFO    Thread-2 (_run_job):49776 [wandb_init.py:init():813] calling init triggers
+2025-09-23 14:36:35,459 INFO    Thread-2 (_run_job):49776 [wandb_init.py:init():818] wandb.init called with sweep_config: {'batch_size': 2048, 'clip_range': 0.1, 'ent_coef': 1.013365500056978, 'episode_length': 3200, 'gae_lambda': 0.93657059070308, 'gamma': 0.963307844201656, 'learning_rate': '1e-5', 'n_epochs': 1, 'n_steps': 16384, 'pi_nn': [2048, 512], 'seed': 42, 'total_timesteps': 500000, 'vf_nn': [2048, 512]}
+config: {'_wandb': {}}
+2025-09-23 14:36:35,459 INFO    Thread-2 (_run_job):49776 [wandb_init.py:init():861] starting backend
+2025-09-23 14:36:35,677 INFO    Thread-2 (_run_job):49776 [wandb_init.py:init():864] sending inform_init request
+2025-09-23 14:36:35,697 INFO    Thread-2 (_run_job):49776 [wandb_init.py:init():872] backend started and connected
+2025-09-23 14:36:35,698 INFO    Thread-2 (_run_job):49776 [wandb_run.py:_config_callback():1392] config_cb None None {'batch_size': 2048, 'clip_range': 0.1, 'ent_coef': 1.013365500056978, 'episode_length': 3200, 'gae_lambda': 0.93657059070308, 'gamma': 0.963307844201656, 'learning_rate': '1e-5', 'n_epochs': 1, 'n_steps': 16384, 'pi_nn': [2048, 512], 'seed': 42, 'total_timesteps': 500000, 'vf_nn': [2048, 512]}
+2025-09-23 14:36:35,699 INFO    Thread-2 (_run_job):49776 [wandb_init.py:init():942] updated telemetry
+2025-09-23 14:36:35,714 INFO    Thread-2 (_run_job):49776 [wandb_init.py:init():966] communicating run to backend with 90.0 second timeout
+2025-09-23 14:36:36,401 INFO    Thread-2 (_run_job):49776 [wandb_init.py:init():1017] starting run threads in backend
+2025-09-23 14:36:36,488 INFO    Thread-2 (_run_job):49776 [wandb_run.py:_console_start():2506] atexit reg
+2025-09-23 14:36:36,488 INFO    Thread-2 (_run_job):49776 [wandb_run.py:_redirect():2354] redirect: wrap_raw
+2025-09-23 14:36:36,489 INFO    Thread-2 (_run_job):49776 [wandb_run.py:_redirect():2423] Wrapping output streams.
+2025-09-23 14:36:36,489 INFO    Thread-2 (_run_job):49776 [wandb_run.py:_redirect():2446] Redirects installed.
+2025-09-23 14:36:36,491 INFO    Thread-2 (_run_job):49776 [wandb_init.py:init():1057] run started, returning control to user process
+2025-09-23 14:36:36,493 INFO    Thread-2 (_run_job):49776 [wandb_run.py:_config_callback():1392] config_cb None None {'use_constant_power': True, 'constant_power_per_processor': 500, 'procs_per_node': 1, 'idle_power': 15, 'carbon_year': 2021, 'custom_intensity': False, 'green_forecast_length': 24, 'max_queue_size': 256, 'run_win_length': 64, 'delay_time_list': [300, 600, 1200, 1800, 2400, 3000, 3600], 'delay_time_list_length': 3, 'max_wait_n_jobs': 3, 'job_feature': 5, 'run_feature': 2, 'green_feature_pr_timeslot': 1, 'green_feature_constant': 8, 'base_line_wait_carbon_penality': 0.01, 'bounded_slowdown_threshold': 10, 'alpha': 0, 'eta': 10, 'reward_type': 'wait_relative_ems', 'max_power': 19000, 'max_green': 19000, 'max_wait_time': 200000, 'max_run_time': 162754, 'max_requested_processors': 256}
+2025-09-23 14:36:38,177 INFO    Thread-2 (_run_job):49776 [wandb_run.py:_finish():2272] finishing run mikkeljanusdahl-k-benhavns-universitet/green_scheduler/46zszc0j
+2025-09-23 14:36:38,177 INFO    Thread-2 (_run_job):49776 [wandb_run.py:_atexit_cleanup():2471] got exitcode: 1
+2025-09-23 14:36:38,177 INFO    Thread-2 (_run_job):49776 [wandb_run.py:_restore():2453] restore
+2025-09-23 14:36:38,177 INFO    Thread-2 (_run_job):49776 [wandb_run.py:_restore():2459] restore done
+2025-09-23 14:36:39,707 INFO    Thread-2 (_run_job):49776 [wandb_run.py:_footer_sync_info():3867] logging synced files
