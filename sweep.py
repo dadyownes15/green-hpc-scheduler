@@ -112,6 +112,7 @@ def train():
         wandb.config.update(cfg, allow_val_change=True)
 
         env = Monitor(ActionMasker(HPCenv(mode="training", config_dict=cfg), mask_fn)) 
+        # each run gets a dedicated TB folder
 
         policy_kwargs = build_policy_kwargs(cfg)
 
@@ -129,6 +130,7 @@ def train():
             learning_rate=cfg["learning_rate"],
             clip_range=cfg["clip_range"],
             policy_kwargs=policy_kwargs,
+            tensorboard_log=f"runs/{run.id}"
         )
 
         wandb_cb = WandbCallback(
