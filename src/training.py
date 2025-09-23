@@ -17,10 +17,10 @@ from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback,
 from src.validation import Validation
 from src.features import AttentionPoolFeaturesExtractor
 import time
-from src.utils import convert_numpy_types
+from src.utils import convert_numpy_types, CustomCallback
 import wandb
 from wandb.integration.sb3 import WandbCallback
-
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 class RewardLoggingCallback(BaseCallback):
     """Logs separate reward components to TensorBoard from env infos.
 
@@ -137,19 +137,33 @@ class Train():
         
         # Define the path for the config file.
         config_path = os.path.join(self.run_dir, "config.json")
-        
+           
         # Save the config_dict as a human-readable JSON file.
         # This allows you to easily reference the settings used for this run.
         with open(config_path, 'w') as f:
             json.dump(self.config_dict, f, indent=4)
 
-         
+
         print(f"Repository created at {self.run_dir} and config saved to {config_path}")
+   
 
-        # --- END OF NEW LOGIC ---
-        self.env = Monitor(ActionMasker(HPCenv(mode="training", config_dict=config_dict, trace_enabled=trace_enabled), mask_fn)) 
+        def make_env():
+            def _init():
+                env = HPCenv(
+                    mode="training",
+                    config_dict=config_dict,
+                    trace_enabled=trace_enabled
+                )
+                env = ActionMasker(env, mask_fn)  # mask invalid actions
+                env = Monitor(env)                # track stats like ep_len, 
+                return env
+            return _init
 
+        # Create vectorized env
+        venv = DummyVecEnv([make_env()])
 
+        # Add normalization
+        self.env = VecNormalize(venv, norm_reward=True, clip_reward=10.0)
         policy_kwargs = dict(
             net_arch=dict(
                 pi=self.config_dict['pi_nn'],
@@ -179,14 +193,15 @@ class Train():
         run_wandb =  wandb.init(
             project="green_scheduler",
             config=self.config_dict,
-            sync_tensorboard=True,
         )
 
         callbacks = [WandbCallback(
-        gradient_save_freq=100,
         model_save_path=f"models/{run_wandb.id}",
-        verbose=2,
-    ),] 
+    ),
+    CustomCallback(run=run_wandb),
+    ] 
+        
+        ## I am doomed
  
         if save_checkpoints:
             name_prefix = "seed_" + str(self.config_dict['seed'])
@@ -203,14 +218,14 @@ class Train():
                 n_eval_episodes=int(self.config_dict.get('n_eval_episodes', 3)),
                 verbose=1,
             )
-            callbacks.append(validation_callback)
             callbacks.append(checkpoint_callback)
+            callbacks.append(validation_callback)
        
 
         self.model.learn(
             total_timesteps=self.config_dict['total_timesteps'],
             tb_log_name="seed_" + str(self.config_dict['seed']),
-            callback=callback,
+            callback=callbacks,
         )
 
         run_wandb.finish()
