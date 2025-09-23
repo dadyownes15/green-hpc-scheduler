@@ -161,5 +161,5 @@ if __name__ == "__main__":
         wandb.agent(sweep_id, function=train, count=args.count)
     else:
         # single run (no sweep): just use BASE_CFG
-        with wandb.init(project="green_scheduler", config=BASE_CFG):
+        with wandb.init(project="green_scheduler", config=BASE_CFG,sync_tensorboard=True, ):
             train()
