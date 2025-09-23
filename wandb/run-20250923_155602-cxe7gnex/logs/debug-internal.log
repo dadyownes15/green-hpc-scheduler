@@ -1,0 +1,11 @@
+{"time":"2025-09-23T15:56:02.923385+02:00","level":"INFO","msg":"stream: starting","core version":"0.22.0"}
+{"time":"2025-09-23T15:56:03.376913+02:00","level":"INFO","msg":"stream: created new stream","id":"cxe7gnex"}
+{"time":"2025-09-23T15:56:03.377018+02:00","level":"INFO","msg":"stream: started","id":"cxe7gnex"}
+{"time":"2025-09-23T15:56:03.377005+02:00","level":"INFO","msg":"handler: started","stream_id":"cxe7gnex"}
+{"time":"2025-09-23T15:56:03.37705+02:00","level":"INFO","msg":"writer: started","stream_id":"cxe7gnex"}
+{"time":"2025-09-23T15:56:03.377284+02:00","level":"INFO","msg":"sender: started","stream_id":"cxe7gnex"}
+{"time":"2025-09-23T15:56:59.040303+02:00","level":"INFO","msg":"stream: closing","id":"cxe7gnex"}
+{"time":"2025-09-23T15:56:59.755528+02:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-09-23T15:57:00.256118+02:00","level":"INFO","msg":"handler: closed","stream_id":"cxe7gnex"}
+{"time":"2025-09-23T15:57:00.256529+02:00","level":"INFO","msg":"sender: closed","stream_id":"cxe7gnex"}
+{"time":"2025-09-23T15:57:00.256579+02:00","level":"INFO","msg":"stream: closed","id":"cxe7gnex"}

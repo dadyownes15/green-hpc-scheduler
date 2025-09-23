@@ -1,0 +1,11 @@
+2025-09-23 16:09:03,534 INFO    Thread-10 (_run_job):69474 [wandb_setup.py:_flush():81] Current SDK version is 0.22.0
+2025-09-23 16:09:03,534 INFO    Thread-10 (_run_job):69474 [wandb_setup.py:_flush():81] Configure stats pid to 69474
+2025-09-23 16:09:03,534 INFO    Thread-10 (_run_job):69474 [wandb_setup.py:_flush():81] Loading settings from /Users/mikkeldahl/.config/wandb/settings
+2025-09-23 16:09:03,534 INFO    Thread-10 (_run_job):69474 [wandb_setup.py:_flush():81] Loading settings from /Users/mikkeldahl/green_scheduler_v2/wandb/settings
+2025-09-23 16:09:03,534 INFO    Thread-10 (_run_job):69474 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2025-09-23 16:09:03,534 INFO    Thread-10 (_run_job):69474 [wandb_init.py:setup_run_log_directory():686] Logging user logs to /Users/mikkeldahl/green_scheduler_v2/wandb/run-20250923_160903-v4vawymp/logs/debug.log
+2025-09-23 16:09:03,534 INFO    Thread-10 (_run_job):69474 [wandb_init.py:setup_run_log_directory():687] Logging internal logs to /Users/mikkeldahl/green_scheduler_v2/wandb/run-20250923_160903-v4vawymp/logs/debug-internal.log
+2025-09-23 16:09:03,534 INFO    Thread-10 (_run_job):69474 [wandb_init.py:init():813] calling init triggers
+2025-09-23 16:09:03,534 INFO    Thread-10 (_run_job):69474 [wandb_init.py:init():818] wandb.init called with sweep_config: {'batch_size': 1024, 'clip_range': 0.1, 'ent_coef': 1.0190810329668596, 'episode_length': 3200, 'gae_lambda': 0.8926239487394768, 'gamma': 0.9954361036217816, 'learning_rate': 1e-05, 'n_epochs': 2, 'n_steps': 16384, 'pi_nn': [4000, 1000], 'seed': 42, 'total_timesteps': 300000, 'vf_nn': [1024, 512]}
+config: {'_wandb': {}}
+2025-09-23 16:09:03,534 INFO    Thread-10 (_run_job):69474 [wandb_init.py:init():861] starting backend

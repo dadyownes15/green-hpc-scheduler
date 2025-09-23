@@ -1,0 +1,11 @@
+{"time":"2025-09-23T16:16:06.351974+02:00","level":"INFO","msg":"stream: starting","core version":"0.22.0"}
+{"time":"2025-09-23T16:16:06.808054+02:00","level":"INFO","msg":"stream: created new stream","id":"hla2j4gs"}
+{"time":"2025-09-23T16:16:06.808113+02:00","level":"INFO","msg":"stream: started","id":"hla2j4gs"}
+{"time":"2025-09-23T16:16:06.808121+02:00","level":"INFO","msg":"writer: started","stream_id":"hla2j4gs"}
+{"time":"2025-09-23T16:16:06.808144+02:00","level":"INFO","msg":"handler: started","stream_id":"hla2j4gs"}
+{"time":"2025-09-23T16:16:06.808132+02:00","level":"INFO","msg":"sender: started","stream_id":"hla2j4gs"}
+{"time":"2025-09-23T16:16:47.322703+02:00","level":"INFO","msg":"stream: closing","id":"hla2j4gs"}
+{"time":"2025-09-23T16:16:48.327418+02:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-09-23T16:16:48.847617+02:00","level":"INFO","msg":"handler: closed","stream_id":"hla2j4gs"}
+{"time":"2025-09-23T16:16:48.848512+02:00","level":"INFO","msg":"sender: closed","stream_id":"hla2j4gs"}
+{"time":"2025-09-23T16:16:48.848542+02:00","level":"INFO","msg":"stream: closed","id":"hla2j4gs"}

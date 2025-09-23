@@ -6,7 +6,7 @@ import glob
 import numpy as np
 import gymnasium as gym 
 import os
-
+from stable_baselines3.common.logger import KVWriter  # <-- inherit this
 class VideoGenerator():
     def __init__(self, path):
         self.path = path  # directory containing frames
@@ -198,3 +198,91 @@ def convert_numpy_types(obj):
         return [convert_numpy_types(item) for item in obj]
     else:
         return obj
+
+
+from stable_baselines3.common.callbacks import BaseCallback
+
+
+# src/wandb_output_format.py
+from typing import Any, Dict, Iterable
+import numbers
+import numpy as np
+import wandb
+
+def _to_py(v: Any) -> Any:
+    if isinstance(v, np.generic):
+        return v.item()
+    if isinstance(v, np.ndarray):
+        return v.item() if v.size == 1 else v.tolist()
+    if isinstance(v, (numbers.Number, str)) or v is None:
+        return v
+    return str(v)
+
+
+
+
+
+class CustomCallback(BaseCallback):
+    """
+    A custom callback that derives from ``BaseCallback``.
+
+    :param verbose: Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages
+    """
+    def __init__(self,run, verbose = 0, ):
+        self.run = run
+        super().__init__(verbose)
+        # Those variables will be accessible in the callback
+        # (they are defined in the base class)
+        # The RL model
+        # self.model = None  # type: BaseAlgorithm
+        # An alias for self.model.get_env(), the environment used for training
+        # self.training_env # type: VecEnv
+        # Number of time the callback was called
+        # self.n_calls = 0  # type: int
+        # num_timesteps = n_envs * n times env.step() was called
+        # self.num_timesteps = 0  # type: int
+        # local and global variables
+        # self.locals = {}  # type: Dict[str, Any]
+        # self.globals = {}  # type: Dict[str, Any]
+        # The logger object, used to report things in the terminal
+        # self.logger # type: stable_baselines3.common.logger.Logger
+        # Sometimes, for event callback, it is useful
+        # to have access to the parent object
+        # self.parent = None  # type: Optional[BaseCallback]
+
+    def _on_training_start(self) -> None:
+        """
+        This method is called before the first rollout starts.
+        """
+        pass
+
+    def _on_rollout_start(self) -> None:
+        """
+        A rollout is the collection of environment interaction
+        using the current policy.
+        This event is triggered before collecting new samples.
+        """
+        pass
+    
+    def _on_step(self) -> bool:
+        """
+        This method will be called by the model after each call to `env.step()`.
+
+        :return: If the callback returns False, training is aborted early.
+        """
+        
+        return True
+
+    def _on_rollout_end(self) -> None:
+        """
+        This event is triggered before updating the policy.
+        """
+        log_dict = self.model.logger.name_to_value
+        self.run.log(log_dict)
+        pass
+
+    def _on_training_end(self) -> None:
+        """
+        This event is triggered before exiting the `learn()` method.
+        """
+        pass

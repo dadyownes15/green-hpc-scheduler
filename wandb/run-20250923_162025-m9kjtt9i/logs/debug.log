@@ -1,0 +1,927 @@
+2025-09-23 16:20:25,231 INFO    Thread-6 (_run_job):72125 [wandb_setup.py:_flush():81] Current SDK version is 0.22.0
+2025-09-23 16:20:25,231 INFO    Thread-6 (_run_job):72125 [wandb_setup.py:_flush():81] Configure stats pid to 72125
+2025-09-23 16:20:25,231 INFO    Thread-6 (_run_job):72125 [wandb_setup.py:_flush():81] Loading settings from /Users/mikkeldahl/.config/wandb/settings
+2025-09-23 16:20:25,231 INFO    Thread-6 (_run_job):72125 [wandb_setup.py:_flush():81] Loading settings from /Users/mikkeldahl/green_scheduler_v2/wandb/settings
+2025-09-23 16:20:25,231 INFO    Thread-6 (_run_job):72125 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2025-09-23 16:20:25,231 INFO    Thread-6 (_run_job):72125 [wandb_init.py:setup_run_log_directory():686] Logging user logs to /Users/mikkeldahl/green_scheduler_v2/wandb/run-20250923_162025-m9kjtt9i/logs/debug.log
+2025-09-23 16:20:25,231 INFO    Thread-6 (_run_job):72125 [wandb_init.py:setup_run_log_directory():687] Logging internal logs to /Users/mikkeldahl/green_scheduler_v2/wandb/run-20250923_162025-m9kjtt9i/logs/debug-internal.log
+2025-09-23 16:20:25,231 INFO    Thread-6 (_run_job):72125 [wandb_init.py:init():813] calling init triggers
+2025-09-23 16:20:25,231 INFO    Thread-6 (_run_job):72125 [wandb_init.py:init():818] wandb.init called with sweep_config: {'batch_size': 512, 'clip_range': 0.1, 'ent_coef': 1.0442449232673556, 'episode_length': 3200, 'gae_lambda': 0.9285506504093112, 'gamma': 0.9781940680667576, 'learning_rate': 0.0003, 'n_epochs': 8, 'n_steps': 8192, 'pi_nn': [2048, 512], 'seed': 42, 'total_timesteps': 300000, 'vf_nn': [2048, 512]}
+config: {'_wandb': {}}
+2025-09-23 16:20:25,231 INFO    Thread-6 (_run_job):72125 [wandb_init.py:init():861] starting backend
+2025-09-23 16:20:25,446 INFO    Thread-6 (_run_job):72125 [wandb_init.py:init():864] sending inform_init request
+2025-09-23 16:20:25,446 INFO    Thread-6 (_run_job):72125 [wandb_init.py:init():872] backend started and connected
+2025-09-23 16:20:25,447 INFO    Thread-6 (_run_job):72125 [wandb_run.py:_config_callback():1392] config_cb None None {'batch_size': 512, 'clip_range': 0.1, 'ent_coef': 1.0442449232673556, 'episode_length': 3200, 'gae_lambda': 0.9285506504093112, 'gamma': 0.9781940680667576, 'learning_rate': 0.0003, 'n_epochs': 8, 'n_steps': 8192, 'pi_nn': [2048, 512], 'seed': 42, 'total_timesteps': 300000, 'vf_nn': [2048, 512]}
+2025-09-23 16:20:25,448 INFO    Thread-6 (_run_job):72125 [wandb_init.py:init():942] updated telemetry
+2025-09-23 16:20:25,466 INFO    Thread-6 (_run_job):72125 [wandb_init.py:init():966] communicating run to backend with 90.0 second timeout
+2025-09-23 16:20:26,293 INFO    Thread-6 (_run_job):72125 [wandb_init.py:init():1017] starting run threads in backend
+2025-09-23 16:20:26,392 INFO    Thread-6 (_run_job):72125 [wandb_run.py:_console_start():2506] atexit reg
+2025-09-23 16:20:26,392 INFO    Thread-6 (_run_job):72125 [wandb_run.py:_redirect():2354] redirect: wrap_raw
+2025-09-23 16:20:26,393 INFO    Thread-6 (_run_job):72125 [wandb_run.py:_redirect():2423] Wrapping output streams.
+2025-09-23 16:20:26,393 INFO    Thread-6 (_run_job):72125 [wandb_run.py:_redirect():2446] Redirects installed.
+2025-09-23 16:20:26,394 INFO    Thread-6 (_run_job):72125 [wandb_init.py:init():1057] run started, returning control to user process
+2025-09-23 16:20:26,408 INFO    Thread-6 (_run_job):72125 [wandb_run.py:_config_callback():1392] config_cb None None {'use_constant_power': True, 'constant_power_per_processor': 500, 'procs_per_node': 1, 'idle_power': 15, 'carbon_year': 2021, 'custom_intensity': False, 'green_forecast_length': 24, 'max_queue_size': 256, 'run_win_length': 64, 'delay_time_list': [300, 600, 1200, 1800, 2400, 3000, 3600], 'delay_time_list_length': 3, 'max_wait_n_jobs': 3, 'job_feature': 5, 'run_feature': 2, 'green_feature_pr_timeslot': 1, 'green_feature_constant': 8, 'base_line_wait_carbon_penality': 0.01, 'bounded_slowdown_threshold': 10, 'alpha': 0, 'eta': 10, 'reward_type': 'wait_relative_ems', 'max_power': 19000, 'max_green': 19000, 'max_wait_time': 200000, 'max_run_time': 162754, 'max_requested_processors': 256}
+2025-09-23 16:20:27,137 INFO    wandb-AsyncioManager-main:72125 [service_client.py:_forward_responses():84] Reached EOF.
+2025-09-23 16:20:27,154 INFO    wandb-AsyncioManager-main:72125 [mailbox.py:close():137] Closing mailbox, abandoning 1 handles.
+2025-09-23 16:20:27,225 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,243 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,244 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,253 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,254 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,433 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,449 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,467 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,468 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,883 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,906 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,915 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,940 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:27,993 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,016 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,054 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,116 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,142 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,353 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,373 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,373 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,374 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,374 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,374 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,375 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,375 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,375 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,375 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,375 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,375 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,382 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,383 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,383 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,384 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,386 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,386 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,387 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,387 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,387 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,442 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,442 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,442 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,457 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,477 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,477 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,477 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,478 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,478 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,478 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,478 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,478 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,478 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,478 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,479 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,479 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,479 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,479 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,479 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,479 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,479 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,479 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,480 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,480 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,480 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,480 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,480 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,480 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,480 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,491 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,492 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,492 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,493 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,493 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,494 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,495 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,495 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,503 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,503 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,503 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,504 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,507 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-23 16:20:28,514 ERROR   wandb-AsyncioManager-main:72125 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 392, in drain
+    await self._protocol._drain_helper()
+  File "/Users/mikkeldahl/.pyenv/versions/3.12.2/lib/python3.12/asyncio/streams.py", line 166, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost

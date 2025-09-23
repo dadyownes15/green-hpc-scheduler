@@ -1,0 +1,181 @@
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'episode_length' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'gamma' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'gae_lambda' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'batch_size' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'seed' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'n_epochs' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'pi_nn' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'vf_nn' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'n_steps' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'total_timesteps' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'ent_coef' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'learning_rate' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'clip_range' was locked by 'sweep' (ignored update).
+run time mean:  4537.126952064257
+run time std:  8534.156541747714
+Max Allocated Processors: 256 ;max node: 256 ;max procs: 256 ;max execution time: 161621
+Using cpu device
+Wrapping the env in a DummyVecEnv.
+Logging to runs/rbspe0bo/PPO_1
+[2K{'self': <sb3_contrib.ppo_mask.ppo_mask.MaskablePPO object at 0x142df5b20>, 'total_timesteps': 300000, 'callback': <stable_baselines3.common.callbacks.CallbackList object at 0x16840a0c0>, 'log_interval': 1, 'tb_log_name': [0m [ [33m0:00:00[0m < [36m-:--:--[0m , [31m? it/s[0m ]
+'PPO', 'reset_num_timesteps': True, 'use_masking': True, 'progress_bar': True, 'iteration': 0}
+[2Kself model roulet:  deque([], maxlen=100)[38;2;249;38;114m╸[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m8,143/300,000 [0m [ [33m0:00:16[0m < [36m0:10:02[0m , [31m486 it/s[0m ]
+[2K-----------------------------━━━━[0m[38;2;249;38;114m╸[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m8,143/300,000 [0m [ [33m0:00:16[0m < [36m0:10:02[0m , [31m486 it/s[0m ]
+| time/              |      |
+|    fps             | 478  |
+|    iterations      | 1    |
+|    time_elapsed    | 17   |
+|    total_timesteps | 8192 |
+-----------------------------
+[2K{'self': <sb3_contrib.ppo_mask.ppo_mask.MaskablePPO object at 0x142df5b20>, 'total_timesteps': 300000, 'callback': <stable_baselines3.common.callbacks.CallbackList object at 0x16840a0c0>, 'log_interval': 1, 'tb_log_name': ━━━━━━━━━━━━━━━━━[0m [32m8,143/300,000 [0m [ [33m0:00:23[0m < [36m0:10:02[0m , [31m486 it/s[0m ]
+'PPO', 'reset_num_timesteps': True, 'use_masking': True, 'progress_bar': True, 'iteration': 0, 'env': <stable_baselines3.common.vec_env.dummy_vec_env.DummyVecEnv object at 0x136f42570>, 'rollout_buffer':
+<sb3_contrib.common.maskable.buffers.MaskableRolloutBuffer object at 0x143e815b0>, 'n_rollout_steps': 8192, 'n_steps': 8191, 'action_masks': array([[False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False,  True,  True,  True,  True,  True,
+         True]]), 'obs_tensor': tensor([[ 1.1517,  0.6511, 14.9256,  ..., -0.7951, -0.3170, -0.2247]]), 'actions': array([261]), 'values': tensor([[-0.3668]]), 'log_probs': tensor([-1.7892]), 'new_obs': array([[ 1.152385  ,
+0.65113324, 14.925647  , ..., -0.7850351 ,
+[2K        -0.29890862, -0.22704498]], shape=(1, 1439), dtype=float32), 'rewards': array([0.], dtype=float32), 'dones': array([False]), 'infos': [{'new_job_arrived': True, 'action_is_delay': True, 'reward_total': 0.0, ━━━━━━━━━━━━━━━━━━━━[0m [32m8,143/300,000 [0m [ [33m0:00:23[0m < [36m0:10:02[0m , [31m486 it/s[0m ]
+'reward_wait_schedule': 0.0, 'reward_carbon': 0.0, 'reward_delay_wait': 0.0, 'time_advanced': 129.0, 'queue_len_before': 8, 'queue_len_after': 9, 'TimeLimit.truncated': False}], 'idx': 0, 'done': np.False_}
+[2Kself model roulet:  deque([{'r': -824.10345, 'l': 11202, 't': 33.066487}], maxlen=100)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m16,324/300,000 [0m [ [33m0:00:42[0m < [36m0:13:46[0m , [31m344 it/s[0m ]s[0m ]
+[2K------------------------------------------[38;5;237m╺[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m16,324/300,000 [0m [ [33m0:00:42[0m < [36m0:13:46[0m , [31m344 it/s[0m ]
+| rollout/                |              |
+|    ep_len_mean          | 1.12e+04     |
+|    ep_rew_mean          | -824         |
+| time/                   |              |
+|    fps                  | 385          |
+|    iterations           | 2            |
+|    time_elapsed         | 42           |
+|    total_timesteps      | 16384        |
+| train/                  |              |
+|    approx_kl            | 0.0034359426 |
+|    clip_fraction        | 0.024        |
+|    clip_range           | 0.2          |
+|    entropy_loss         | -2.13        |
+|    explained_variance   | 0.0293       |
+|    learning_rate        | 0.0003       |
+|    loss                 | -1.79        |
+|    n_updates            | 2            |
+|    policy_gradient_loss | -0.00592     |
+|    value_loss           | 2.53         |
+------------------------------------------
+[2K{'self': <sb3_contrib.ppo_mask.ppo_mask.MaskablePPO object at 0x142df5b20>, 'total_timesteps': 300000, 'callback': <stable_baselines3.common.callbacks.CallbackList object at 0x16840a0c0>, 'log_interval': 1, 'tb_log_name': ━━━━━━━━━[0m [32m16,377/300,000 [0m [ [33m0:00:52[0m < [36m0:13:44[0m , [31m344 it/s[0m ]
+'PPO', 'reset_num_timesteps': True, 'use_masking': True, 'progress_bar': True, 'iteration': 0, 'env': <stable_baselines3.common.vec_env.dummy_vec_env.DummyVecEnv object at 0x136f42570>, 'rollout_buffer':
+<sb3_contrib.common.maskable.buffers.MaskableRolloutBuffer object at 0x143e815b0>, 'n_rollout_steps': 8192, 'n_steps': 8191, 'action_masks': array([[False, False, False, False, False, False, False, False, False,
+        False, False,  True,  True,  True,  True,  True,  True,  True,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False,  True,  True,  True,  True,  True,
+         True]]), 'obs_tensor': tensor([[ 1.6944,  2.3248, 14.9256,  ...,  2.7665,  2.7386,  3.0653]]), 'actions': array([12]), 'values': tensor([[-3.0641]]), 'log_probs': tensor([-2.4124]), 'new_obs': array([[ 1.694405 ,
+2.324761 , 14.925647 , ...,  2.766501 ,  2.7385716,
+[2K         3.0652757]], shape=(1, 1439), dtype=float32), 'rewards': array([-0.0549], dtype=float32), 'dones': array([False]), 'infos': [{'new_job_arrived': False, 'action_is_delay': False, 'reward_total': ━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m16,377/300,000 [0m [ [33m0:00:52[0m < [36m0:13:44[0m , [31m344 it/s[0m ]
+-0.054900000000000004, 'reward_wait_schedule': 0.0, 'reward_carbon': -0.0, 'reward_delay_wait': 0.0, 'time_advanced': 0.0, 'queue_len_before': 18, 'queue_len_after': 17, 'TimeLimit.truncated': False}], 'idx': 0, 'done':
+np.False_}
+[2Kself model roulet:  deque([{'r': -824.10345, 'l': 11202, 't': 33.066487}, {'r': -2535.3192, 'l': 11095, 't': 65.934573}], maxlen=100)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m24,526/300,000 [0m [ [33m0:01:09[0m < [36m0:14:12[0m , [31m324 it/s[0m ]
+[2K------------------------------------------[0m[38;2;249;38;114m╸[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m24,526/300,000 [0m [ [33m0:01:09[0m < [36m0:14:12[0m , [31m324 it/s[0m ]
+| rollout/                |              |
+|    ep_len_mean          | 1.11e+04     |
+|    ep_rew_mean          | -1.68e+03    |
+| time/                   |              |
+|    fps                  | 354          |
+|    iterations           | 3            |
+|    time_elapsed         | 69           |
+|    total_timesteps      | 24576        |
+| train/                  |              |
+|    approx_kl            | 0.0062021464 |
+|    clip_fraction        | 0.0331       |
+|    clip_range           | 0.2          |
+|    entropy_loss         | -2.09        |
+|    explained_variance   | 0.343        |
+|    learning_rate        | 0.0003       |
+|    loss                 | -1.49        |
+|    n_updates            | 4            |
+|    policy_gradient_loss | -0.00529     |
+|    value_loss           | 2.54         |
+------------------------------------------
+[2K{'self': <sb3_contrib.ppo_mask.ppo_mask.MaskablePPO object at 0x142df5b20>, 'total_timesteps': 300000, 'callback': <stable_baselines3.common.callbacks.CallbackList object at 0x16840a0c0>, 'log_interval': 1, 'tb_log_name': ━━━━━━━━━━━━━━━━[0m [32m24,526/300,000 [0m [ [33m0:01:18[0m < [36m0:14:12[0m , [31m324 it/s[0m ]
+'PPO', 'reset_num_timesteps': True, 'use_masking': True, 'progress_bar': True, 'iteration': 0, 'env': <stable_baselines3.common.vec_env.dummy_vec_env.DummyVecEnv object at 0x136f42570>, 'rollout_buffer':
+<sb3_contrib.common.maskable.buffers.MaskableRolloutBuffer object at 0x143e815b0>, 'n_rollout_steps': 8192, 'n_steps': 8191, 'action_masks': array([[False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False,  True, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False, False, False, False, False, False,
+        False, False, False, False,  True,  True,  True,  True,  True,
+         True]]), 'obs_tensor': tensor([[ 0.7422,  1.3017, 14.9256,  ...,  0.7782,  0.8345,  1.0759]]), 'actions': array([259]), 'values': tensor([[-3.3872]]), 'log_probs': tensor([-2.0471]), 'new_obs': array([[ 0.742215  ,
+1.3016955 , 14.925647  , ...,  0.7782271 ,
+[2K         0.83449024,  1.0758903 ]], shape=(1, 1439), dtype=float32), 'rewards': array([0.], dtype=float32), 'dones': array([False]), 'infos': [{'new_job_arrived': True, 'action_is_delay': True, 'reward_total': 0.0, ━━━━━━━━━━━━━━━━━━━[0m [32m24,526/300,000 [0m [ [33m0:01:18[0m < [36m0:14:12[0m , [31m324 it/s[0m ]
+'reward_wait_schedule': 0.0, 'reward_carbon': 0.0, 'reward_delay_wait': 0.0, 'time_advanced': 7.0, 'queue_len_before': 15, 'queue_len_after': 16, 'TimeLimit.truncated': False}], 'idx': 0, 'done': np.False_}
+[2Kwandb: Ctrl + C detected. Stopping sweep.━━━━━━━[0m[38;5;237m╺[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m27,546/300,000 [0m [ [33m0:01:26[0m < [36m0:14:58[0m , [31m303 it/s[0m ]s[0m ]
+[35m   9%[0m [38;2;249;38;114m━━━━━━━━━━━━━━━[0m[38;5;237m╺[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m27,546/300,000 [0m [ [33m0:01:26[0m < [36m0:14:58[0m , [31m303 it/s[0m ]

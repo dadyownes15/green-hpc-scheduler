@@ -6,9 +6,10 @@ import wandb
 from sb3_contrib import MaskablePPO
 from wandb.integration.sb3 import WandbCallback
 from src.hpc_env import HPCenv
-from src.utils import mask_fn
+from src.utils import CustomCallback, mask_fn
 from sb3_contrib.common.wrappers import ActionMasker
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.logger import configure as sb3_configure
 # --- Base config (flat), exactly as your env expects ---
 BASE_CFG = {
     # power settings
@@ -112,7 +113,6 @@ def train():
         wandb.config.update(cfg, allow_val_change=True)
 
         env = Monitor(ActionMasker(HPCenv(mode="training", config_dict=cfg), mask_fn)) 
-        # each run gets a dedicated TB folder
 
         policy_kwargs = build_policy_kwargs(cfg)
 
@@ -130,20 +130,21 @@ def train():
             learning_rate=cfg["learning_rate"],
             clip_range=cfg["clip_range"],
             policy_kwargs=policy_kwargs,
-            tensorboard_log=f"runs/{run.id}"
         )
 
         wandb_cb = WandbCallback(
             gradient_save_freq=0,              # set >0 to log gradients
             model_save_path=f"models/{run.name}",
             model_save_freq=0,                 # set >0 to checkpoint periodically
-            verbose=2,
+            verbose=0,
         )
+
 
         model.learn(
             total_timesteps=cfg["total_timesteps"],
-            callback=wandb_cb,
+            callback=[wandb_cb, CustomCallback(run=run)],
             progress_bar=True,
+            log_interval=1,
         )
 
         env.close()
@@ -163,5 +164,5 @@ if __name__ == "__main__":
         wandb.agent(sweep_id, function=train, count=args.count)
     else:
         # single run (no sweep): just use BASE_CFG
-        with wandb.init(project="green_scheduler", config=BASE_CFG,sync_tensorboard=True, ):
+        with wandb.init(project="green_scheduler", config=BASE_CFG):
             train()

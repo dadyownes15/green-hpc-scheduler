@@ -1,0 +1,41 @@
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'episode_length' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'gamma' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'gae_lambda' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'batch_size' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'seed' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'n_epochs' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'pi_nn' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'vf_nn' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'n_steps' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'total_timesteps' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'ent_coef' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'learning_rate' was locked by 'sweep' (ignored update).
+[34m[1mwandb[0m: [33mWARNING[0m Config item 'clip_range' was locked by 'sweep' (ignored update).
+run time mean:  4537.126952064257
+run time std:  8534.156541747714
+Max Allocated Processors: 256 ;max node: 256 ;max procs: 256 ;max execution time: 161621
+Using cpu device
+Wrapping the env in a DummyVecEnv.
+[2KTraceback (most recent call last):━[0m[38;5;237m╺[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4,046/300,000 [0m [ [33m0:00:07[0m < [36m0:09:41[0m , [31m510 it/s[0m ]s[0m ]
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/sweep.py", line 143, in train━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4,046/300,000 [0m [ [33m0:00:07[0m < [36m0:09:41[0m , [31m510 it/s[0m ]
+    model.learn(
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/sb3_contrib/ppo_mask/ppo_mask.py", line 454, in learn━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4,046/300,000 [0m [ [33m0:00:07[0m < [36m0:09:41[0m , [31m510 it/s[0m ]
+    continue_training = self.collect_rollouts(self.env, callback, self.rollout_buffer, self.n_steps, use_masking)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/sb3_contrib/ppo_mask/ppo_mask.py", line 282, in collect_rollouts━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4,046/300,000 [0m [ [33m0:00:07[0m < [36m0:09:41[0m , [31m510 it/s[0m ]
+    callback.on_rollout_end()
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/stable_baselines3/common/callbacks.py", line 123, in on_rollout_end━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4,046/300,000 [0m [ [33m0:00:07[0m < [36m0:09:41[0m , [31m510 it/s[0m ]
+    self._on_rollout_end()
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/stable_baselines3/common/callbacks.py", line 228, in _on_rollout_end━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4,046/300,000 [0m [ [33m0:00:07[0m < [36m0:09:41[0m , [31m510 it/s[0m ]
+    callback.on_rollout_end()
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/stable_baselines3/common/callbacks.py", line 123, in on_rollout_end━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4,046/300,000 [0m [ [33m0:00:07[0m < [36m0:09:41[0m , [31m510 it/s[0m ]
+    self._on_rollout_end()
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/stable_baselines3/common/callbacks.py", line 228, in _on_rollout_end━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4,046/300,000 [0m [ [33m0:00:07[0m < [36m0:09:41[0m , [31m510 it/s[0m ]
+    callback.on_rollout_end()
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/stable_baselines3/common/callbacks.py", line 123, in on_rollout_end━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4,046/300,000 [0m [ [33m0:00:07[0m < [36m0:09:41[0m , [31m510 it/s[0m ]
+    self._on_rollout_end()
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/src/utils.py", line 281, in _on_rollout_end━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4,046/300,000 [0m [ [33m0:00:07[0m < [36m0:09:41[0m , [31m510 it/s[0m ]
+    run.log(log_dict)
+    ^^^
+[2KNameError: name 'run' is not defined. Did you mean: 'self.run'?━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4,046/300,000 [0m [ [33m0:00:07[0m < [36m0:09:41[0m , [31m510 it/s[0m ]
+[35m   1%[0m [38;2;249;38;114m━━[0m[38;5;237m╺[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4,046/300,000 [0m [ [33m0:00:07[0m < [36m0:09:41[0m , [31m510 it/s[0m ]
