@@ -171,7 +171,7 @@ class Train():
             )
         )
 
-        self.model = MaskablePPO("MlpPolicy", self.env, verbose=1, tensorboard_log=self.run_dir,
+        self.model = MaskablePPO("MlpPolicy", self.env, verbose=0, 
                          gamma = self.config_dict['gamma'],
                          gae_lambda = self.config_dict['gae_lambda'],
                          batch_size = self.config_dict['batch_size'],

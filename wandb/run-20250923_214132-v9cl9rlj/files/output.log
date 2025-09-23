@@ -1,0 +1,51 @@
+Traceback (most recent call last):
+  File "/Users/mikkeldahl/green-hpc-scheduler/train.py", line 32, in <module>
+    train.run(save_checkpoints=True)
+  File "/Users/mikkeldahl/green-hpc-scheduler/src/training.py", line 225, in run
+    self.model.learn(
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/sb3_contrib/ppo_mask/ppo_mask.py", line 454, in learn
+    continue_training = self.collect_rollouts(self.env, callback, self.rollout_buffer, self.n_steps, use_masking)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/sb3_contrib/ppo_mask/ppo_mask.py", line 230, in collect_rollouts
+    actions, values, log_probs = self.policy(obs_tensor, action_masks=action_masks)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/sb3_contrib/common/maskable/policies.py", line 130, in forward
+    latent_pi, latent_vf = self.mlp_extractor(features)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/stable_baselines3/common/torch_layers.py", line 257, in forward
+    return self.forward_actor(features), self.forward_critic(features)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/stable_baselines3/common/torch_layers.py", line 260, in forward_actor
+    return self.policy_net(features)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 244, in forward
+    input = module(input)
+            ^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/linear.py", line 125, in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

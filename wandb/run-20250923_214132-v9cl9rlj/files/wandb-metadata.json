@@ -1,0 +1,37 @@
+{
+  "os":  "macOS-13.6.9-arm64-arm-64bit",
+  "python":  "CPython 3.12.2",
+  "startedAt":  "2025-09-23T19:41:32.017250Z",
+  "program":  "/Users/mikkeldahl/green-hpc-scheduler/train.py",
+  "codePath":  "train.py",
+  "codePathLocal":  "train.py",
+  "git":  {
+    "remote":  "https://github.com/dadyownes15/green-hpc-scheduler.git",
+    "commit":  "2e88dbbe1a3070b285e9556dfa83cc0ff8e6060a"
+  },
+  "email":  "mikkeljanusdahl@gmail.com",
+  "root":  "/Users/mikkeldahl/green-hpc-scheduler",
+  "host":  "Mikkels-MacBook-Pro-2.local",
+  "executable":  "/Users/mikkeldahl/green_scheduler_v2/.venv/bin/python",
+  "cpu_count":  10,
+  "cpu_count_logical":  10,
+  "disk":  {
+    "/":  {
+      "total":  "494384795648",
+      "used":  "462508183552"
+    }
+  },
+  "memory":  {
+    "total":  "17179869184"
+  },
+  "apple":  {
+    "name":  "Apple M2 Pro",
+    "ecpuCores":  4,
+    "pcpuCores":  6,
+    "gpuCores":  16,
+    "memoryGb":  16,
+    "swapTotalBytes":  "4294967296",
+    "ramTotalBytes":  "17179869184"
+  },
+  "writerId":  "sg7nq66ujw07qmxp06wbkiukxxdqr7uf"
+}
