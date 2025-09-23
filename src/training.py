@@ -18,6 +18,8 @@ from src.validation import Validation
 from src.features import AttentionPoolFeaturesExtractor
 import time
 from src.utils import convert_numpy_types
+import wandb
+from wandb.integration.sb3 import WandbCallback
 
 class RewardLoggingCallback(BaseCallback):
     """Logs separate reward components to TensorBoard from env infos.
@@ -146,21 +148,8 @@ class Train():
         # --- END OF NEW LOGIC ---
         self.env = Monitor(ActionMasker(HPCenv(mode="training", config_dict=config_dict, trace_enabled=trace_enabled), mask_fn)) 
 
-        """     
-        extractor_kwargs = {
-            "config": self.config_dict,
-            "queue_hidden_dim": int(self.config_dict.get("queue_hidden_dim", 512)),
-            "running_hidden_dim": int(self.config_dict.get("running_hidden_dim", 128)),
-            "forecast_hidden_dim": int(self.config_dict.get("forecast_hidden_dim", 128)),
-            "carbon_context_dim": int(self.config_dict.get("carbon_context_dim", 32)),
-            "final_dim": int(self.config_dict.get("features_final_dim", 256)),
-            "dropout": float(self.config_dict.get("attention_dropout", 0.0)),
-        } 
-        """
 
         policy_kwargs = dict(
-            #features_extractor_class=AttentionPoolFeaturesExtractor,
-           # features_extractor_kwargs=extractor_kwargs,
             net_arch=dict(
                 pi=self.config_dict['pi_nn'],
                 vf=self.config_dict['vf_nn']
@@ -184,8 +173,20 @@ class Train():
         self.env.reset()
         checkpoint_callback = None
         validation_callback = None
-        reward_logging_callback = RewardLoggingCallback(verbose=0)
 
+
+        run_wandb =  wandb.init(
+            project="green_scheduler",
+            config=self.config_dict,
+            sync_tensorboard=True,
+        )
+
+        callbacks = [WandbCallback(
+        gradient_save_freq=100,
+        model_save_path=f"models/{run_wandb.id}",
+        verbose=2,
+    ),] 
+ 
         if save_checkpoints:
             name_prefix = "seed_" + str(self.config_dict['seed'])
             checkpoint_callback = CheckpointCallback(
@@ -201,14 +202,15 @@ class Train():
                 n_eval_episodes=int(self.config_dict.get('n_eval_episodes', 3)),
                 verbose=1,
             )
-
-        callback = reward_logging_callback
-        if save_checkpoints:
-            callback = CallbackList([checkpoint_callback, validation_callback, reward_logging_callback])
+            callbacks.append(validation_callback)
+            callbacks.append(checkpoint_callback)
+       
 
         self.model.learn(
             total_timesteps=self.config_dict['total_timesteps'],
             tb_log_name="seed_" + str(self.config_dict['seed']),
             callback=callback,
         )
+
+        run_wandb.finish()
         self.model.save(self.run_dir)
