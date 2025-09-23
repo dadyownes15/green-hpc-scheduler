@@ -1,0 +1,5 @@
+2025-09-23 13:54:54,855 INFO    MainThread:36643 [wandb_init.py:setup_run_log_directory():686] Logging user logs to /Users/mikkeldahl/green_scheduler_v2/wandb/run-20250923_135454-hy8yqkhz/logs/debug.log
+2025-09-23 13:54:54,855 INFO    MainThread:36643 [wandb_init.py:setup_run_log_directory():687] Logging internal logs to /Users/mikkeldahl/green_scheduler_v2/wandb/run-20250923_135454-hy8yqkhz/logs/debug-internal.log
+2025-09-23 13:54:54,855 INFO    MainThread:36643 [wandb_init.py:init():813] calling init triggers
+2025-09-23 13:54:54,855 INFO    MainThread:36643 [wandb_init.py:init():818] wandb.init called with sweep_config: {}
+config: {'_wandb': {}}

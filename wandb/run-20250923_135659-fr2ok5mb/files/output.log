@@ -1,0 +1,108 @@
+[34m[1mwandb[0m: wandb.init() called while a run is active and reinit is set to 'default', so returning the previous run.
+run time mean:  4537.126952064257
+run time std:  8534.156541747714
+Max Allocated Processors: 256 ;max node: 256 ;max procs: 256 ;max execution time: 161621
+Using cpu device
+Wrapping the env in a DummyVecEnv.
+[2K---------------------------------━━[0m[38;2;249;38;114m╸[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m18,395/1,000,000 [0m [ [33m0:00:50[0m < [36m0:46:24[0m , [31m353 it/s[0m ]
+| rollout/           |          |
+|    ep_len_mean     | 1.15e+04 |
+|    ep_rew_mean     | -872     |
+| time/              |          |
+|    fps             | 364      |
+|    iterations      | 1        |
+|    time_elapsed    | 50       |
+|    total_timesteps | 18432    |
+---------------------------------
+[2K------------------------------------------m[38;5;237m╺[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m36,834/1,000,000 [0m [ [33m0:01:53[0m < [36m0:43:58[0m , [31m365 it/s[0m ]s[0m ]
+| rollout/                |              |
+|    ep_len_mean          | 1.12e+04     |
+|    ep_rew_mean          | -1.61e+03    |
+| time/                   |              |
+|    fps                  | 324          |
+|    iterations           | 2            |
+|    time_elapsed         | 113          |
+|    total_timesteps      | 36864        |
+| train/                  |              |
+|    approx_kl            | 0.0011701278 |
+|    clip_fraction        | 0.0555       |
+|    clip_range           | 0.1          |
+|    entropy_loss         | -2.08        |
+|    explained_variance   | -0.0109      |
+|    learning_rate        | 0.0003       |
+|    loss                 | 16.1         |
+|    n_updates            | 1            |
+|    policy_gradient_loss | 0.00153      |
+|    value_loss           | 40.9         |
+------------------------------------------
+[2K------------------------------------------[0m[38;5;237m╺[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,271/1,000,000 [0m [ [33m0:03:06[0m < [36m0:42:14[0m , [31m373 it/s[0m ]s[0m ]
+| rollout/                |              |
+|    ep_len_mean          | 1.13e+04     |
+|    ep_rew_mean          | -1.47e+03    |
+| time/                   |              |
+|    fps                  | 295          |
+|    iterations           | 3            |
+|    time_elapsed         | 187          |
+|    total_timesteps      | 55296        |
+| train/                  |              |
+|    approx_kl            | 0.0025059313 |
+|    clip_fraction        | 0.175        |
+|    clip_range           | 0.1          |
+|    entropy_loss         | -2.09        |
+|    explained_variance   | 0.0871       |
+|    learning_rate        | 0.0003       |
+|    loss                 | 147          |
+|    n_updates            | 2            |
+|    policy_gradient_loss | 0.00209      |
+|    value_loss           | 301          |
+------------------------------------------
+[2KTraceback (most recent call last):━━━━━━━━[0m[38;5;237m╺[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/sweep.py", line 141, in train━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    model.learn(
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/sb3_contrib/ppo_mask/ppo_mask.py", line 454, in learn━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    continue_training = self.collect_rollouts(self.env, callback, self.rollout_buffer, self.n_steps, use_masking)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/sb3_contrib/ppo_mask/ppo_mask.py", line 230, in collect_rollouts━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    actions, values, log_probs = self.policy(obs_tensor, action_masks=action_masks)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/sb3_contrib/common/maskable/policies.py", line 130, in forward━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    latent_pi, latent_vf = self.mlp_extractor(features)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/stable_baselines3/common/torch_layers.py", line 257, in forward━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    return self.forward_actor(features), self.forward_critic(features)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/stable_baselines3/common/torch_layers.py", line 260, in forward_actor━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    return self.policy_net(features)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 244, in forward━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    input = module(input)
+            ^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/torch/nn/modules/linear.py", line 125, in forward━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2KKeyboardInterrupt;249;38;114m━━━━━━━━━[0m[38;5;237m╺[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]
+[35m   6%[0m [38;2;249;38;114m━━━━━━━━━[0m[38;5;237m╺[0m[38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m55,836/1,000,000 [0m [ [33m0:03:14[0m < [36m0:52:00[0m , [31m303 it/s[0m ]

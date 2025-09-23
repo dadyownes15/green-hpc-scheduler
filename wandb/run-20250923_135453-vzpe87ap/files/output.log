@@ -1,0 +1,17 @@
+[34m[1mwandb[0m: wandb.init() called while a run is active and reinit is set to 'default', so returning the previous run.
+run time mean:  4537.126952064257
+run time std:  8534.156541747714
+Max Allocated Processors: 256 ;max node: 256 ;max procs: 256 ;max execution time: 161621
+Using cpu device
+Wrapping the env with a `Monitor` wrapper
+Wrapping the env in a DummyVecEnv.
+[2KTraceback (most recent call last):━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0/1,000,000 [0m [ [33m0:00:00[0m < [36m-:--:--[0m , [31m? it/s[0m ]
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/sweep.py", line 138, in train━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0/1,000,000 [0m [ [33m0:00:00[0m < [36m-:--:--[0m , [31m? it/s[0m ]
+    model.learn(
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/sb3_contrib/ppo_mask/ppo_mask.py", line 454, in learn━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0/1,000,000 [0m [ [33m0:00:00[0m < [36m-:--:--[0m , [31m? it/s[0m ]
+    continue_training = self.collect_rollouts(self.env, callback, self.rollout_buffer, self.n_steps, use_masking)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[2K  File "/Users/mikkeldahl/green_scheduler_v2/.venv/lib/python3.12/site-packages/sb3_contrib/ppo_mask/ppo_mask.py", line 217, in collect_rollouts━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0/1,000,000 [0m [ [33m0:00:00[0m < [36m-:--:--[0m , [31m? it/s[0m ]
+    raise ValueError("Environment does not support action masking. Consider using ActionMasker wrapper")
+[2KValueError: Environment does not support action masking. Consider using ActionMasker wrapper━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0/1,000,000 [0m [ [33m0:00:00[0m < [36m-:--:--[0m , [31m? it/s[0m ]
+[35m   0%[0m [38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0/1,000,000 [0m [ [33m0:00:00[0m < [36m-:--:--[0m , [31m? it/s[0m ]

@@ -207,7 +207,7 @@ class HPCenv(Env):
         else:
             return False
 
-    def reset(self, seed, options):
+    def reset(self, seed, options = {}):
 
            
         # Randomize carbon offset and reset components

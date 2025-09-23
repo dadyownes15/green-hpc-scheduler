@@ -1,0 +1,68 @@
+name: ppo-hpc-loss-sweep
+method: bayes
+metric:
+  name: train/value_loss   # SB3 PPO logs this; treat it as "loss"
+  goal: minimize
+
+early_terminate:
+  type: hyperband
+  s: 2
+  max_iter: 30
+  eta: 3
+
+parameters:
+  # --- vary ONLY training keys, keep episode_length fixed ---
+  gamma:
+    distribution: uniform
+    min: 0.95
+    max: 0.999
+
+  gae_lambda:
+    distribution: uniform
+    min: 0.85
+    max: 0.99
+
+  batch_size:
+    values: [512,1024, 2048, 4096]
+
+  seed:
+    values: [2, 7, 42]
+
+  n_epochs:
+    values: [1, 2, 4, 8]
+
+  pi_nn:
+    values:
+      - [1024, 512]
+      - [2048, 512]
+      - [4000, 1000]
+
+  vf_nn:
+    values:
+      - [1024, 512]
+      - [2048, 512]
+      - [4000, 1000]
+
+  # choose values that play nicely with batch_size (see code, we also auto-snap)
+  n_steps:
+    values: [2048,4096, 8192, 16384, 32768]
+
+  total_timesteps:
+    values: [500000]
+
+  ent_coef:
+    distribution: log_uniform
+    min: 0.0005
+    max: 0.05
+
+  learning_rate:
+    distribution: log_uniform
+    min: 1e-5
+    max: 5e-4
+
+  clip_range:
+    values: [0.1, 0.2, 0.3]
+
+  # --- DO NOT VARY ---
+  episode_length:
+    value: 3200

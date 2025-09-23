@@ -142,7 +142,8 @@ class Train():
         # This allows you to easily reference the settings used for this run.
         with open(config_path, 'w') as f:
             json.dump(self.config_dict, f, indent=4)
-        
+
+         
         print(f"Repository created at {self.run_dir} and config saved to {config_path}")
 
         # --- END OF NEW LOGIC ---
