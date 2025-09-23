@@ -575,16 +575,17 @@ class HPCenv(Env):
         components = {'carbon': 0.0, 'wait': 0.0}
         if self.reward_type == "wait_relative_ems":
             if scheduled_job: 
+
                 start_time = current_timestamp
                 end_time = start_time + scheduled_job.run_time
+
+                # Carbon reward calcuation
                 power_usage = scheduled_job.power_usage
-                 
                 carbon_emission_actual = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
-
                 carbon_emission_initial = self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
-
                 carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual))/(carbon_emission_initial + 1)
 
+                # Waittime calculation
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
 
                 components['carbon'] = float(carbon_ratio_reward)*self.alpha

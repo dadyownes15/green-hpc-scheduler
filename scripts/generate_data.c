@@ -171,12 +171,13 @@
 #include <time.h>
 #include <math.h>
 #include <limits.h>
+#include <float.h>
+#include <errno.h>
 
 /*#############################################################################*/
 /*                          CONSTANTS                                          */
 /*#############################################################################*/
 
-#define MAX_END_TIME 365*3600*24-31*3600*24 /* 3 year in seconds */
 #define TOO_MUCH_TIME 12        /* no more than two days =exp(12) for runtime  */
 #define TOO_MUCH_ARRIVE_TIME 13 /* no more than 5 days =exp(13) for arrivetime */
 
@@ -186,6 +187,8 @@
 #define SECONDS_IN_DAY (24*SECONDS_IN_HOUR)        /*     seconds in one day   */
 #define SECONDS_IN_BUCKET (SECONDS_IN_DAY/BUCKETS) /*  seconds in one bucket   */
 #define HOURS_IN_DAY    24                       /* number of hours in one day */
+
+#define DAYS_PER_BLOCK 1      /* length of a generation block in days      */
 
 /* The hours of the day are being moved cyclically.  
  * instead of [0,23] make the day [CYCLIC_DAY_START,(24+CYCLIC_DAY_START-1)]
@@ -206,7 +209,7 @@
  * We force the type to be interactive by setting the next arrival time of batch
  * jobs to be ULONG_MAX -- always larger than the interactive's next arrival.
  */
-#define INCLUDE_JOBS_TYPE 1 /* (1 for yes , 0 for no ) */
+#define INCLUDE_JOBS_TYPE 0 /* (1 for yes , 0 for no ) */
 
 /* represent BATCH or INTERACTIVE parameters in appropriate array */
 #define ACTIVE 0
@@ -342,12 +345,17 @@ unsigned int calc_number_of_nodes(double SerialProb,double Pow2Prob,double ULow,
 unsigned long time_from_nodes(double alpha1, double beta1, 
 			      double alpha2, double beta2, 
 			      double pa    , double pb   , unsigned int nodes);
-unsigned long arrive(int *type , double weights[2][BUCKETS] , 
+double arrive(int *type , double weights[2][BUCKETS] , 
 		     double aarr[2] , double barr[2]);
 void arrive_init(double *aarr , double*barr , double *anum, double *bnum,
 			int start_hour , double weights[2][BUCKETS]);
 void calc_next_arrive(int type ,double weights[2][BUCKETS] ,double aarr[2],
 		      double barr[2]);
+/* helpers for daily generator and runtime adjustment */
+int poisson_sample(double lambda);
+int cmp_day_evt(const void *a, const void *b);
+unsigned long adjust_runtime(int type, unsigned long runtime);
+double log_uniform(double lo, double hi);
 double hyper_gamma(double a1, double b1, double a2, double b2, double p);
 double gamrnd(double alpha , double beta);
 double gamrnd_int_alpha(unsigned n , double beta);
@@ -366,20 +374,30 @@ double two_stage_uniform(double low, double med, double hi, double prob);
 /* current time interval (the bucket's number) */
 int current[2];
 
-/* the number of seconds from the beginning of the simulation*/
-unsigned long time_from_begin[2]; 
+/* next-arrival time from the beginning of the current block (seconds) */
+double time_from_begin[2];
 
+/* per-type bucket accounting across inter-arrival draws; reset each block */
+static double points_acc[2] = {0.0, 0.0};
+static double reminder_acc[2] = {0.0, 0.0};
+
+
+/* tuning knobs for interactive runtime de-skewing */
+static double INTER_SHIFT_PROB = 0.0;   /* probability to shift a <60s job upward */
+static const unsigned long INTER_SHIFT_MIN = 60;   /* seconds */
+static const unsigned long INTER_SHIFT_MAX = 1800; /* seconds (30m) */
 
 /*----------------------------------------------------------------------------*/
 /*                      THE MAIN FUNCTION                                     */
 /*----------------------------------------------------------------------------*/
-int main()
+int main(int argc, char **argv)
 {
   int i;
   double a1[2],b1[2],a2[2],b2[2],pa[2],pb[2];
   double aarr[2],barr[2],anum[2],bnum[2];
   double SerialProb[2] , Pow2Prob[2] , ULow[2] , UMed[2] , UHi[2] , Uprob[2];
-  unsigned long arr_time , run_time;
+  double arr_time_rel, arr_time_abs;
+  unsigned long run_time;
   unsigned int nodes;
   int type;
   double weights[2][BUCKETS] ; /* the appropriate weight (points) for each    */
@@ -387,6 +405,50 @@ int main()
   long seed;
   FILE *outfile;
   char *output_filename = "workload.swf";
+  unsigned long block_count = 1;
+  unsigned long days_per_block = DAYS_PER_BLOCK;
+  unsigned long seconds_per_block;
+  unsigned long block_idx;
+
+  if (argc < 2 || argc > 4) {
+      fprintf(stderr, "Usage: %s [num_30_day_blocks] [output_file]\n",
+              (argc > 0 && argv[0] != NULL) ? argv[0] : "generate_data");
+      return 1;
+  }
+
+  if (argc >= 2) {
+      char *endptr = NULL;
+      errno = 0;
+      block_count = strtoul(argv[1], &endptr, 10);
+      if (errno != 0 || endptr == argv[1] || *endptr != '\0' || block_count == 0) {
+          fprintf(stderr, "Invalid number of 30-day blocks: %s\n", argv[1]);
+          return 1;
+      }
+  }
+
+  /* argv[2] may be days_per_block or output filename */
+  if (argc >= 3) {
+      size_t k; int numeric = 1;
+      for (k = 0; argv[2][k] != '\0'; ++k) {
+          if (argv[2][k] < '0' || argv[2][k] > '9') { numeric = 0; break; }
+      }
+      if (numeric) {
+          char *endptr = NULL; errno = 0;
+          days_per_block = strtoul(argv[2], &endptr, 10);
+          if (errno != 0 || endptr == argv[2] || *endptr != '\0' || days_per_block == 0) {
+              fprintf(stderr, "Invalid days_per_block: %s\n", argv[2]);
+              return 1;
+          }
+      } else {
+          output_filename = argv[2];
+      }
+  }
+
+  if (argc == 4) {
+      output_filename = argv[3];
+  }
+
+  seconds_per_block = days_per_block * SECONDS_IN_DAY;
 
   seed = (long)time(NULL);
   srand48(seed);
@@ -415,25 +477,41 @@ int main()
   fprintf(outfile, "; MaxRuntime: %d\n", (int)exp((double)TOO_MUCH_TIME));
 #endif
 
-  for (i=0; ; i++) {
-    arr_time = arrive(&type,weights,aarr,barr);
-    if (arr_time > MAX_END_TIME) {
+  i = 0;
+  for (block_idx = 0; block_idx < block_count; ++block_idx) {
+    /* reset per-block arrival process to avoid long-run bias */
+    points_acc[0] = points_acc[1] = 0.0;
+    reminder_acc[0] = reminder_acc[1] = 0.0;
+    time_from_begin[0] = time_from_begin[1] = 0.0;
+    arrive_init(aarr,barr,anum,bnum,START,weights);
+
+    for (;;) {
+      arr_time_rel = arrive(&type,weights,aarr,barr);
+      if (arr_time_rel > (double)seconds_per_block) {
         break;
-    }
-    nodes = calc_number_of_nodes(SerialProb[type] , Pow2Prob[type],
-				 ULow[type], UMed[type], UHi[type], Uprob[type]);
-    run_time = time_from_nodes(a1[type] , b1[type] , a2[type] , b2[type],
-			       pa[type] , pb[type] , nodes);
+      }
+      arr_time_abs = (double)(block_idx * seconds_per_block) + arr_time_rel;
+      nodes = calc_number_of_nodes(SerialProb[type] , Pow2Prob[type],
+                                   ULow[type], UMed[type], UHi[type], Uprob[type]);
+      run_time = time_from_nodes(a1[type] , b1[type] , a2[type] , b2[type],
+                                 pa[type] , pb[type] , nodes);
 #if SWF
-    fprintf(outfile, "%5d %7lu -1 %7lu %3d -1 -1 -1 -1 -1 -1 -1 1 -1 -1 -1 %d -1 -1 -1\n",
-	   i+1, arr_time, run_time, nodes, type);
+      fprintf(outfile, "%5d %7lu -1 %7lu %3d -1 -1 -1 -1 -1 -1 -1 1 -1 -1 -1 %d -1 -1 -1\n",
+              i+1, (unsigned long)llround(arr_time_abs), run_time, nodes, type);
 #else
-    fprintf(outfile, "%lu\t%u\t%lu\t%d\n", arr_time , nodes , run_time , type);
+      fprintf(outfile, "%lu\t%u\t%lu\t%d\n",
+              (unsigned long)llround(arr_time_abs), nodes, run_time, type);
 #endif
+      ++i;
+    }
   }
 
   fclose(outfile);
-  printf("Workload data saved to %s\n", output_filename);
+  printf("Workload data saved to %s (%lu block%s of %lu days)\n",
+         output_filename,
+         block_count,
+         (block_count == 1) ? "" : "s",
+         days_per_block);
 
   return 0;
 }
@@ -504,7 +582,7 @@ void init(double* a1,double* b1,double* a2,double* b2,double* pa,double* pb,
 
   arrive_init(aarr,barr,anum,bnum,START,weights);
   if ( ! INCLUDE_JOBS_TYPE )     /* make all jobs interactive */
-    time_from_begin[BATCH] = ULONG_MAX;
+    time_from_begin[BATCH] = DBL_MAX;
   
 }
 
@@ -607,7 +685,11 @@ void arrive_init(double *aarr, double *barr, double *anum, double *bnum ,
   int i,j,idx,moveto = CYCLIC_DAY_START;
   double mean[2] = {0,0};
 
-  bzero(weights , sizeof(weights));
+  memset(weights , 0, sizeof(double) * 2 * BUCKETS);
+  /* reset per-block accumulators */
+  points_acc[0] = points_acc[1] = 0.0;
+  reminder_acc[0] = reminder_acc[1] = 0.0;
+  time_from_begin[BATCH] = time_from_begin[ACTIVE] = 0.0;
   current[BATCH] = current[ACTIVE] = start_hour * BUCKETS / HOURS_IN_DAY; 
 
   /* 
@@ -631,6 +713,11 @@ void arrive_init(double *aarr, double *barr, double *anum, double *bnum ,
 
   calc_next_arrive(BATCH ,weights,aarr,barr);
   calc_next_arrive(ACTIVE,weights,aarr,barr);
+
+  if (!INCLUDE_JOBS_TYPE) {
+    /* keep only interactive jobs when types are disabled */
+    time_from_begin[BATCH] = DBL_MAX;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -647,7 +734,6 @@ void arrive_init(double *aarr, double *barr, double *anum, double *bnum ,
 void calc_next_arrive(int type,double weights[2][BUCKETS] ,double aarr[2],
 			     double barr[2])
 {
-  static double points[2] = {0,0} , reminder[2] = {0,0};
   int bucket;
   double gam , next_arrive  , new_reminder , more_time ;
   
@@ -657,19 +743,19 @@ void calc_next_arrive(int type,double weights[2][BUCKETS] ,double aarr[2],
     gam = gamrnd(aarr[type],barr[type]);
   } while (gam > TOO_MUCH_ARRIVE_TIME);
   
-  points[type] += (exp(gam) / SECONDS_IN_BUCKET); /* number of points         */
+  points_acc[type] += (exp(gam) / SECONDS_IN_BUCKET); /* number of points     */
   next_arrive = 0;
-  while (points[type] > weights[type][bucket]) { /* while have more points    */
-    points[type] -= weights[type][bucket];       /* pay points to this bucket */
+  while (points_acc[type] > weights[type][bucket]) { /* while have more points */
+    points_acc[type] -= weights[type][bucket];       /* pay points to this bucket */
     bucket = (bucket+1)  % 48;             /*   ... and goto the next bucket  */
     next_arrive += SECONDS_IN_BUCKET;      /* accumulate time in next_arrive  */
   }
-  new_reminder = points[type]/weights[type][bucket];
-  more_time = SECONDS_IN_BUCKET * ( new_reminder - reminder[type]);
+  new_reminder = points_acc[type]/weights[type][bucket];
+  more_time = SECONDS_IN_BUCKET * ( new_reminder - reminder_acc[type]);
 
   next_arrive += more_time;             /* add reminders         */
 
-  reminder[type] = new_reminder;        /* save it for next call */
+  reminder_acc[type] = new_reminder;        /* save it for next call */
 
   /* update the global variables */
   time_from_begin[type] += next_arrive;
@@ -687,10 +773,10 @@ void calc_next_arrive(int type,double weights[2][BUCKETS] ,double aarr[2],
  * notice that since calc_next_arrive changes time_from_begin[] we must save
  * the time_from_begin in 'res' so we would be able to return it.
  */
-unsigned long arrive(int *type , double weights[2][BUCKETS] , double aarr[2] , 
+double arrive(int *type , double weights[2][BUCKETS] , double aarr[2] , 
 		     double barr[2])
 {
-  unsigned long res;
+  double res;
 
   *type = (time_from_begin[BATCH] < time_from_begin[ACTIVE]) ? BATCH : ACTIVE;
   res = time_from_begin[*type];       /* save the job's arrival time     */
