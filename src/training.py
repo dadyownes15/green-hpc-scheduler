@@ -67,12 +67,13 @@ class ValidationCallback(BaseCallback):
     naming convention: {name_prefix}_{num_timesteps}_steps under `<run_dir>/logs/`.
     """
 
-    def __init__(self, run_dir: str, name_prefix: str, val_freq: int = 500000, n_eval_episodes: int = 1, verbose: int = 0):
+    def __init__(self, run_dir: str, name_prefix: str, run, val_freq: int = 500000, n_eval_episodes: int = 1, verbose: int = 0, ):
         super().__init__(verbose)
         self.run_dir = run_dir.rstrip("/")
         self.name_prefix = name_prefix
         self.val_freq = int(val_freq)
         self.n_eval_episodes = int(n_eval_episodes)
+        self.run = run
 
     def _on_step(self) -> bool:
         # Trigger validation right after a checkpoint save frequency
@@ -94,30 +95,17 @@ class ValidationCallback(BaseCallback):
             try:
                 validator = Validation()
                 validator.load_dir(self.run_dir)
-                results = validator.validate_policy(
+                results, _ = validator.validate_policy(
+                
                     n_eval_episodes=self.n_eval_episodes,
                     checkpoints=[ckpt_name],
                     mode="validation",
                     debug=False,
                 )
 
-                results = convert_numpy_types(results)
-                # Persist/append results to a JSON file for later inspection
-                results_path = os.path.join(self.run_dir, "validation_metrics.json")
-                if os.path.exists(results_path):
-                    try:
-                        with open(results_path, "r") as f:
-                            existing = json.load(f)
-                    except Exception:
-                        existing = {}
-                else:
-                    existing = {}
-                existing.update(results or {})
-                with open(results_path, "w") as f:
-                    json.dump(existing, f, indent=2)
+                self.run.log(results)
 
-                if self.verbose:
-                    print(f"[ValidationCallback] Validation metrics saved to {results_path}")
+    
             except Exception as e:
                 print(f"[ValidationCallback] Validation failed for {ckpt_name}: {e}")
 
@@ -215,6 +203,7 @@ class Train():
             # Run validation on every checkpoint
             validation_callback = ValidationCallback(
                 run_dir=self.run_dir,
+                run=run_wandb,
                 name_prefix=name_prefix,
                 val_freq=self.save_freq,
                 n_eval_episodes=int(self.config_dict.get('n_eval_episodes', 3)),
