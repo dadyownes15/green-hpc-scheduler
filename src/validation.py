@@ -77,7 +77,7 @@ class Validation():
 
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
         
-        return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict) 
+        return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
  
     def load_dir(self,model_dir):
         self.model_dir = model_dir 
@@ -93,15 +93,14 @@ class Validation():
 
        
     def run_baselines(self, n_eval_episodes, mode, debug = False):
-        """             
-            PercentileBaseline(config_dict=self.config_dict, percentile=10, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
-            PercentileBaseline(config_dict=self.config_dict, percentile=25, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
-            PercentileBaseline(config_dict=self.config_dict, percentile = 50, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
-            FCFSEasyBackfillBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
-            """
+
         baselines = [
 
             FCFSBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
+                        PercentileBaseline(config_dict=self.config_dict, percentile=10, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
+            PercentileBaseline(config_dict=self.config_dict, percentile=25, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
+            PercentileBaseline(config_dict=self.config_dict, percentile = 50, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
+            FCFSEasyBackfillBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
                     ]
         
         stats_dict = {}
@@ -488,9 +487,9 @@ class Validation():
                     delay_spans.append((s, e_t))
 
         # Carbon intensity at boundaries
-        ci_times = []
-        if usage_segments:
-            ci_times = [usage_segments[0]['start']] + [seg['end'] for seg in usage_segments]
+        t_start = 0
+        t_end = action_trace[-1]["timestamp_after"]
+        ci_times = np.arange(t_start,t_end,60)
         ci_values = [ci_at_time(t) for t in ci_times]
 
         # Rolling average of wait values aligned to schedule times

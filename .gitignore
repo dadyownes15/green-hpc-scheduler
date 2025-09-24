@@ -4,3 +4,7 @@ models/
 runs/
 results/
 model_test.zip
+wandb/
+venv/
+renderings/
+figures/
