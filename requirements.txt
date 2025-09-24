@@ -5,3 +5,4 @@ stable-baselines3==2.7.0
 sb3_contrib==2.7.0
 moviepy==2.2.1
 tensorboard==2.20.0
+wandb==0.22.0

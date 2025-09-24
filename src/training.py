@@ -160,10 +160,10 @@ class Train():
             return _init
 
         # Create vectorized env
-        venv = DummyVecEnv([make_env()])
+        self.env = DummyVecEnv([make_env()])
 
         # Add normalization
-        self.env = VecNormalize(venv, norm_reward=True, clip_reward=10.0)
+        self.env = VecNormalize(self.env, clip_reward=15, norm_reward=True)
         policy_kwargs = dict(
             net_arch=dict(
                 pi=self.config_dict['pi_nn'],
@@ -181,6 +181,8 @@ class Train():
                          seed=self.config_dict['seed'],
                          learning_rate = self.config_dict['learning_rate'],
                          clip_range = self.config_dict['clip_range'],
+                         clip_range_vf = self.config_dict['clip_range_vf'],
+                         vf_coef=self.config_dict['vf_coef'],
                          policy_kwargs=policy_kwargs
                                   )
     

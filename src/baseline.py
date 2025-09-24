@@ -24,12 +24,13 @@ class Baseline(abc.ABC):
         pass
 
 class PercentileBaseline(Baseline):
-    def __init__(self,config_dict, env, percentile):
+    def __init__(self,config_dict, env, percentile, global_cutoff = True):
         """
         Initializes the MedianBaseline, which schedules jobs based on carbon intensity.
         """
         super().__init__(config_dict,env)
         self.name = f"{percentile}-percentile Baseline"
+        self.global_cutoff = global_cutoff
         self.percentile = percentile
         
     def run(self, seed=42, debug = False):
@@ -54,8 +55,17 @@ class PercentileBaseline(Baseline):
             
             assert len(carbon_forecast) == (self.config_dict['green_forecast_length'] - 1) * self.config_dict['green_feature_pr_timeslot']
             assert (self.config_dict['green_feature_pr_timeslot'] == 1), "NOT IMPLEMENTED FOR NON multiple green feature pr timeslot"
-            
-            carbon_forecast_percentile = np.percentile(carbon_forecast, q=self.percentile)
+
+            mean = self.env.carbon_intensity.mean
+            std = self.env.carbon_intensity.std
+
+            cutoffs = {10:(31.9240-mean)/std, 25: (47.3247-mean)/std, 50:(78.4003-mean)/std}
+
+            if self.global_cutoff:
+                carbon_forecast_percentile = cutoffs[self.percentile]
+                print("cutoff: ", carbon_forecast_percentile)
+            else: 
+                carbon_forecast_percentile = np.percentile(carbon_forecast, q=self.percentile)
             
             if current_carbon_intensity < carbon_forecast_percentile:
                 mask = self.env.valid_action_mask()
@@ -89,7 +99,6 @@ class PercentileBaseline(Baseline):
 
  
         return reward, self.env.get_action_trace() 
-
 class FCFSBaseline(Baseline):
     def __init__(self, config_dict, env):
         """
