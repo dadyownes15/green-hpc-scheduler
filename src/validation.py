@@ -21,13 +21,9 @@ import matplotlib.patches as patches
 import os
 from pathlib import Path
 class Validation():
-
-
     """
     Validation suite takes a trained model, for now we will simply hardcode the baseline.py and evaluates the model and produces rendering, and overview statistics for n different episodes.
     """
-
-
     def validate_policy(self, n_eval_episodes, checkpoints, mode, debug = False):
         assert self.model_dir is not None
 
@@ -74,22 +70,102 @@ class Validation():
                 stats_dict[checkpoint]['job_scheduled_history'].append(job_hist)
                 stats_dict[checkpoint]['action_traces'].append(action_trace)
 
+        
+        carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
+        return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
+
+    def validate_model(self, n_eval_episodes, model: MaskablePPO, mode: str, debug: bool = False):
+        """
+        Validate a provided model over a number of episodes.
+
+        Args:
+            n_eval_episodes: Number of evaluation episodes.
+            model: A trained RL model (e.g., MaskablePPO) to evaluate.
+            mode: One of "validation" or "test". Controls which dataset the env uses.
+            debug: If True, prints progress information.
+
+        Returns:
+            Tuple of (processed_metrics_dict, raw_stats_dict).
+        """
+        assert getattr(self, 'config_dict', None) is not None, "Call load_dir(...) to set config first."
+
+        self.mode = mode.lower()
+        assert self.mode in ["validation", "test"]
+
+        if debug:
+            print("Validating provided model on data from:", self.mode)
+
+        self.env = ActionMasker(
+            HPCenv(config_dict=self.config_dict, mode=self.mode, debug=debug, trace_enabled=True),
+            action_mask_fn=mask_fn,
+        )
+
+        stats_dict = {
+            "model": {"rewards": [], "job_scheduled_history": [], "action_traces": []}
+        }
+
+        for i in range(n_eval_episodes):
+            if debug and i % 10 == 0:
+                print("Val episode:", i)
+            total_reward, job_hist, action_trace = self.evaluate_policy(seed=i, model=model, debug=debug)
+            stats_dict["model"]["rewards"].append(total_reward)
+            stats_dict["model"]["job_scheduled_history"].append(job_hist)
+            stats_dict["model"]["action_traces"].append(action_trace)
 
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
-        
         return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
- 
-    def load_dir(self,model_dir):
-        self.model_dir = model_dir 
-        config_path = os.path.join(os.getcwd(), self.model_dir, 'config.json')
 
-        try:
-            with open(config_path, 'r') as f:
-                self.config_dict = json.load(f)
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Configuration file not found at '{config_path}'. Please ensure it exists.")
-        except json.JSONDecodeError:
-            raise ValueError(f"Configuration file at '{config_path}' is not a valid JSON file. Please check its syntax.")
+    def load_dir(self, model_dir: str = None, config_dict: dict = None):
+        """
+        Initialize validation context from either a model directory or a config dict.
+
+        - If only `model_dir` is provided, loads `config.json` from that directory.
+        - If only `config_dict` is provided, uses it directly (useful for baselines).
+        - If both are provided, loads from `model_dir` and applies `config_dict` as overrides.
+
+        Args:
+            model_dir: Path to a directory containing a `config.json` and `logs/` with checkpoints.
+            config_dict: Configuration dictionary to use directly or to override file-loaded config.
+        """
+        self.model_dir = model_dir if model_dir is not None else getattr(self, 'model_dir', None)
+
+        # Start from provided config_dict if given
+        provided_cfg = None
+        if config_dict is not None:
+            if not isinstance(config_dict, dict):
+                raise TypeError("config_dict must be a dict if provided")
+            provided_cfg = config_dict
+
+        file_cfg = None
+        if self.model_dir is not None:
+            # Prefer joining directly; model_dir may already be absolute
+            config_path = os.path.join(self.model_dir, 'config.json')
+            if not os.path.isabs(config_path):
+                config_path = os.path.join(os.getcwd(), config_path)
+
+            try:
+                with open(config_path, 'r') as f:
+                    file_cfg = json.load(f)
+            except FileNotFoundError:
+                raise FileNotFoundError(
+                    f"Configuration file not found at '{config_path}'. Please ensure it exists."
+                )
+            except json.JSONDecodeError:
+                raise ValueError(
+                    f"Configuration file at '{config_path}' is not a valid JSON file. Please check its syntax."
+                )
+
+        # Decide final config
+        if file_cfg is None and provided_cfg is None:
+            raise ValueError("Either model_dir or config_dict must be provided to load configuration.")
+
+        if file_cfg is not None and provided_cfg is not None:
+            # Override file config with provided values
+            self.config_dict = {**file_cfg, **provided_cfg}
+        else:
+            self.config_dict = provided_cfg or file_cfg
+
+        return self
 
        
     def run_baselines(self, n_eval_episodes, mode, debug = False):
@@ -122,195 +198,148 @@ class Validation():
         
         terminated = False
         total_reward = 0.0
+        step = 0;
         while not terminated:
             action_masks = get_action_masks(self.env)
             action, _states = model.predict(obs, action_masks=action_masks, deterministic = True)
             obs, reward, terminated, truncated, info = self.env.step(action)
+            # print("step: ", step, "reward: ", reward)
             total_reward += float(reward)
+            step += 1
 
         job_scheduled_history = self.env.unwrapped.scheduled_job_history
         action_trace = self.env.unwrapped.get_action_trace() if hasattr(self.env.unwrapped, 'get_action_trace') else []
         return total_reward, job_scheduled_history, action_trace
 
-    def evaluate_policy_with_trace(self, seed, model: MaskablePPO, debug=False):
-        """Runs a single episode and also returns the per-step action trace."""
-        total_reward, job_scheduled_history, action_trace = self.evaluate_policy(seed=seed, model=model, debug=debug)
-        action_log = self._action_log_from_trace(action_trace)
-        return total_reward, job_scheduled_history, action_log, action_trace
-
-
-
-
     def process_metrics(self, stats_dict, carbon_intensity_calculator, config_dict):
         """
-        Processes a dictionary of evaluation statistics and returns key performance metrics,
-        including an analysis of the agent's action log.
-
-        Args:
-            stats_dict (dict): The dictionary containing evaluation results per checkpoin"median"t.
-                              Expected structure:
-                                {
-                                    'checkpoint_name': {
-                                        'rewards': [...],
-                                        'delay_history': [[(start, end), ...], ...],
-                                        'job_scheduled_history': [[Job, ...], ...],
-                                        'action_log_history': [action_log_dict, ...] 
-                                    }
-                                }
-            carbon_intensity_calculator (CarbonIntensity): An instance of the CarbonIntensity class
-                                                            with the correct mode set.
-            config_dict (dict): The configuration dictionary used to run the environment.
-                                Must contain 'procs_per_node' and 'idle_power'.
-
-        Returns:
-            dict: A nested dictionary with calculated metrics for each checkpoint.
+        Single-episode validation metrics, including:
+        - Avg/Max Wait, Avg Response, Avg Slowdown
+        - Episode Duration (last finish time)
+        - Carbon Emissions (raw and weighted)
+        - System Utilization
+        - Validation Reward  <-- NEW
         """
+        import collections
+        import numpy as np
+
         processed_stats = {}
 
         for checkpoint, data in stats_dict.items():
-            processed_stats[checkpoint] = {}
-            
-            # Initialize lists to hold per-episode data
-            all_wait_times = []
-            all_response_times = []
-            all_slowdowns = []
-            all_carbon_emissions = []
-            all_weighted_carbon_emissions = []
-            all_utilization_data = []
+            # --- Single-episode guard ---
+            rewards_list = data.get('rewards', [])
+            num_episodes = len(rewards_list)
+            assert num_episodes == 1, f"Expected exactly one episode, got {num_episodes}"
 
-            # Action Log Aggregation
+            # Validation reward (assumed scalar per episode)
+            validation_reward = float(rewards_list[0])
+
+            jobs = (data.get('job_scheduled_history', [[]])[0]) if 'job_scheduled_history' in data else []
+            assert jobs, "No jobs found in job_scheduled_history[0]"
+
+            # --- Action analysis (trace preferred, else legacy) ---
             total_schedule_actions = 0
             total_delay_fixed_actions = 0
             total_delay_wait_actions = 0
-            total_actions = 0
-            
-            # Initialize an aggregation dictionary for granular delay actions
             fixed_delay_counts = collections.defaultdict(int)
             wait_job_counts = collections.defaultdict(int)
 
-            num_episodes = len(data.get('rewards', []))
-            if num_episodes == 0:
-                continue
+            action_trace = data.get('action_traces', [[]])[0] if 'action_traces' in data else []
+            if action_trace:
+                for entry in action_trace:
+                    if entry.get('action_type') == 'schedule':
+                        total_schedule_actions += 1
+                    elif entry.get('action_type') == 'delay':
+                        kind = entry.get('delay_kind')
+                        val = int(entry.get('delay_value') or 0)
+                        if kind == 'fixed':
+                            total_delay_fixed_actions += 1
+                            fixed_delay_counts[val] += 1
+                        elif kind == 'wait':
+                            total_delay_wait_actions += 1
+                            wait_job_counts[val] += 1
+            elif 'action_log_history' in data:
+                action_log = data['action_log_history'][0]
+                total_schedule_actions += action_log.get('schedule', 0)
+                total_delay_fixed_actions += action_log.get('delay_fixed', 0)
+                total_delay_wait_actions += action_log.get('delay_wait', 0)
+                for idx, count in enumerate(action_log.get('delay_fixed_indices', [])):
+                    fixed_delay_counts[config_dict['delay_time_list'][idx]] += count
+                for idx, count in enumerate(action_log.get('delay_wait_indices', [])):
+                    wait_job_counts[idx + 1] += count
 
-            for i in range(num_episodes):
-                job_scheduled_history = data.get('job_scheduled_history', [])[i] if 'job_scheduled_history' in data else []
-                action_trace = data.get('action_traces', [])[i] if 'action_traces' in data else []
-                
-                # Carbon and Utilization Calculations
-                total_time_span = 0
-                if job_scheduled_history:
-                    last_job = job_scheduled_history[-1]
-                    total_time_span = (last_job.scheduled_time + last_job.run_time)
+            # --- Per-job metrics ---
+            waits, responses, slowdowns = [], [], []
+            episode_last_finish = 0.0
+            utilization_events = collections.defaultdict(int)
+            episode_carbon_emissions = 0.0
+            episode_weighted_carbon_emissions = 0.0
 
-                episode_carbon_emissions = 0
-                episode_weighted_carbon_emissions = 0
-                utilization_events = collections.defaultdict(int)
-                
-                # Action analysis: prefer traces if present, otherwise expect legacy action_log_history
-                if action_trace:
-                    for entry in action_trace:
-                        if entry.get('action_type') == 'schedule':
-                            total_schedule_actions += 1
-                        elif entry.get('action_type') == 'delay':
-                            kind = entry.get('delay_kind')
-                            val = int(entry.get('delay_value') or 0)
-                            if kind == 'fixed':
-                                total_delay_fixed_actions += 1
-                                fixed_delay_counts[val] += 1
-                            elif kind == 'wait':
-                                total_delay_wait_actions += 1
-                                wait_job_counts[val] += 1
-                elif 'action_log_history' in data:
-                    action_log = data['action_log_history'][i]
-                    total_schedule_actions += action_log['schedule']
-                    total_delay_fixed_actions += action_log['delay_fixed']
-                    total_delay_wait_actions += action_log['delay_wait']
-                    for idx, count in enumerate(action_log['delay_fixed_indices']):
-                        delay_time = config_dict['delay_time_list'][idx]
-                        fixed_delay_counts[delay_time] += count
-                    for idx, count in enumerate(action_log['delay_wait_indices']):
-                        num_jobs = idx + 1
-                        wait_job_counts[num_jobs] += count
+            for job in jobs:
+                wait = job.scheduled_time - job.submit_time
+                finish = job.scheduled_time + job.run_time
+                response = wait + job.run_time
+                slowdown = (response / job.run_time) if job.run_time > 0 else float('inf')
 
-                # Metrics for each job
-                episode_wait_times = []
-                episode_response_times = []
-                episode_slowdowns = []
+                waits.append(wait)
+                responses.append(response)
+                slowdowns.append(slowdown)
+                episode_last_finish = max(episode_last_finish, finish)
 
-                for job in job_scheduled_history:
-                    job_finish_time = job.scheduled_time + job.run_time
-                    wait_time = job.scheduled_time - job.submit_time
-                    response_time = wait_time + job.run_time
-                    slowdown = response_time / job.run_time if job.run_time > 0 else float('inf')
-                    
-                    episode_wait_times.append(wait_time)
-                    episode_response_times.append(response_time)
-                    episode_slowdowns.append(slowdown)
+                # Carbon
+                job_emissions = carbon_intensity_calculator.getCarbonEmissions(
+                    job.power_usage, job.scheduled_time, finish
+                )
+                episode_carbon_emissions += job_emissions
+                episode_weighted_carbon_emissions += job_emissions * getattr(job, 'carbon_consideration', 1.0)
 
-                    job_emissions = carbon_intensity_calculator.getCarbonEmissions(job.power_usage, job.scheduled_time, job_finish_time)
-                    episode_carbon_emissions += job_emissions
-                    episode_weighted_carbon_emissions += job_emissions * job.carbon_consideration
-                    
-                    utilization_events[job.scheduled_time] += job.request_number_of_processors
-                    utilization_events[job_finish_time] -= job.request_number_of_processors
+                # Utilization (+ at start, - at finish)
+                utilization_events[job.scheduled_time] += job.request_number_of_processors
+                utilization_events[finish] -= job.request_number_of_processors
 
-                # Utilization calculation
-                if total_time_span > 0:
-                    times = sorted(utilization_events.keys())
-                    current_procs = 0
-                    last_time = 0
-                    total_time_procs = 0
-                    
-                    for t in times:
-                        duration = t - last_time
-                        if duration > 0:
-                            total_time_procs += current_procs * duration
-                        current_procs += utilization_events[t]
-                        last_time = t
-                    
-                    if total_time_span > last_time:
-                        total_time_procs += current_procs * (total_time_span - last_time)
+            # --- Utilization across [0, episode_last_finish] ---
+            system_utilization = None
+            if episode_last_finish > 0 and utilization_events:
+                times = sorted(utilization_events.keys())
+                current_procs = 0
+                last_t = times[0]
+                time_procs = 0
+                for t in times:
+                    if t > last_t:
+                        time_procs += current_procs * (t - last_t)
+                        last_t = t
+                    current_procs += utilization_events[t]
+                total_procs = config_dict.get('cluster_total_procs', 256)
+                system_utilization = (time_procs / episode_last_finish) / total_procs
 
-                    # NOTE: If cluster size differs, consider using
-                    # config or trace-derived capacity instead of constant.
-                    total_procs = 256
-                    avg_utilization = (total_time_procs / total_time_span) / total_procs
-                    all_utilization_data.append(avg_utilization)
-                
-                # Store per-episode results: average across jobs within the episode
-                if len(episode_wait_times) > 0:
-                    all_wait_times.append(float(np.mean(episode_wait_times)))
-                if len(episode_response_times) > 0:
-                    all_response_times.append(float(np.mean(episode_response_times)))
-                if len(episode_slowdowns) > 0:
-                    all_slowdowns.append(float(np.mean(episode_slowdowns)))
-                all_carbon_emissions.append(episode_carbon_emissions)
-                all_weighted_carbon_emissions.append(episode_weighted_carbon_emissions)
+            # --- Compile results (now includes Validation Reward) ---
+            processed_stats[checkpoint] = {
+                "Validation Reward": validation_reward,                # <-- NEW
+                "Avg Wait": float(np.mean(waits)),
+                "Max Wait": float(np.max(waits)),
+                "Avg Response": float(np.mean(responses)),
+                "Avg Slowdown": float(np.mean(slowdowns)),
+                "Episode Duration": float(episode_last_finish),
+                "Carbon Emissions": float(episode_carbon_emissions),
+                "Weighted Carbon Emissions": float(episode_weighted_carbon_emissions),
+            }
+            if system_utilization is not None:
+                processed_stats[checkpoint]["System Utilization"] = float(system_utilization)
 
-            # Final Aggregation
             total_actions = total_schedule_actions + total_delay_fixed_actions + total_delay_wait_actions
-            
-            # Compile final metrics
-            if all_wait_times:
-                processed_stats[checkpoint]["Avg Wait"] = np.mean(all_wait_times)
-                processed_stats[checkpoint]["Max Wait"] = np.max(all_wait_times)
-                processed_stats[checkpoint]["Avg Response"] = np.mean(all_response_times)
-                processed_stats[checkpoint]["Avg Slowdown"] = np.mean(all_slowdowns)
-                processed_stats[checkpoint]["Carbon Emissions"] = np.mean(all_carbon_emissions)
-                processed_stats[checkpoint]["Weighted Carbon Emissions"] = np.mean(all_weighted_carbon_emissions)
-                processed_stats[checkpoint]["System Utilization"] = np.mean(all_utilization_data)
-
             if total_actions > 0:
                 processed_stats[checkpoint]["Action Analysis"] = {
-                    "Total Actions": total_actions,
-                    "Schedule Action Percentage": (total_schedule_actions / total_actions) * 100,
-                    "Fixed Delay Percentage": (total_delay_fixed_actions / total_actions) * 100,
-                    "Wait Delay Percentage": (total_delay_wait_actions / total_actions) * 100,
-                    "Fixed Delays": {f"{t}s": count for t, count in fixed_delay_counts.items()},
-                    "Wait for Jobs": {f"{j} jobs": count for j, count in wait_job_counts.items()}
+                    "Total Actions": int(total_actions),
+                    "Schedule Action Percentage": 100.0 * total_schedule_actions / total_actions,
+                    "Fixed Delay Percentage": 100.0 * total_delay_fixed_actions / total_actions,
+                    "Wait Delay Percentage": 100.0 * total_delay_wait_actions / total_actions,
+                    "Fixed Delays": {f"{t}s": int(c) for t, c in fixed_delay_counts.items()},
+                    "Wait for Jobs": {f"{j} jobs": int(c) for j, c in wait_job_counts.items()},
                 }
 
         return processed_stats
+
+
 
     @staticmethod
     def _action_log_from_trace(action_trace):
@@ -686,32 +715,3 @@ class Validation():
             print(f"[render] Built interactive Matplotlib figure in {time.time() - t0:.3f}s")
 
         return (png_path if save_png else None), fig
-
-
-
-    def collect_traces(self, n_eval_episodes, checkpoint, mode, debug=False):
-        """
-        Validates a single checkpoint over N episodes, returning a list of
-        dicts containing the episode traces and histories.
-        """
-        assert self.model_dir is not None
-        self.mode = mode.lower()
-        assert self.mode in ["validation", "test"]
-        self.env = ActionMasker(HPCenv(config_dict=self.config_dict, mode=self.mode, debug=debug, trace_enabled=True), action_mask_fn= mask_fn)
-
-        model_path = os.path.join(self.model_dir, "logs", checkpoint)
-        model = MaskablePPO.load(model_path, env=self.env)
-
-        episodes = []
-        for i in range(n_eval_episodes):
-            if debug and i % 10 == 0:
-                print("Trace episode:", i)
-            total_reward, job_scheduled_history, action_log, action_trace = self.evaluate_policy_with_trace(seed=i, model=model, debug=debug)
-            episodes.append({
-                'seed': i,
-                'reward': total_reward,
-                'job_scheduled_history': job_scheduled_history,
-                'action_log': action_log,
-                'action_trace': action_trace,
-            })
-        return episodes

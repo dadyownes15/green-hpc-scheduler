@@ -52,10 +52,10 @@ class HPCenv(Env):
         if self.mode == "training":
             self.workload_path = "data/workloads/training_workload.swf"
         if self.mode == "validation":
-            self.config_dict["episode_length"] = 2620 # This value is hardcoded to be the length of the whole validation set
+            self.config_dict["episode_length"] = 8174 # This value is hardcoded to be the length of the whole validation set
             self.workload_path = "data/workloads/validation_workload.swf"
         if self.mode == "test":
-            self.config_dict["episode_length"] = 55216 # this is hardcoded to be the length of the whole test set
+            self.config_dict["episode_length"] = 22341 # this is hardcoded to be the length of the whole test set
             self.workload_path = "data/workloads/test_workload.swf"
 
         ## -------- Action and observation space def -------
@@ -102,7 +102,7 @@ class HPCenv(Env):
 
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]
-        assert self.reward_type in ["wait_abs_ems", "bd_abs_ems","wait_relative_ems", "bd_relative_ems"]
+        assert self.reward_type in ["wait_abs_ems", "bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems"]
  
     def step(self, action):
         self.new_job_arrived_in_step = False
@@ -121,9 +121,8 @@ class HPCenv(Env):
             #   print("After scheduling jobs: ", self.scheduled_jobs)
             #    print("Queue is empty and future jobs are appending")
                 
-             """  if next_submit_time != sys.maxsize and next_submit_time > self.current_timestamp:
-            self._process_events_until(next_submit_time)
-            """
+                if next_submit_time != sys.maxsize and next_submit_time > self. current_timestamp:
+                    self._process_events_until(next_submit_time)
 
         # Snapshot for logging and reward attribution
         t_before = self.current_timestamp
@@ -573,7 +572,8 @@ class HPCenv(Env):
         """
         reward = 0.0
         components = {'carbon': 0.0, 'wait': 0.0}
-        if self.reward_type == "wait_relative_ems":
+      
+        if self.reward_type == "wait_relative_compute_ems":
             if scheduled_job: 
 
                 start_time = current_timestamp
@@ -581,9 +581,16 @@ class HPCenv(Env):
 
                 # Carbon reward calcuation
                 power_usage = scheduled_job.power_usage
-                carbon_emission_actual = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
                 carbon_emission_initial = self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
-                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual))/(carbon_emission_initial + 1)
+                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission))/(carbon_emission_initial + 0.1)
+
+                compute_time = scheduled_job.request_number_of_nodes * scheduled_job.request_time
+
+                compute_time_norm = (compute_time - 143567.71930292607)/587102.0877243354
+                
+
+                carbon_ratio_reward = np.clip(carbon_ratio_reward*compute_time_norm,-self.config_dict["reward_clip"],self.config_dict["reward_clip"])
 
                 # Waittime calculation
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
@@ -593,18 +600,60 @@ class HPCenv(Env):
                 reward = components['wait'] + components['carbon']
 
             else: 
-                reward = 0
+                reward = 0                
+        if self.reward_type == "wait_relative_ems":
+            if scheduled_job: 
+
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+
+                # Carbon reward calcuation
+                power_usage = scheduled_job.power_usage
+                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+                carbon_emission_initial = self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
+                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission))/(carbon_emission_initial + 1)
+
+                carbon_ratio_reward_clipped = max(-self.config_dict["reward_clip"], min(self.config_dict["reward_clip"], carbon_ratio_reward))
+                # Waittime calculation
+                actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
+
+                components['carbon'] = float(carbon_ratio_reward_clipped)*self.alpha
+                components['wait'] = - (actual_wait / self.config_dict["max_wait_time"])*self.eta
+                reward = components['wait'] + components['carbon']
+
+            else: 
+                reward = 0               
+        if self.reward_type == "wait_abs_ems":
+            if scheduled_job: 
+
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+
+                # Carbon reward calcuation
+                power_usage = scheduled_job.power_usage
+                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+
+                carbon_reward = carbon_emission
+                # Waittime calculation
+                actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
+                components['carbon'] = carbon_reward*self.alpha
+                components['wait'] = - (actual_wait / self.config_dict["max_wait_time"])*self.eta
+                reward = components['wait'] + components['carbon']
+
+            else: 
+                reward = 0               
+                                
         if self.reward_type == "bd_relative_ems":
             if scheduled_job: 
                 start_time = current_timestamp
                 end_time = start_time + scheduled_job.run_time
                 power_usage = scheduled_job.power_usage
                 
-                carbon_emission_actual = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
 
                 carbon_emission_initial = self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
                 
-                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission_actual))/(carbon_emission_initial )
+                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission))/(carbon_emission_initial )
 
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
                 bounded_slowdown = (actual_wait + scheduled_job.run_time) / max([0, scheduled_job.run_time])

@@ -1,0 +1,61 @@
+name: emission_sweep
+method: bayes
+metric:
+  name: Validation Reward   # SB3 PPO logs this; treat it as "loss"
+  goal: maximize
+
+early_terminate:
+  type: hyperband
+  s: 2
+  max_iter: 30
+  eta: 3
+
+parameters:
+  # --- vary ONLY training keys, keep episode_length fixed ---
+  batch_size:
+    values: [1024, 2048, 4096,8192,16384]
+
+  seed:
+    values: [2, 7, 42,6,7,9]
+
+  n_epochs:
+    values: [1, 2, 4, 8]
+
+  pi_nn:
+    values:
+      - [512,512]
+      - [1024, 512]
+      - [2048, 512]
+      - [4000, 1000]
+
+  vf_nn:
+    values:
+      - [512,512]
+      - [1024, 512]
+      - [2048, 512]
+      - [4000, 1000]
+
+  # choose values that play nicely with batch_size (see code, we also auto-snap)
+  n_steps:
+    values: [4096, 8192, 16384, 32768,65536]
+
+  total_timesteps:
+    values: [300000]
+
+  learning_rate:
+    values: [0.00001, 0.00005, 0.0001, 0.0003, 0.0005]
+
+  clip_range:
+    values: [0.1, 0.2, 0.3]
+
+  # --- DO NOT VARY ---
+  episode_length:
+    values: [8,16,32,64,128,256,512,1024,2048]
+  
+  max_wait_n_jobs:
+    values: [1,2,4,6,8]
+  
+  delay_time_list:
+    values: [
+      []
+    ]

@@ -96,14 +96,13 @@ class ValidationCallback(BaseCallback):
                 validator = Validation()
                 validator.load_dir(self.run_dir)
                 results, _ = validator.validate_policy(
-                
                     n_eval_episodes=self.n_eval_episodes,
                     checkpoints=[ckpt_name],
                     mode="validation",
                     debug=False,
                 )
-
-                self.run.log(results)
+                print(results[ckpt_name])
+                self.run.log(results[ckpt_name])
 
     
             except Exception as e:
@@ -117,7 +116,7 @@ class Train():
         self.config_dict = config_dict
         self.save_freq = save_freq
         self.run_id = create_experiment_name(config=config_dict, workload_file=workload_path) 
-        self.run_dir = "./results/" + self.run_id + "/"  
+        self.run_dir = "results/" + self.run_id + "/"  
         # --- NEW LOGIC TO CREATE REPOSITORY AND SAVE CONFIG ---
         # Create the directory for the run if it doesn't already exist.
         # exist_ok=True prevents an error if the directory already exists.
@@ -135,23 +134,14 @@ class Train():
         print(f"Repository created at {self.run_dir} and config saved to {config_path}")
    
 
-        def make_env():
-            def _init():
-                env = HPCenv(
+        # Create vectorized env
+        self.env = HPCenv(
                     mode="training",
                     config_dict=config_dict,
                     trace_enabled=trace_enabled
                 )
-                env = ActionMasker(env, mask_fn)  # mask invalid actions
-                env = Monitor(env)                # track stats like ep_len, 
-                return env
-            return _init
-
-        # Create vectorized env
-        self.env = DummyVecEnv([make_env()])
-
-        # Add normalization
-        self.env = VecNormalize(self.env, clip_reward=15, norm_reward=True)
+        self.env= ActionMasker(self.env, mask_fn)  # mask invalid actions
+        self.env = Monitor(self.env)  
         policy_kwargs = dict(
             net_arch=dict(
                 pi=self.config_dict['pi_nn'],
@@ -206,7 +196,7 @@ class Train():
                 run=run_wandb,
                 name_prefix=name_prefix,
                 val_freq=self.save_freq,
-                n_eval_episodes=int(self.config_dict.get('n_eval_episodes', 3)),
+                n_eval_episodes=1,
                 verbose=1,
             )
             callbacks.append(checkpoint_callback)

@@ -1,8 +1,8 @@
-name: ppo-hpc-loss-sweep
+name: emission_sweep
 method: bayes
 metric:
-  name: train/value_loss   # SB3 PPO logs this; treat it as "loss"
-  goal: minimize
+  name: Validation Reward   # SB3 PPO logs this; treat it as "loss"
+  goal: maximize
 
 early_terminate:
   type: hyperband
@@ -12,48 +12,35 @@ early_terminate:
 
 parameters:
   # --- vary ONLY training keys, keep episode_length fixed ---
-  gamma:
-    distribution: uniform
-    min: 0.95
-    max: 0.999
-
-  gae_lambda:
-    distribution: uniform
-    min: 0.85
-    max: 0.99
-
   batch_size:
-    values: [512,1024, 2048, 4096]
+    values: [1024, 2048, 4096,8192,16384]
 
   seed:
-    values: [2, 7, 42]
+    values: [2, 7, 42,6,7,9]
 
   n_epochs:
     values: [1, 2, 4, 8]
 
   pi_nn:
     values:
+      - [512,512]
       - [1024, 512]
       - [2048, 512]
       - [4000, 1000]
 
   vf_nn:
     values:
+      - [512,512]
       - [1024, 512]
       - [2048, 512]
       - [4000, 1000]
 
   # choose values that play nicely with batch_size (see code, we also auto-snap)
   n_steps:
-    values: [2048,4096, 8192, 16384, 32768]
+    values: [4096, 8192, 16384, 32768,65536]
 
   total_timesteps:
     values: [300000]
-
-  ent_coef:
-    distribution: log_uniform
-    min: 0.0005
-    max: 0.05
 
   learning_rate:
     values: [0.00001, 0.00005, 0.0001, 0.0003, 0.0005]
@@ -63,4 +50,26 @@ parameters:
 
   # --- DO NOT VARY ---
   episode_length:
-    value: 3200
+    values: [8,16,32,64,128,256,512,1024,2048]
+  
+  max_wait_n_jobs:
+    values: [1,2,4,6,8]
+  
+  delay_time_list:
+    values: [
+      [        
+        300,
+        3600,
+        86400
+        ],
+        [        
+        300,
+        600,
+        1800,
+        3600,
+        7200,
+        14400,
+        43200,
+        86400
+        ]
+    ]
