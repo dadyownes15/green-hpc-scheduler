@@ -27,6 +27,11 @@ config.read(config_path)
 
 config_dict = get_config_as_dict(config) 
 print(config_dict)
-train = Train(config_dict=config_dict, workload_path=WORKLOAD_PATH, save_freq=config_dict['n_steps']*5)
 
-train.run(save_checkpoints=True)
+eta_list = [25,50,100,200]
+for eta in eta_list:
+
+    config_dict['eta'] = eta
+    train = Train(config_dict=config_dict, workload_path=WORKLOAD_PATH, save_freq=config_dict['n_steps']*5)
+
+    train.run(save_checkpoints=True)

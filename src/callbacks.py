@@ -12,9 +12,12 @@ class SweepCallBack(BaseCallback):
 
     :param verbose: Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages
     """
-    def __init__(self,run, config_dict, verbose = 0, ):
+    def __init__(self,run, config_dict, verbose = 0, val_freq = 100_000):
         self.run = run
         self.config_dict = config_dict
+        self.val_freq = val_freq
+        self.steps_count = 0
+        self.roll_out_count = 0
         super().__init__(verbose)
         # Those variables will be accessible in the callback
         # (they are defined in the base class)
@@ -55,7 +58,7 @@ class SweepCallBack(BaseCallback):
 
         :return: If the callback returns False, training is aborted early.
         """
-        
+        self.steps_count += 1
         return True
 
     def _on_rollout_end(self) -> None:
@@ -64,8 +67,8 @@ class SweepCallBack(BaseCallback):
         """
         log_dict = self.model.logger.name_to_value
         self.run.log(log_dict)
+    
 
-        pass
 
     def _on_training_end(self) -> None:
         """
@@ -75,4 +78,3 @@ class SweepCallBack(BaseCallback):
         val.load_dir(config_dict=self.config_dict)
         results, _ = val.validate_model(1, self.model, "validation")
         self.run.log(results)
-        

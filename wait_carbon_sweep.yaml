@@ -40,7 +40,7 @@ parameters:
     values: [4096, 8192, 16384, 32768,65536]
 
   total_timesteps:
-    values: [1000000]
+    values: [500000]
 
   learning_rate:
     values: [0.00001, 0.00005, 0.0001, 0.0003, 0.0005]

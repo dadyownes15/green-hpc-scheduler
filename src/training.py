@@ -17,7 +17,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback,
 from src.validation import Validation
 from src.features import AttentionPoolFeaturesExtractor
 import time
-from src.utils import convert_numpy_types, CustomCallback
+from src.utils import convert_numpy_types 
 import wandb
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
@@ -109,6 +109,11 @@ class ValidationCallback(BaseCallback):
                 print(f"[ValidationCallback] Validation failed for {ckpt_name}: {e}")
 
         return True
+    
+    def on_rollout_end(self) -> None:
+        log_dict = self.model.logger.name_to_value
+        self.run.log(log_dict)
+        return super().on_rollout_end()
 
 
 class Train():
@@ -178,7 +183,7 @@ class Train():
         callbacks = [WandbCallback(
         model_save_path=f"models/{run_wandb.id}",
     ),
-    CustomCallback(run=run_wandb),
+    ValidationCallback(run_dir=self.run_dir, run=run_wandb, name_prefix="lets roll")
     ] 
         
         ## I am doomed
@@ -207,6 +212,7 @@ class Train():
             total_timesteps=self.config_dict['total_timesteps'],
             tb_log_name="seed_" + str(self.config_dict['seed']),
             callback=callbacks,
+            
         )
 
         run_wandb.finish()
