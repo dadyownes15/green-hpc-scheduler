@@ -11,6 +11,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
 import matplotlib.pyplot as plt
 from sb3_contrib.common.maskable.utils import get_action_masks
+from src.callbacks import ValidationCallback
 from src.utils import mask_fn, create_experiment_name
 from src.hpc_env import HPCenv
 from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback, CallbackList
@@ -21,100 +22,6 @@ from src.utils import convert_numpy_types
 import wandb
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-class RewardLoggingCallback(BaseCallback):
-    """Logs separate reward components to TensorBoard from env infos.
-
-    It expects info keys populated by HPCenv.step:
-      - 'reward_carbon'
-      - 'reward_wait_schedule'
-      - 'reward_delay_wait'
-      - 'reward_total'
-    """
-
-    def __init__(self, verbose: int = 0):
-        super().__init__(verbose)
-
-    def _on_step(self) -> bool:
-        infos = self.locals.get("infos") or []
-        # Support vectorized envs (list of dicts)
-        if isinstance(infos, dict):
-            infos = [infos]
-        # Aggregate simple means across envs for logging
-        if infos:
-            keys = [
-                ("reward/carbon", "reward_carbon"),
-                ("reward/wait_schedule", "reward_wait_schedule"),
-                ("reward/delay_wait", "reward_delay_wait"),
-                ("reward/total", "reward_total"),
-                ("queue/len_after", "queue_len_after"),
-            ]
-            for log_key, info_key in keys:
-                vals = [i.get(info_key) for i in infos if info_key in i]
-                if vals:
-                    try:
-                        self.logger.record(log_key, float(np.mean(vals)))
-                    except Exception:
-                        # Be resilient to any type issues
-                        pass
-        return True
-
-class ValidationCallback(BaseCallback):
-    """
-    Runs validation on the latest checkpoint at a fixed frequency using
-    Validation.validate_policy in "validation" mode.
-
-    It expects checkpoints to be saved with Stable-Baselines3's CheckpointCallback
-    naming convention: {name_prefix}_{num_timesteps}_steps under `<run_dir>/logs/`.
-    """
-
-    def __init__(self, run_dir: str, name_prefix: str, run, val_freq: int = 500000, n_eval_episodes: int = 1, verbose: int = 0, ):
-        super().__init__(verbose)
-        self.run_dir = run_dir.rstrip("/")
-        self.name_prefix = name_prefix
-        self.val_freq = int(val_freq)
-        self.n_eval_episodes = int(n_eval_episodes)
-        self.run = run
-
-    def _on_step(self) -> bool:
-        # Trigger validation right after a checkpoint save frequency
-        if self.num_timesteps > 0 and (self.num_timesteps % self.val_freq == 0):
-            ckpt_name = f"{self.name_prefix}_{self.num_timesteps}_steps"
-            ckpt_dir = os.path.join(self.run_dir, "logs")
-            ckpt_path = os.path.join(ckpt_dir, ckpt_name)
-
-            # Small wait to ensure checkpoint file is fully written to disk
-            # (Callback order should already make this safe when used after CheckpointCallback.)
-            for _ in range(3):
-                if os.path.exists(ckpt_path) or os.path.exists(ckpt_path + ".zip"):
-                    break
-                time.sleep(0.1)
-
-            if self.verbose:
-                print(f"[ValidationCallback] Running validation for checkpoint: {ckpt_name}")
-
-            try:
-                validator = Validation()
-                validator.load_dir(self.run_dir)
-                results, _ = validator.validate_policy(
-                    n_eval_episodes=self.n_eval_episodes,
-                    checkpoints=[ckpt_name],
-                    mode="validation",
-                    debug=False,
-                )
-                print(results[ckpt_name])
-                self.run.log(results[ckpt_name])
-
-    
-            except Exception as e:
-                print(f"[ValidationCallback] Validation failed for {ckpt_name}: {e}")
-
-        return True
-    
-    def on_rollout_end(self) -> None:
-        log_dict = self.model.logger.name_to_value
-        self.run.log(log_dict)
-
-        return super().on_rollout_end()
 
 
 class Train():
@@ -183,8 +90,7 @@ class Train():
 
         callbacks = [WandbCallback(
         model_save_path=f"models/{run_wandb.id}",
-    ),
-    ValidationCallback(run_dir=self.run_dir, run=run_wandb, name_prefix="lets roll")
+    )
     ] 
         
         ## I am doomed

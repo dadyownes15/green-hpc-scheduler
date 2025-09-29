@@ -61,8 +61,6 @@ class Workloads:
         self.processor_mean = np.mean(processor_list)
         self.processor_std = np.mean(processor_list)
 
-        print("run time mean: ", self.run_time_mean)
-        print("run time std: ", self.run_time_std)
         with open(path) as fp:
             for line in fp:
 
@@ -98,10 +96,6 @@ class Workloads:
         # if max_procs = 0, it means node/proc are the same.
         if self.max_procs == 0:
             self.max_procs = self.max_nodes
-
-        print("Max Allocated Processors:", str(self.max), ";max node:", self.max_nodes,
-              ";max procs:", self.max_procs,
-              ";max execution time:", self.max_exec_time)
 
         self.loaded_jobs.sort(key=lambda job: job.job_id)
 

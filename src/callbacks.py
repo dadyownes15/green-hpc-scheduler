@@ -2,9 +2,10 @@
 from stable_baselines3.common.callbacks import BaseCallback
 
 import numpy as np
+import time
 
 from src.validation import Validation
-
+import os
 
 class SweepCallBack(BaseCallback):
     """
@@ -79,3 +80,63 @@ class SweepCallBack(BaseCallback):
         val.load_dir(config_dict=self.config_dict)
         results, _ = val.validate_model(1, self.model, "validation")
         self.run.log(results)
+
+
+
+class ValidationCallback(BaseCallback):
+    """
+    Runs validation on the latest checkpoint at a fixed frequency using
+    Validation.validate_policy in "validation" mode.
+
+    It expects checkpoints to be saved with Stable-Baselines3's CheckpointCallback
+    naming convention: {name_prefix}_{num_timesteps}_steps under `<run_dir>/logs/`.
+    """
+
+    def __init__(self, run_dir: str, name_prefix: str, run, val_freq: int = 500000, n_eval_episodes: int = 1, verbose: int = 0, ):
+        super().__init__(verbose)
+        self.run_dir = run_dir.rstrip("/")
+        self.name_prefix = name_prefix
+        self.val_freq = int(val_freq)
+        self.n_eval_episodes = int(n_eval_episodes)
+        self.run = run
+
+    def _on_step(self) -> bool:
+        # Trigger validation right after a checkpoint save frequency
+        if self.num_timesteps > 0 and (self.num_timesteps % self.val_freq == 0):
+            ckpt_name = f"{self.name_prefix}_{self.num_timesteps}_steps"
+            ckpt_dir = os.path.join(self.run_dir, "logs")
+            ckpt_path = os.path.join(ckpt_dir, ckpt_name)
+
+            # Small wait to ensure checkpoint file is fully written to disk
+            # (Callback order should already make this safe when used after CheckpointCallback.)
+            for _ in range(3):
+                if os.path.exists(ckpt_path) or os.path.exists(ckpt_path + ".zip"):
+                    break
+                time.sleep(0.1)
+
+            if self.verbose:
+                print(f"[ValidationCallback] Running validation for checkpoint: {ckpt_name}")
+
+            try:
+                validator = Validation()
+                validator.load_dir(self.run_dir)
+                results, _ = validator.validate_policy(
+                    n_eval_episodes=self.n_eval_episodes,
+                    checkpoints=[ckpt_name],
+                    mode="validation",
+                    debug=False,
+                )
+                print(results[ckpt_name])
+                self.run.log(results[ckpt_name])
+
+    
+            except Exception as e:
+                print(f"[ValidationCallback] Validation failed for {ckpt_name}: {e}")
+
+        return True
+    
+    def on_rollout_end(self) -> None:
+        log_dict = self.model.logger.name_to_value
+        self.run.log(log_dict)
+
+        return super().on_rollout_end()

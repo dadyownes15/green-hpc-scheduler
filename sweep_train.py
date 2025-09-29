@@ -29,14 +29,11 @@ config_dict = get_config_as_dict(config)
 print(config_dict)
 
 seed_list = [2,3,4,5]
-eta_list = [20,60,100]
-for eta in eta_list:
-    for seed in seed_list:
+for seed in seed_list:
 
-        print("Running on seed: ", seed, "with eta: ", eta)
-        print()
-        config_dict['eta'] = eta 
-        config_dict['seed'] = seed
-        train = Train(config_dict=config_dict, workload_path=WORKLOAD_PATH, save_freq=config_dict['n_steps']*2)
+    print("Running on seed: ", seed)
+    
+    config_dict['seed'] = seed
+    train = Train(config_dict=config_dict, workload_path=WORKLOAD_PATH, save_freq=config_dict['n_steps']*2)
 
-        train.run(save_checkpoints=True)
+    train.run(save_checkpoints=True)
