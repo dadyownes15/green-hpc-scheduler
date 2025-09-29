@@ -66,6 +66,7 @@ class SweepCallBack(BaseCallback):
         This event is triggered before updating the policy.
         """
         log_dict = self.model.logger.name_to_value
+        print("Roll out end: ", log_dict)
         self.run.log(log_dict)
     
 

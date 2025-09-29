@@ -113,6 +113,7 @@ class ValidationCallback(BaseCallback):
     def on_rollout_end(self) -> None:
         log_dict = self.model.logger.name_to_value
         self.run.log(log_dict)
+
         return super().on_rollout_end()
 
 
@@ -212,7 +213,7 @@ class Train():
             total_timesteps=self.config_dict['total_timesteps'],
             tb_log_name="seed_" + str(self.config_dict['seed']),
             callback=callbacks,
-            
+            log_interval=1,
         )
 
         run_wandb.finish()
