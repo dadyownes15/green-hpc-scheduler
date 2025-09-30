@@ -11,7 +11,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
 import matplotlib.pyplot as plt
 from sb3_contrib.common.maskable.utils import get_action_masks
-from src.callbacks import ValidationCallback, StepInfoLoggerCallback
+from src.callbacks import ValidationCallback, StepInfoLoggerCallback, debugCallback
 from src.utils import mask_fn, create_experiment_name
 from src.hpc_env import HPCenv
 from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback, CallbackList
@@ -91,7 +91,8 @@ class Train():
         callbacks = [
             WandbCallback(
                 model_save_path=f"models/{run_wandb.id}",
-            )
+            ),
+            debugCallback(run=run_wandb)
         ]
 
         # Record per-step env info when tracing is enabled

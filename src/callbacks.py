@@ -4,6 +4,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 import numpy as np
 import time
 import json
+import math
 from typing import List, Dict, Any, Optional
 
 from src.validation import Validation
@@ -143,6 +144,154 @@ class ValidationCallback(BaseCallback):
 
         return super().on_rollout_end()
 
+
+class debugCallback(BaseCallback):
+    def __init__(self, run=None, verbose: int = 0) -> None:
+        super().__init__(verbose)
+        self.run = run
+        self._episode_sums: Dict[int, Dict[str, float]] = {}
+        self._rollout_episode_records: List[Dict[str, float]] = []
+
+    def _init_callback(self) -> None:
+        self._ensure_episode_sums()
+
+    def _ensure_episode_sums(self) -> None:
+        if not hasattr(self, 'model'):
+            return
+        env = self.training_env
+        self._episode_sums = {
+            idx: {'reward_total': 0.0, 'reward_wait': 0.0, 'reward_carbon': 0.0, 'steps': 0.0}
+            for idx in range(getattr(env, 'num_envs', 1))
+        }
+
+    def _on_training_start(self) -> None:
+        self._ensure_episode_sums()
+
+    def _on_rollout_start(self) -> None:
+        if not self._episode_sums:
+            self._ensure_episode_sums()
+        self._rollout_episode_records = []
+
+    def _on_step(self) -> bool:
+        infos = self.locals.get('infos', [])
+        rewards = self.locals.get('rewards', [])
+        dones = self.locals.get('dones', [])
+
+        for idx, info in enumerate(infos):
+            info = info or {}
+            sums = self._episode_sums.setdefault(
+                idx,
+                {'reward_total': 0.0, 'reward_wait': 0.0, 'reward_carbon': 0.0, 'steps': 0.0},
+            )
+
+            reward_total = info.get('reward_total')
+            if reward_total is None and idx < len(rewards):
+                reward_total = float(rewards[idx])
+
+            sums['reward_total'] += float(reward_total or 0.0)
+            sums['reward_wait'] += float(info.get('reward_wait', 0.0))
+            sums['reward_carbon'] += float(info.get('reward_carbon', 0.0))
+            sums['steps'] += 1.0
+
+            if idx < len(dones) and dones[idx]:
+                episode_info = info.get('episode', {})
+                episode_metrics = info.get('episode_metrics', {})
+                record = {
+                    'ep_mean': self._safe_div(sums['reward_total'], sums['steps']),
+                    'ep_mean_wait': self._safe_div(sums['reward_wait'], sums['steps']),
+                    'ep_mean_carbon_reward': self._safe_div(sums['reward_carbon'], sums['steps']),
+                    'episode_return': float(episode_info.get('r', sums['reward_total'])),
+                    'avg_wait': float(episode_metrics.get('avg_wait', 0.0)),
+                    'avg_emissions': float(episode_metrics.get('avg_emissions', 0.0)),
+                    'span_seconds': float(episode_metrics.get('span_seconds', 0.0)),
+                    'job_count': float(episode_metrics.get('job_count', 0.0)),
+                }
+                self._rollout_episode_records.append(record)
+                sums.update({'reward_total': 0.0, 'reward_wait': 0.0, 'reward_carbon': 0.0, 'steps': 0.0})
+
+        return True
+
+    def _on_rollout_end(self) -> None:
+        payload = self._build_log_payload()
+        if payload and self.run is not None:
+            self.run.log(payload, step=self.model.num_timesteps)
+        if self.verbose and payload:
+            print(f"[debugCallback] {payload}")
+        self._rollout_episode_records.clear()
+
+    def _build_log_payload(self) -> Dict[str, float]:
+        episodes = self._rollout_episode_records or self._collect_partial_episode_metrics()
+        if not episodes:
+            return {}
+
+        log_data: Dict[str, float] = {}
+
+        def add_mean(key: str, wandb_key: str) -> None:
+            values = [entry.get(key) for entry in episodes if self._is_finite(entry.get(key))]
+            if values:
+                log_data[wandb_key] = float(np.mean(values))
+
+        add_mean('ep_mean', 'debug/avg_ep_mean')
+        add_mean('ep_mean_carbon_reward', 'debug/avg_ep_mean_carbon_reward')
+        add_mean('ep_mean_wait', 'debug/avg_ep_mean_wait')
+        add_mean('avg_wait', 'debug/avg_wait_seconds')
+        add_mean('avg_emissions', 'debug/avg_emissions')
+        add_mean('span_seconds', 'debug/span_seconds')
+        add_mean('job_count', 'debug/job_count')
+
+        log_data['debug/episodes_in_rollout'] = float(len(self._rollout_episode_records))
+        return log_data
+
+    def _collect_partial_episode_metrics(self) -> List[Dict[str, float]]:
+        partials: List[Dict[str, float]] = []
+        for idx, sums in self._episode_sums.items():
+            env_metrics = self._compute_env_metrics(idx)
+            partials.append(
+                {
+                    'ep_mean': self._safe_div(sums['reward_total'], sums['steps']),
+                    'ep_mean_wait': self._safe_div(sums['reward_wait'], sums['steps']),
+                    'ep_mean_carbon_reward': self._safe_div(sums['reward_carbon'], sums['steps']),
+                    **env_metrics,
+                }
+            )
+        return partials
+
+    def _compute_env_metrics(self, index: int) -> Dict[str, float]:
+        try:
+            env = self.training_env.envs[index]
+        except Exception:
+            return {'avg_wait': 0.0, 'avg_emissions': 0.0, 'span_seconds': 0.0, 'job_count': 0.0}
+
+        base_env = env
+        while hasattr(base_env, 'env'):
+            base_env = base_env.env
+
+        try:
+            metrics = base_env._compute_episode_metrics()
+        except Exception:
+            metrics = {}
+
+        return {
+            'avg_wait': float(metrics.get('avg_wait', 0.0)),
+            'avg_emissions': float(metrics.get('avg_emissions', 0.0)),
+            'span_seconds': float(metrics.get('span_seconds', 0.0)),
+            'job_count': float(metrics.get('job_count', 0.0)),
+        }
+
+    @staticmethod
+    def _safe_div(numerator: float, denominator: float) -> float:
+        if denominator:
+            return float(numerator) / float(denominator)
+        return 0.0
+
+    @staticmethod
+    def _is_finite(value: Optional[float]) -> bool:
+        if value is None:
+            return False
+        try:
+            return math.isfinite(float(value))
+        except (TypeError, ValueError):
+            return False
 
 class StepInfoLoggerCallback(BaseCallback):
     """

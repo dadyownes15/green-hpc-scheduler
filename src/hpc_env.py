@@ -177,6 +177,9 @@ class HPCenv(Env):
 
         terminated = self.should_terminate()
 
+        #if terminated:
+            #info['episode_metrics'] = self._compute_episode_metrics()
+
         # Expose reward breakdown for logging/analysis
         info.update({
             'reward_total': float(components.get('total', 0.0)),
@@ -480,6 +483,51 @@ class HPCenv(Env):
         trace_entry['running_len_after'] = len(self.running_jobs)
         self.action_trace.append(trace_entry)
 
+    def _compute_episode_metrics(self) -> Dict[str, float]:
+        jobs = getattr(self, 'scheduled_job_history', [])
+        if not jobs:
+            return {
+                'avg_wait': 0.0,
+                'avg_emissions': 0.0,
+                'span_seconds': 0.0,
+                'job_count': 0,
+            }
+
+        waits = []
+        emissions = []
+        first_submit = None
+        last_finish = None
+
+        for job in jobs:
+            if job.scheduled_time == -1:
+                continue
+
+            wait = max(0, job.scheduled_time - job.submit_time)
+            waits.append(wait)
+
+            start = job.scheduled_time
+            end = start + job.run_time
+
+            try:
+                emission = self.carbon_intensity.getCarbonEmissions(job.power_usage, start, end)
+                emissions.append(emission)
+            except Exception:
+                pass
+
+            first_submit = job.submit_time if first_submit is None else min(first_submit, job.submit_time)
+            last_finish = end if last_finish is None else max(last_finish, end)
+
+        avg_wait = float(np.mean(waits)) if waits else 0.0
+        avg_emissions = float(np.mean(emissions)) if emissions else 0.0
+        span_seconds = float((last_finish - first_submit) if first_submit is not None and last_finish is not None else 0.0)
+
+        return {
+            'avg_wait': avg_wait,
+            'avg_emissions': avg_emissions,
+            'span_seconds': span_seconds,
+            'job_count': len(waits),
+        }
+
     def _log_trace_schedule(self, scheduled_job: Job | None, trace_entry: Dict[str, Any]) -> None:
         if trace_entry is None:
             return
@@ -584,7 +632,7 @@ class HPCenv(Env):
                 # Waittime calculation
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
 
-                components['carbon'] = float(carbon_ratio_reward)*(1-self.eta)
+                components['carbon'] = - float(carbon_ratio_reward)*(1-self.eta)
                 components['wait'] = - (actual_wait / self.config_dict["max_wait_time"])*self.eta
                 reward = components['wait'] + components['carbon']
 
@@ -606,7 +654,7 @@ class HPCenv(Env):
                 # Waittime calculation
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
 
-                components['carbon'] = float(carbon_ratio_reward_clipped)*(1 - self.eta)
+                components['carbon'] = - float(carbon_ratio_reward_clipped)*(1 - self.eta)
                 components['wait'] = - (actual_wait / self.config_dict["max_wait_time"])*self.eta
                 reward = components['wait'] + components['carbon']
 
@@ -622,7 +670,7 @@ class HPCenv(Env):
                 power_usage = scheduled_job.power_usage
                 carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
-                components['carbon'] = carbon_emission*(1-self.eta)
+                components['carbon'] = - carbon_emission*(1-self.eta)
                 components['wait'] = - (actual_wait / self.config_dict["max_wait_time"])*100*self.eta
     
                 reward = components['wait'] + components['carbon']
@@ -640,7 +688,7 @@ class HPCenv(Env):
                 carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
 
-                carbon_reward = np.clip(carbon_emission, -self.config_dict["abs_carbon_reward_clip"],self.config_dict["abs_carbon_reward_clip"] )
+                carbon_reward = - np.clip(carbon_emission, -self.config_dict["abs_carbon_reward_clip"],self.config_dict["abs_carbon_reward_clip"] )
 
                 wait = - (actual_wait / self.config_dict["max_wait_time"])*100
                 wait_reward = np.clip(wait, -self.config_dict['wait_reward_clip'], 0)
