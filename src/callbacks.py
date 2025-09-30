@@ -3,6 +3,8 @@ from stable_baselines3.common.callbacks import BaseCallback
 
 import numpy as np
 import time
+import json
+from typing import List, Dict, Any, Optional
 
 from src.validation import Validation
 import os
@@ -140,3 +142,118 @@ class ValidationCallback(BaseCallback):
         self.run.log(log_dict)
 
         return super().on_rollout_end()
+
+
+class StepInfoLoggerCallback(BaseCallback):
+    """
+    Capture `info` dicts returned by the env at every step
+    and append them to a JSONL file for later analysis.
+
+    Notes:
+    - Works with vectorized envs (records one line per env having non-empty info).
+    - Keeps a small in-memory buffer and flushes to disk every `flush_every` steps
+      to avoid excessive I/O on HPC.
+    - Optionally logs a sampled subset to Weights & Biases via `run.log`.
+    """
+
+    def __init__(
+        self,
+        save_dir: str,
+        run=None,
+        filename: str = "step_info.jsonl",
+        flush_every: int = 1000,
+        wandb_sample_every: Optional[int] = None,
+        verbose: int = 0,
+    ) -> None:
+        super().__init__(verbose)
+        self.save_dir = save_dir.rstrip("/")
+        self.run = run
+        self.filename = filename
+        self.flush_every = int(max(1, flush_every))
+        self.wandb_sample_every = int(wandb_sample_every) if wandb_sample_every else None
+        self._buffer: List[Dict[str, Any]] = []
+        self._path = os.path.join(self.save_dir, self.filename)
+
+    def _on_training_start(self) -> None:
+        os.makedirs(self.save_dir, exist_ok=True)
+        # Create file if missing; keep appending across resumes
+        if not os.path.exists(self._path):
+            with open(self._path, "w") as f:
+                pass
+
+    def _flush(self) -> None:
+        if not self._buffer:
+            return
+        def _to_serializable(obj):
+            try:
+                import numpy as _np  # local import to avoid global if unused
+            except Exception:
+                _np = None
+
+            # Numpy scalars
+            if _np is not None and isinstance(obj, (
+                _np.integer,
+                _np.floating,
+                _np.bool_,
+            )):
+                return obj.item()
+
+            # Numpy arrays
+            if _np is not None and isinstance(obj, _np.ndarray):
+                return obj.tolist()
+
+            # General fallback for objects with a __dict__ of simple fields
+            if hasattr(obj, "__dict__"):
+                return {k: _to_serializable(v) for k, v in obj.__dict__.items()}
+
+            # Let json handle (may raise TypeError which json will catch upstream)
+            return obj
+
+        with open(self._path, "a") as f:
+            for rec in self._buffer:
+                f.write(json.dumps(rec, default=_to_serializable) + "\n")
+        self._buffer.clear()
+
+    def _maybe_log_wandb(self, rec: Dict[str, Any]) -> None:
+        if self.run is None or self.wandb_sample_every is None:
+            return
+        if (self.num_timesteps % self.wandb_sample_every) == 0:
+            # Flatten a few top-level fields for readability
+            payload = {k: v for k, v in rec.items() if k in ("timestep", "env_index")}
+            info = rec.get("info", {})
+            for k, v in info.items():
+                payload[f"info/{k}"] = v
+            self.run.log(payload)
+
+    def _on_step(self) -> bool:
+        # SB3 passes per-env infos as a list in self.locals["infos"].
+        infos = self.locals.get("infos")
+        if infos is None:
+            return True
+        # Record one entry per env that returned a non-empty info
+        for idx, info in enumerate(infos):
+            if not isinstance(info, dict) or not info:
+                continue
+
+            rec: Dict[str, Any] = {
+                "timestep": int(self.num_timesteps),
+                "env_index": int(idx),
+                "info": info,
+            }
+
+            self._buffer.append(rec)
+            self._maybe_log_wandb(rec)
+
+        # Flush periodically to keep memory bounded
+        if (self.num_timesteps % self.flush_every) == 0:
+            self._flush()
+
+        return True
+
+    def _on_rollout_end(self) -> None:
+        # Ensure recent entries are persisted between rollouts
+        self._flush()
+
+    def _on_training_end(self) -> None:
+        # Final flush on training complete
+        self._flush()

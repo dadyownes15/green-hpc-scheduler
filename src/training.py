@@ -11,7 +11,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
 import matplotlib.pyplot as plt
 from sb3_contrib.common.maskable.utils import get_action_masks
-from src.callbacks import ValidationCallback
+from src.callbacks import ValidationCallback, StepInfoLoggerCallback
 from src.utils import mask_fn, create_experiment_name
 from src.hpc_env import HPCenv
 from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback, CallbackList
@@ -88,11 +88,22 @@ class Train():
             config=self.config_dict,
         )
 
-        callbacks = [WandbCallback(
-        model_save_path=f"models/{run_wandb.id}",
-    )
-    ] 
-        
+        callbacks = [
+            WandbCallback(
+                model_save_path=f"models/{run_wandb.id}",
+            )
+        ]
+
+        # Record per-step env info when tracing is enabled
+        """callbacks.append(
+            StepInfoLoggerCallback(
+                save_dir=self.run_dir,
+                run=run_wandb,
+                filename="step_info.jsonl",
+                flush_every=1000,
+                wandb_sample_every=5000,
+            )
+        )"""
         ## I am doomed
  
         if save_checkpoints:
@@ -119,7 +130,8 @@ class Train():
             total_timesteps=self.config_dict['total_timesteps'],
             tb_log_name="seed_" + str(self.config_dict['seed']),
             callback=callbacks,
-            log_interval=1,
+            log_interval=None,
+            progress_bar=True
         )
 
         run_wandb.finish()

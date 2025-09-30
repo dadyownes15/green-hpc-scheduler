@@ -1,5 +1,3 @@
-import os
-import ast
 import configparser
 import numpy as np
 from gymnasium import Env, spaces
@@ -45,8 +43,6 @@ class HPCenv(Env):
         ## ------ Reward config -------
         self.reward_type = config_dict["reward_type"]
         self.eta = config_dict["eta"]
-        self.alpha = config_dict["alpha"]
-        self.bounded_slowdown_threshold = config_dict["bounded_slowdown_threshold"]
 
         ## ------ Data config -------
         if self.mode == "training":
@@ -102,7 +98,7 @@ class HPCenv(Env):
 
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]
-        assert self.reward_type in ["wait_abs_ems", "bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems"]
+        assert self.reward_type in ["wait_abs_ems", "wait_abs_ems_clip","bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems","bd_abs_ems_clip"]
  
     def step(self, action):
         self.new_job_arrived_in_step = False
@@ -179,20 +175,13 @@ class HPCenv(Env):
         obs = self.build_observation()
         info = {}
 
-        assert obs.shape == self.observation_space.shape , "Shape mismatch between actual shape, and defined shape of observation space" 
         terminated = self.should_terminate()
 
-        info['new_job_arrived'] = self.new_job_arrived_in_step
-        info['action_is_delay'] = self.last_action_info['is_delay']
         # Expose reward breakdown for logging/analysis
         info.update({
             'reward_total': float(components.get('total', 0.0)),
-            'reward_wait_schedule': float(components.get('wait_schedule', 0.0)),
+            'reward_wait': float(components.get('wait', 0.0)),
             'reward_carbon': float(components.get('carbon', 0.0)),
-            'reward_delay_wait': float(components.get('delay_wait', 0.0)),
-            'time_advanced': float(dt),
-            'queue_len_before': int(qlen_before),
-            'queue_len_after': int(len(self.job_queue)),
         })
             
         if self.trace_enabled:
@@ -595,7 +584,7 @@ class HPCenv(Env):
                 # Waittime calculation
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
 
-                components['carbon'] = float(carbon_ratio_reward)*self.alpha
+                components['carbon'] = float(carbon_ratio_reward)*(1-self.eta)
                 components['wait'] = - (actual_wait / self.config_dict["max_wait_time"])*self.eta
                 reward = components['wait'] + components['carbon']
 
@@ -617,7 +606,7 @@ class HPCenv(Env):
                 # Waittime calculation
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
 
-                components['carbon'] = float(carbon_ratio_reward_clipped)*self.alpha
+                components['carbon'] = float(carbon_ratio_reward_clipped)*(1 - self.eta)
                 components['wait'] = - (actual_wait / self.config_dict["max_wait_time"])*self.eta
                 reward = components['wait'] + components['carbon']
 
@@ -632,67 +621,58 @@ class HPCenv(Env):
                 # Carbon reward calcuation
                 power_usage = scheduled_job.power_usage
                 carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
-
-                carbon_reward = carbon_emission
-                # Waittime calculation
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
-                components['carbon'] = carbon_reward*self.alpha
-                components['wait'] = - (actual_wait / self.config_dict["max_wait_time"])*self.eta
+                components['carbon'] = carbon_emission*(1-self.eta)
+                components['wait'] = - (actual_wait / self.config_dict["max_wait_time"])*100*self.eta
+    
                 reward = components['wait'] + components['carbon']
 
             else: 
                 reward = 0               
+        if self.reward_type == "wait_abs_ems_clip":
+            if scheduled_job: 
+
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+
+                # Carbon reward calcuation
+                power_usage = scheduled_job.power_usage
+                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+                actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
+
+                carbon_reward = np.clip(carbon_emission, -self.config_dict["abs_carbon_reward_clip"],self.config_dict["abs_carbon_reward_clip"] )
+
+                wait = - (actual_wait / self.config_dict["max_wait_time"])*100
+                wait_reward = np.clip(wait, -self.config_dict['wait_reward_clip'], 0)
+                components['carbon'] = carbon_reward*(1-self.eta)
+                components['wait'] = wait_reward*self.eta
+    
+                reward = components['wait'] + components['carbon']
+
+            else: 
+                reward = 0   
                                 
-        if self.reward_type == "bd_relative_ems":
+        if self.reward_type == "bd_abs_ems_clip":
             if scheduled_job: 
                 start_time = current_timestamp
                 end_time = start_time + scheduled_job.run_time
-                power_usage = scheduled_job.power_usage
-                
-                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
 
-                carbon_emission_initial = self.carbon_intensity.getCarbonEmissions(power_usage, scheduled_job.submit_time, scheduled_job.submit_time+scheduled_job.run_time)
-                
-                carbon_ratio_reward = ((carbon_emission_initial-carbon_emission))/(carbon_emission_initial )
+                # Carbon reward calcuation
+                power_usage = scheduled_job.power_usage
+                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+                actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
+
+                carbon_reward = np.clip(carbon_emission, -self.config_dict["abs_carbon_reward_clip"],self.config_dict["abs_carbon_reward_clip"] )
 
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
+
                 bounded_slowdown = (actual_wait + scheduled_job.run_time) / max([0, scheduled_job.run_time])
 
-                components['carbon'] = float(carbon_ratio_reward)*self.alpha
-                components['wait'] = -float(bounded_slowdown * self.eta)
+                components['carbon'] = carbon_reward*(1-self.eta)
+                components['wait'] = -float(bounded_slowdown)*self.eta
                 reward = components['carbon'] + components['wait']
             else: 
                 reward = 0 
-        if self.reward_type == "shaped_waittime":
-            if was_delay and time_advanced > 0:
-                dt = float(time_advanced)
-            
-                total_inc = 0.0
-
-                for job in self.job_queue:
-                    # How long this job has been waiting in the interval [t_before, t_after]
-                
-                    job_wait_time = (
-                        dt 
-                        if job.submit_time <= (current_timestamp - dt) # If the job was submitted before the time before the advanced
-                        else (current_timestamp - job.submit_time) ## the job appeared while the advancing of time, this 
-                    )
-
-                    # Clip at 0 so we don't add negative waiting time
-                    job_wait_time = max(0.0, job_wait_time)
-
-                    # Normalization factor: either the slowdown threshold or the job's run time
-                    normalization = max(self.bounded_slowdown_threshold, job.run_time)
-
-                    # Increment total slowdown contribution
-                    total_inc += job_wait_time / float(normalization)
-
-                # Apply delay penalty
-                delay_penalty = -self.eta * total_inc
-                
-                components["wait"] = float(delay_penalty)
-                reward += delay_penalty 
-            else: 
-                reward = 0
+      
         components['total'] = float(reward)
         return float(reward), components
