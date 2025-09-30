@@ -92,7 +92,7 @@ class Train():
             WandbCallback(
                 model_save_path=f"models/{run_wandb.id}",
             ),
-            debugCallback(run=run_wandb)
+           # debugCallback(run=run_wandb)
         ]
 
         # Record per-step env info when tracing is enabled
