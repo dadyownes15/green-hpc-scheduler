@@ -2,18 +2,19 @@
 import configparser
 from copy import deepcopy
 import argparse
+import json
 import os
 import yaml
 import wandb
 from sb3_contrib import MaskablePPO
 from wandb.integration.sb3 import WandbCallback
 from src.hpc_env import HPCenv
-from src.utils import mask_fn, get_config_as_dict
-from src.callbacks import SweepCallBack
+from src.utils import create_experiment_name, mask_fn, get_config_as_dict
+from src.callbacks import SweepCallBack, ValidationCallback
 from sb3_contrib.common.wrappers import ActionMasker
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.logger import configure as sb3_configure
-
+from stable_baselines3.common.callbacks import CheckpointCallback
 """
 Utilities and sweep merge helpers
 """
@@ -87,6 +88,7 @@ def build_policy_kwargs(cfg: dict) -> dict:
 
 def train():
     with wandb.init(project="green_scheduler") as run:
+        save_freq = 262144
         sweep_overrides = dict(run.config)
         print(sweep_overrides)
         # Merge the sweep-chosen params into the base config from file
@@ -94,7 +96,25 @@ def train():
 
         # log the effective merged config so the run is fully reproducible
         wandb.config.update(cfg, allow_val_change=True)
+        
+        run_id = create_experiment_name(config=config_dict, workload_file=None) 
+        run_dir = "results/" + run_id +  "/"  
+        # --- NEW LOGIC TO CREATE REPOSITORY AND SAVE CONFIG ---
+        # Create the directory for the run if it doesn't already exist.
+        # exist_ok=True prevents an error if the directory already exists.
+        os.makedirs(run_dir, exist_ok=True)
+        
+        # Define the path for the config file.
+        config_path = os.path.join(run_dir, "config.json")
+           
+        # Save the config_dict as a human-readable JSON file.
+        # This allows you to easily reference the settings used for this run.
+        with open(config_path, 'w') as f:
+            json.dump(cfg, f, indent=4)
 
+
+        print(f"Repository created at {run_dir} and config saved to {config_path}")
+   
         env = ActionMasker(HPCenv(mode="training", config_dict=cfg), mask_fn)
 
         policy_kwargs = build_policy_kwargs(cfg)
@@ -125,9 +145,15 @@ def train():
 
         model.learn(
             total_timesteps=cfg["total_timesteps"],
-            callback=[wandb_cb, SweepCallBack(run=run,config_dict=cfg)],
-            progress_bar=True,
-            log_interval=1,
+            callback=[wandb_cb, 
+            CheckpointCallback(
+                save_freq=save_freq,
+                save_path=run_dir + "/logs/",
+                name_prefix=run.sweep_id,
+            ),
+            ValidationCallback(run=run, run_dir=run_dir, name_prefix=run.sweep_id,val_freq=save_freq )],
+            progress_bar=False,
+            log_interval=None,
         )
 
         env.close()
