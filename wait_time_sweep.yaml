@@ -40,8 +40,10 @@ parameters:
     values: [4096, 8192, 16384, 32768,65536]
 
   total_timesteps:
-    values: [300000]
+    values: [1000000]
 
+  wait_reward_clip:
+    values: [10,25,40,50,70,100,200]
   learning_rate:
     values: [0.00001, 0.00005, 0.0001, 0.0003, 0.0005]
 
