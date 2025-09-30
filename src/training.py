@@ -121,7 +121,6 @@ class Train():
                 name_prefix=name_prefix,
                 val_freq=self.save_freq,
                 n_eval_episodes=1,
-                verbose=1,
             )
             callbacks.append(checkpoint_callback)
             callbacks.append(validation_callback)
@@ -132,7 +131,6 @@ class Train():
             tb_log_name="seed_" + str(self.config_dict['seed']),
             callback=callbacks,
             log_interval=None,
-            progress_bar=True
         )
 
         run_wandb.finish()

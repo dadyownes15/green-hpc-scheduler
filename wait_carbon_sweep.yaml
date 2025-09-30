@@ -1,4 +1,4 @@
-name: wait-carbon-sweep_
+name: carbon_sweep
 method: bayes
 metric:
   name: Validation Reward   # SB3 PPO logs this; treat it as "loss"
@@ -14,9 +14,6 @@ parameters:
   # --- vary ONLY training keys, keep episode_length fixed ---
   batch_size:
     values: [1024, 2048, 4096,8192,16384]
-
-  seed:
-    values: [2, 7, 42,6,7,9]
 
   n_epochs:
     values: [1, 2, 4, 8]
@@ -40,25 +37,37 @@ parameters:
     values: [4096, 8192, 16384, 32768,65536]
 
   total_timesteps:
-    values: [500000]
+    values: [1000000]
 
   learning_rate:
     values: [0.00001, 0.00005, 0.0001, 0.0003, 0.0005]
 
   clip_range:
-    values: [0.1, 0.2, 0.3]
+    values: [0.1, 0.2, 0.3,0.4]
 
   ent_coef:
     values: [0.0, 1e-5, 3e-5, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-2, 1e-1]
 
   episode_length:
-    values: [8,32,64,128,256,512,1024,2048, 4196]
+    values: [32,64,128,256,512,1024,2048, 4196]
   
   max_wait_n_jobs:
     values: [1,2,4,6,8]
 
+  abs_carbon_reward_clip:
+    values: [10,20,30,40,50,100] 
   delay_time_list:
     values: [
+                        [        
+        300,
+        1800,
+        ],
+                  [        
+        300,
+        600,
+        9000,
+        1800,
+        ],
             [        
         300,
         600,
