@@ -148,7 +148,7 @@ def train():
             callback=[wandb_cb, 
             CheckpointCallback(
                 save_freq=save_freq,
-                save_path=run_dir + "/logs/",
+                save_path=run_dir + "/logs/" + cfg["seed"],
                 name_prefix=run.sweep_id,
             ),
             ValidationCallback(run=run, run_dir=run_dir, name_prefix=run.sweep_id,val_freq=save_freq )],
