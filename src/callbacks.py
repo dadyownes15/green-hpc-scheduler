@@ -95,19 +95,20 @@ class ValidationCallback(BaseCallback):
     naming convention: {name_prefix}_{num_timesteps}_steps under `<run_dir>/logs/`.
     """
 
-    def __init__(self, run_dir: str, name_prefix: str, run, val_freq: int = 500000, n_eval_episodes: int = 1, verbose: int = 0, ):
+    def __init__(self, run_dir: str,  name_prefix: str, run, val_freq: int = 500000, n_eval_episodes: int = 1, verbose: int = 0, model_save_dir = "logs"):
         super().__init__(verbose)
         self.run_dir = run_dir.rstrip("/")
         self.name_prefix = name_prefix
         self.val_freq = int(val_freq)
         self.n_eval_episodes = int(n_eval_episodes)
         self.run = run
+        self.model_save_dir = model_save_dir
 
     def _on_step(self) -> bool:
         # Trigger validation right after a checkpoint save frequency
         if self.num_timesteps > 0 and (self.num_timesteps % self.val_freq == 0):
             ckpt_name = f"{self.name_prefix}_{self.num_timesteps}_steps"
-            ckpt_dir = os.path.join(self.run_dir, "logs")
+            ckpt_dir = os.path.join(self.run_dir, self.model_save_dir)
             ckpt_path = os.path.join(ckpt_dir, ckpt_name)
 
             # Small wait to ensure checkpoint file is fully written to disk

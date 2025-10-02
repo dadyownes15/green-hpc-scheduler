@@ -149,9 +149,9 @@ def train():
             CheckpointCallback(
                 save_freq=save_freq,
                 save_path=run_dir + "/logs/" + str(cfg["seed"]),
-                name_prefix=run.sweep_id,
+                name_prefix="model",
             ),
-            ValidationCallback(run=run, run_dir=run_dir, name_prefix=run.sweep_id,val_freq=save_freq )],
+            ValidationCallback(run=run, run_dir=run_dir, name_prefix="modek",val_freq=save_freq, model_save_dir=run_dir + "/logs/" + str(cfg["seed"]))],
             progress_bar=False,
             log_interval=None,
         )
