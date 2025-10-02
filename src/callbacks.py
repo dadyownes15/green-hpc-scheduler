@@ -1,4 +1,5 @@
 
+from sb3_contrib import MaskablePPO
 from stable_baselines3.common.callbacks import BaseCallback
 
 import numpy as np
@@ -9,81 +10,7 @@ from typing import List, Dict, Any, Optional
 
 from src.validation import Validation
 import os
-
-class SweepCallBack(BaseCallback):
-    """
-    A custom callback that derives from ``BaseCallback``.
-
-    :param verbose: Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages
-    """
-    def __init__(self,run, config_dict, verbose = 0, val_freq = 100_000):
-        self.run = run
-        self.config_dict = config_dict
-        self.val_freq = val_freq
-        self.steps_count = 0
-        self.roll_out_count = 0
-        super().__init__(verbose)
-        # Those variables will be accessible in the callback
-        # (they are defined in the base class)
-        # The RL model
-        # self.model = None  # type: BaseAlgorithm
-        # An alias for self.model.get_env(), the environment used for training
-        # self.training_env # type: VecEnv
-        # Number of time the callback was called
-        # self.n_calls = 0  # type: int
-        # num_timesteps = n_envs * n times env.step() was called
-        # self.num_timesteps = 0  # type: int
-        # local and global variables
-        # self.locals = {}  # type: Dict[str, Any]
-        # self.globals = {}  # type: Dict[str, Any]
-        # The logger object, used to report things in the terminal
-        # self.logger # type: stable_baselines3.common.logger.Logger
-        # Sometimes, for event callback, it is useful
-        # to have access to the parent object
-        # self.parent = None  # type: Optional[BaseCallback]
-
-    def _on_training_start(self) -> None:
-        """
-        This method is called before the first rollout starts.
-        """
-        pass
-
-    def _on_rollout_start(self) -> None:
-        """
-        A rollout is the collection of environment interaction
-        using the current policy.
-        This event is triggered before collecting new samples.
-        """
-        pass
-    
-    def _on_step(self) -> bool:
-        """
-        This method will be called by the model after each call to `env.step()`.
-
-        :return: If the callback returns False, training is aborted early.
-        """
-        self.steps_count += 1
-        return True
-
-    def _on_rollout_end(self) -> None:
-        """
-        This event is triggered before updating the policy.
-        """
-        log_dict = self.model.logger.name_to_value
-        print("Roll out end: ", log_dict)
-        self.run.log(log_dict)
-    
-
-
-    def _on_training_end(self) -> None:
-        """
-        This event is triggered before exiting the `learn()` method.
-        """
-        val = Validation()
-        val.load_dir(config_dict=self.config_dict)
-        results, _ = val.validate_model(1, self.model, "validation")
-        self.run.log(results)
-
+from pathlib import Path
 
 
 class ValidationCallback(BaseCallback):
@@ -98,23 +25,24 @@ class ValidationCallback(BaseCallback):
     def __init__(self, run_dir: str,  name_prefix: str, run, val_freq: int = 500000, n_eval_episodes: int = 1, verbose: int = 0, model_save_dir = "logs"):
         super().__init__(verbose)
         self.run_dir = run_dir.rstrip("/")
+        self._run_path = Path(self.run_dir).expanduser().resolve(strict=False)
         self.name_prefix = name_prefix
         self.val_freq = int(val_freq)
         self.n_eval_episodes = int(n_eval_episodes)
         self.run = run
-        self.model_save_dir = model_save_dir
+        self.model_save_dir = Path(model_save_dir)
 
     def _on_step(self) -> bool:
         # Trigger validation right after a checkpoint save frequency
         if self.num_timesteps > 0 and (self.num_timesteps % self.val_freq == 0):
             ckpt_name = f"{self.name_prefix}_{self.num_timesteps}_steps"
-            ckpt_dir = os.path.join(self.run_dir, self.model_save_dir)
-            ckpt_path = os.path.join(ckpt_dir, ckpt_name)
+            ckpt_dir = self._resolve_checkpoint_dir()
+            ckpt_path = ckpt_dir / ckpt_name
 
             # Small wait to ensure checkpoint file is fully written to disk
             # (Callback order should already make this safe when used after CheckpointCallback.)
             for _ in range(3):
-                if os.path.exists(ckpt_path) or os.path.exists(ckpt_path + ".zip"):
+                if ckpt_path.exists() or ckpt_path.with_suffix(".zip").exists():
                     break
                 time.sleep(0.1)
 
@@ -124,11 +52,15 @@ class ValidationCallback(BaseCallback):
             try:
                 validator = Validation()
                 validator.load_dir(self.run_dir)
+
+    
+
                 results, _ = validator.validate_policy(
                     n_eval_episodes=self.n_eval_episodes,
                     checkpoints=[ckpt_name],
                     mode="validation",
                     debug=False,
+                    checkpoint_dir=self.model_save_dir,
                 )
                 print(results[ckpt_name])
                 self.run.log(results[ckpt_name])
@@ -138,6 +70,16 @@ class ValidationCallback(BaseCallback):
                 print(f"[ValidationCallback] Validation failed for {ckpt_name}: {e}")
 
         return True
+
+    def _resolve_checkpoint_dir(self) -> Path:
+        if self.model_save_dir.is_absolute():
+            candidates = [self.model_save_dir]
+        else:
+            candidates = [self._run_path / self.model_save_dir, self.model_save_dir]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[0]
     
     def on_rollout_end(self) -> None:
         log_dict = self.model.logger.name_to_value

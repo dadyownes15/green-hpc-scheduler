@@ -2,7 +2,7 @@ import gymnasium as gym
 import numpy as np
 import json
 import math
-import os
+from pathlib import Path
 import configparser
 from sb3_contrib.common.maskable.policies import MaskableActorCriticPolicy
 from sb3_contrib.common.wrappers import ActionMasker
@@ -29,22 +29,16 @@ class Train():
         self.config_dict = config_dict
         self.save_freq = save_freq
         self.run_id = create_experiment_name(config=config_dict, workload_file=workload_path) 
-        self.run_dir = "results/" + self.run_id + "/"  
-        # --- NEW LOGIC TO CREATE REPOSITORY AND SAVE CONFIG ---
-        # Create the directory for the run if it doesn't already exist.
-        # exist_ok=True prevents an error if the directory already exists.
-        os.makedirs(self.run_dir, exist_ok=True)
+        self.run_path = Path("results") / self.run_id
+        self.run_path.mkdir(parents=True, exist_ok=True)
+        self.run_dir = str(self.run_path)
         
-        # Define the path for the config file.
-        config_path = os.path.join(self.run_dir, "config.json")
-           
-        # Save the config_dict as a human-readable JSON file.
-        # This allows you to easily reference the settings used for this run.
-        with open(config_path, 'w') as f:
+        config_path = self.run_path / "config.json"
+        with config_path.open('w') as f:
             json.dump(self.config_dict, f, indent=4)
 
 
-        print(f"Repository created at {self.run_dir} and config saved to {config_path}")
+        print(f"Repository created at {self.run_path} and config saved to {config_path}")
    
 
         # Create vectorized env
@@ -109,9 +103,11 @@ class Train():
  
         if save_checkpoints:
             name_prefix = "seed_" + str(self.config_dict['seed'])
+            checkpoints_dir = self.run_path / "logs"
+            checkpoints_dir.mkdir(parents=True, exist_ok=True)
             checkpoint_callback = CheckpointCallback(
                 save_freq=self.save_freq,
-                save_path=self.run_dir + "/logs/",
+                save_path=str(checkpoints_dir),
                 name_prefix=name_prefix,
             )
             # Run validation on every checkpoint

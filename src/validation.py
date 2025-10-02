@@ -15,48 +15,57 @@ import collections
 import math
 import torch
 
-from typing import List, Type
+from typing import List, Type, Optional, Sequence
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import os
 from pathlib import Path
 class Validation():
     """
     Validation suite takes a trained model, for now we will simply hardcode the baseline.py and evaluates the model and produces rendering, and overview statistics for n different episodes.
     """
-    def validate_policy(self, n_eval_episodes, checkpoints, mode, debug = False):
-        assert self.model_dir is not None
+    def validate_policy(
+        self,
+        n_eval_episodes: int,
+        checkpoints: Optional[Sequence[str]],
+        mode: str,
+        debug: bool = False,
+        checkpoint_dir: str | Path = "logs",
+    ):
+        if self.model_dir is None:
+            raise RuntimeError("Call load_dir(...) before validate_policy().")
 
         self.mode = mode.lower()
-        assert self.mode in ["validation", "test"]
+        if self.mode not in {"validation", "test"}:
+            raise ValueError("mode must be either 'validation' or 'test'.")
 
         if debug:
-            print("Validating policy on data from: ", self.mode)
+            print("Validating policy on data from:", self.mode)
 
-        self.config_dict['reward_type'] = 'wait_abs_ems'
+        self.config_dict["reward_type"] = "wait_abs_ems"
         # Enable tracing in env so we can collect action traces for analysis
-        self.env = ActionMasker(HPCenv(config_dict=self.config_dict, mode=self.mode, debug=debug, trace_enabled=True), action_mask_fn= mask_fn)
+        self.env = ActionMasker(
+            HPCenv(config_dict=self.config_dict, mode=self.mode, debug=debug, trace_enabled=True),
+            action_mask_fn=mask_fn,
+        )
 
-        stats_dict = {}
+        checkpoint_dir_path = self._resolve_checkpoint_dir(checkpoint_dir)
 
         if checkpoints is None:
-            logs_dir = os.path.join(self.model_dir, "logs")
-            if not os.path.isdir(logs_dir):
-                raise FileNotFoundError(f"No logs directory found at '{logs_dir}'.")
-            checkpoints = sorted(
-                entry
-                for entry in os.listdir(logs_dir)
-                if os.path.isfile(os.path.join(logs_dir, entry))
-            )
+            if not checkpoint_dir_path.is_dir():
+                raise FileNotFoundError(f"No logs directory found at '{checkpoint_dir_path}'.")
+            checkpoints = sorted(p.name for p in checkpoint_dir_path.iterdir() if p.is_file())
             if not checkpoints:
-                raise ValueError(f"No checkpoints found in '{logs_dir}'.")
+                raise ValueError(f"No checkpoints found in '{checkpoint_dir_path}'.")
+        else:
+            checkpoints = list(checkpoints)
 
+        stats_dict: dict[str, dict[str, list]] = {}
 
         for checkpoint in checkpoints:
             if debug:
-                print("Initating checkpoint:", checkpoint)
-            model_path = os.path.join(self.model_dir, "logs", checkpoint)
-            model = MaskablePPO.load(model_path, env=self.env)
+                print("Initiating checkpoint:", checkpoint)
+            checkpoint_path = self._resolve_checkpoint_path(checkpoint_dir_path, checkpoint)
+            model = MaskablePPO.load(str(checkpoint_path), env=self.env)
             stats_dict[checkpoint] = {
                 "rewards": [],
                 "job_scheduled_history": [],
@@ -67,13 +76,41 @@ class Validation():
                 if debug and i % 10 == 0:
                     print("Val episode:", i)
                 total_reward, job_hist, action_trace = self.evaluate_policy(seed=i, model=model, debug=debug)
-                stats_dict[checkpoint]['rewards'].append(total_reward)
-                stats_dict[checkpoint]['job_scheduled_history'].append(job_hist)
-                stats_dict[checkpoint]['action_traces'].append(action_trace)
+                stats_dict[checkpoint]["rewards"].append(total_reward)
+                stats_dict[checkpoint]["job_scheduled_history"].append(job_hist)
+                stats_dict[checkpoint]["action_traces"].append(action_trace)
 
         
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
-        return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
+        return self.process_metrics(
+            stats_dict=stats_dict,
+            carbon_intensity_calculator=carbon_intensity,
+            config_dict=self.config_dict,
+        ), stats_dict
+
+    def _resolve_checkpoint_dir(self, checkpoint_dir: str | Path) -> Path:
+        base_dir = Path(self.model_dir)
+        provided = Path(checkpoint_dir)
+        if provided.is_absolute():
+            candidates = [provided]
+        else:
+            candidates = [base_dir / provided, provided]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[0]
+
+    @staticmethod
+    def _resolve_checkpoint_path(checkpoint_dir: Path, checkpoint_name: str) -> Path:
+        checkpoint_path = checkpoint_dir / checkpoint_name
+        if checkpoint_path.exists():
+            return checkpoint_path
+        if checkpoint_path.suffix:
+            raise FileNotFoundError(f"Checkpoint '{checkpoint_name}' not found in '{checkpoint_dir}'.")
+        zipped = checkpoint_path.with_suffix(".zip")
+        if zipped.exists():
+            return zipped
+        raise FileNotFoundError(f"Checkpoint '{checkpoint_name}' not found in '{checkpoint_dir}'.")
 
     def validate_model(self, n_eval_episodes, model: MaskablePPO, mode: str, debug: bool = False):
         """
@@ -105,13 +142,10 @@ class Validation():
             "model": {"rewards": [], "job_scheduled_history": [], "action_traces": []}
         }
 
-        for i in range(n_eval_episodes):
-            if debug and i % 10 == 0:
-                print("Val episode:", i)
-            total_reward, job_hist, action_trace = self.evaluate_policy(seed=i, model=model, debug=debug)
-            stats_dict["model"]["rewards"].append(total_reward)
-            stats_dict["model"]["job_scheduled_history"].append(job_hist)
-            stats_dict["model"]["action_traces"].append(action_trace)
+        total_reward, job_hist, action_trace = self.evaluate_policy(seed=1, model=model, debug=debug)
+        stats_dict["model"]["rewards"].append(total_reward)
+        stats_dict["model"]["job_scheduled_history"].append(job_hist)
+        stats_dict["model"]["action_traces"].append(action_trace)
 
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
         return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
