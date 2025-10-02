@@ -96,7 +96,7 @@ class Train():
         ]
 
         # Record per-step env info when tracing is enabled
-        """callbacks.append(
+        callbacks.append(
             StepInfoLoggerCallback(
                 save_dir=self.run_dir,
                 run=run_wandb,
@@ -104,7 +104,7 @@ class Train():
                 flush_every=1000,
                 wandb_sample_every=5000,
             )
-        )"""
+        )
         ## I am doomed
  
         if save_checkpoints:

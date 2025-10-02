@@ -88,7 +88,7 @@ def build_policy_kwargs(cfg: dict) -> dict:
 
 def train():
     with wandb.init(project="green_scheduler") as run:
-        save_freq = 262144
+        save_freq = config_dict["n_steps"]
         sweep_overrides = dict(run.config)
         print(sweep_overrides)
         # Merge the sweep-chosen params into the base config from file

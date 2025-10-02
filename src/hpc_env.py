@@ -177,8 +177,8 @@ class HPCenv(Env):
 
         terminated = self.should_terminate()
 
-        #if terminated:
-            #info['episode_metrics'] = self._compute_episode_metrics()
+        if terminated:
+            info['episode_metrics'] = self._compute_episode_metrics()
 
         # Expose reward breakdown for logging/analysis
         info.update({
@@ -690,7 +690,7 @@ class HPCenv(Env):
 
                 carbon_reward = - np.clip(carbon_emission, -self.config_dict["abs_carbon_reward_clip"],self.config_dict["abs_carbon_reward_clip"] )
 
-                wait = - (actual_wait / self.config_dict["max_wait_time"])*100
+                wait = - (actual_wait / self.config_dict["max_wait_time"])
                 wait_reward = np.clip(wait, -self.config_dict['wait_reward_clip'], 0)
                 components['carbon'] = carbon_reward*(1-self.eta)
                 components['wait'] = wait_reward*self.eta
