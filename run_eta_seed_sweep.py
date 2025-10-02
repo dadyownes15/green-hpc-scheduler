@@ -10,7 +10,16 @@ from src.training import Train
 from src.utils import get_config_as_dict
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+def find_project_root(start: Path) -> Path:
+    for directory in [start, *start.parents]:
+        if (directory / "config_file" / "config.ini").exists():
+            return directory
+    raise FileNotFoundError(
+        "Could not locate project root containing 'config_file/config.ini'."
+    )
+
+
+PROJECT_ROOT = find_project_root(Path(__file__).resolve().parent)
 DEFAULT_WORKLOAD = PROJECT_ROOT / "data" / "workloads" / "4h_mean" / "training_workload.swf"
 CONFIG_PATH = PROJECT_ROOT / "config_file" / "config.ini"
 ETA_VALUES = [round(value, 1) for value in (x / 10 for x in range(1, 10))]
