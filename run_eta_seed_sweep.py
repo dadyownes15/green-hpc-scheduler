@@ -22,8 +22,9 @@ def find_project_root(start: Path) -> Path:
 PROJECT_ROOT = find_project_root(Path(__file__).resolve().parent)
 DEFAULT_WORKLOAD = PROJECT_ROOT / "data" / "workloads" / "4h_mean" / "training_workload.swf"
 CONFIG_PATH = PROJECT_ROOT / "config_file" / "config.ini"
-ETA_VALUES = [0,0.25,0.5,0.75,1]
+ETA_VALUES = [0, 0.25, 0.5, 0.75, 1]
 SEED_VALUES = list(range(1, 6))
+LOG_PATH = PROJECT_ROOT / "validation_summary.txt"
 
 
 def load_base_config(config_path: Path) -> dict:
@@ -39,6 +40,9 @@ def main() -> None:
     if not workload_path.exists():
         raise FileNotFoundError(f"Workload file not found at '{workload_path}'.")
 
+    if LOG_PATH.exists():
+        LOG_PATH.unlink()
+
     for eta in ETA_VALUES:
         for seed in SEED_VALUES:
             run_cfg = deepcopy(base_cfg)
@@ -53,7 +57,11 @@ def main() -> None:
                 save_freq=run_cfg["n_steps"],
             )
             try:
-                trainer.run(save_checkpoints=True)
+                trainer.run(
+                    save_checkpoints=True,
+                    save_validation_logs=True,
+                    validation_log_path=LOG_PATH,
+                )
             except Exception as exc:  # noqa: BLE001 - continue sweep even on failure
                 print(f"Run failed for eta={eta:.1f}, seed={seed}: {exc}")
 

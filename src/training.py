@@ -91,7 +91,12 @@ class Train():
                          policy_kwargs=policy_kwargs
                                   )
     
-    def run(self, save_checkpoints = False):
+    def run(
+        self,
+        save_checkpoints: bool = False,
+        save_validation_logs: bool = False,
+        validation_log_path: str | Path | None = None,
+    ):
         self.env.reset()
         checkpoint_callback = None
         validation_callback = None
@@ -130,6 +135,8 @@ class Train():
                 name_prefix=name_prefix,
                 val_freq=self.save_freq,
                 n_eval_episodes=1,
+                save_results=save_validation_logs,
+                results_path=validation_log_path,
             )
             callbacks.append(checkpoint_callback)
             callbacks.append(validation_callback)
@@ -137,7 +144,6 @@ class Train():
 
         self.model.learn(
             total_timesteps=self.config_dict['total_timesteps'],
-            tb_log_name="seed_" + str(self.config_dict['seed']),
             callback=callbacks,
             log_interval=None,
         )

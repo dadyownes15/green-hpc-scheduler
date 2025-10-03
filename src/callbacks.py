@@ -6,9 +6,11 @@ import numpy as np
 import time
 import json
 import math
+from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from src.validation import Validation
+from src.utils import convert_numpy_types
 import os
 from pathlib import Path
 
@@ -22,7 +24,18 @@ class ValidationCallback(BaseCallback):
     naming convention: {name_prefix}_{num_timesteps}_steps under `<run_dir>/logs/`.
     """
 
-    def __init__(self, run_dir: str,  name_prefix: str, run, val_freq: int = 500000, n_eval_episodes: int = 1, verbose: int = 0, model_save_dir = "logs"):
+    def __init__(
+        self,
+        run_dir: str,
+        name_prefix: str,
+        run,
+        val_freq: int = 500000,
+        n_eval_episodes: int = 1,
+        verbose: int = 0,
+        model_save_dir: str | Path = "logs",
+        save_results: bool = False,
+        results_path: str | Path | None = None,
+    ):
         super().__init__(verbose)
         self.run_dir = run_dir.rstrip("/")
         self._run_path = Path(self.run_dir).expanduser().resolve(strict=False)
@@ -31,6 +44,12 @@ class ValidationCallback(BaseCallback):
         self.n_eval_episodes = int(n_eval_episodes)
         self.run = run
         self.model_save_dir = Path(model_save_dir)
+        self.save_results = bool(save_results)
+        self.results_path = (
+            self._resolve_results_path(results_path)
+            if self.save_results
+            else None
+        )
 
     def _on_step(self) -> bool:
         # Trigger validation right after a checkpoint save frequency
@@ -62,8 +81,11 @@ class ValidationCallback(BaseCallback):
                     debug=False,
                     checkpoint_dir=self.model_save_dir,
                 )
-                print(results[ckpt_name])
+                ckpt_results = results[ckpt_name]
+                print(ckpt_results)
                 self.run.log(results[ckpt_name])
+                if self.save_results and self.results_path is not None:
+                    self._write_results(ckpt_name, ckpt_results)
 
     
             except Exception as e:
@@ -80,6 +102,30 @@ class ValidationCallback(BaseCallback):
             if candidate.exists():
                 return candidate
         return candidates[0]
+
+    def _resolve_results_path(self, provided: str | Path | None) -> Path:
+        if provided is None:
+            return self._run_path / "validation_results.jsonl"
+
+        path = Path(provided).expanduser()
+        if path.is_absolute():
+            return path
+        return (self._run_path / path).absolute()
+
+    def _write_results(self, checkpoint_name: str, checkpoint_results: Dict[str, float]) -> None:
+        payload = {
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "run_dir": str(self._run_path),
+            "checkpoint": checkpoint_name,
+            "metrics": convert_numpy_types(checkpoint_results),
+        }
+
+        self.results_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.results_path.open("a", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
     
     def on_rollout_end(self) -> None:
         log_dict = self.model.logger.name_to_value
