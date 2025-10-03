@@ -22,8 +22,8 @@ def find_project_root(start: Path) -> Path:
 PROJECT_ROOT = find_project_root(Path(__file__).resolve().parent)
 DEFAULT_WORKLOAD = PROJECT_ROOT / "data" / "workloads" / "4h_mean" / "training_workload.swf"
 CONFIG_PATH = PROJECT_ROOT / "config_file" / "config.ini"
-ETA_VALUES = [round(value, 1) for value in (x / 10 for x in range(1, 10))]
-SEED_VALUES = list(range(1, 11))
+ETA_VALUES = [0,0.25,0.5,0.75,1]
+SEED_VALUES = list(range(1, 6))
 
 
 def load_base_config(config_path: Path) -> dict:
@@ -50,7 +50,7 @@ def main() -> None:
             trainer = Train(
                 config_dict=run_cfg,
                 workload_path=str(workload_path),
-                save_freq=run_cfg["n_steps"] * 2,
+                save_freq=run_cfg["n_steps"],
             )
             try:
                 trainer.run(save_checkpoints=True)

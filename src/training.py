@@ -24,6 +24,26 @@ from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 
+def _format_suffix_value(value) -> str:
+    try:
+        return f"{float(value):g}"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _build_wandb_run_name(base_name: str, config: dict) -> str:
+    suffix_parts = []
+    seed = config.get("seed")
+    if seed is not None:
+        suffix_parts.append(f"seed{seed}")
+    eta = config.get("eta")
+    if eta is not None:
+        suffix_parts.append(f"eta{_format_suffix_value(eta)}")
+    if not suffix_parts:
+        return base_name
+    return f"{base_name}__{'_'.join(map(str, suffix_parts))}"
+
+
 class Train():
     def __init__(self, config_dict, workload_path = None, save_freq=500_000, trace_enabled = False) -> None:
         self.config_dict = config_dict
@@ -77,9 +97,12 @@ class Train():
         validation_callback = None
 
 
+        run_name = _build_wandb_run_name(self.run_id, self.config_dict)
+
         run_wandb =  wandb.init(
             project="green_scheduler",
             config=self.config_dict,
+            name=run_name,
         )
 
         callbacks = [
@@ -89,17 +112,7 @@ class Train():
            # debugCallback(run=run_wandb)
         ]
 
-        # Record per-step env info when tracing is enabled
-        callbacks.append(
-            StepInfoLoggerCallback(
-                save_dir=self.run_dir,
-                run=run_wandb,
-                filename="step_info.jsonl",
-                flush_every=1000,
-                wandb_sample_every=5000,
-            )
-        )
-        ## I am doomed
+
  
         if save_checkpoints:
             name_prefix = "seed_" + str(self.config_dict['seed'])

@@ -87,6 +87,26 @@ def build_policy_kwargs(cfg: dict) -> dict:
         vf=_to_int_list(cfg["vf_nn"]),
     ))
 
+
+def _format_suffix_value(value) -> str:
+    try:
+        return f"{float(value):g}"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _build_wandb_run_name(base_name: str, cfg: dict) -> str:
+    suffix_parts = []
+    seed = cfg.get("seed")
+    if seed is not None:
+        suffix_parts.append(f"seed{seed}")
+    eta = cfg.get("eta")
+    if eta is not None:
+        suffix_parts.append(f"eta{_format_suffix_value(eta)}")
+    if not suffix_parts:
+        return base_name
+    return f"{base_name}__{'_'.join(map(str, suffix_parts))}"
+
 def train():
     with wandb.init(project="green_scheduler") as run:
         save_freq = config_dict["n_steps"]
@@ -98,7 +118,7 @@ def train():
         # log the effective merged config so the run is fully reproducible
         wandb.config.update(cfg, allow_val_change=True)
         
-        run_id = create_experiment_name(config=config_dict, workload_file=None)
+        run_id = create_experiment_name(config=cfg, workload_file=None)
         run_path = Path("results") / run_id
         run_path.mkdir(parents=True, exist_ok=True)
 
@@ -107,6 +127,8 @@ def train():
             json.dump(cfg, f, indent=4)
 
         print(f"Repository created at {run_path} and config saved to {config_path}")
+
+        run.name = _build_wandb_run_name(run_id, cfg)
    
         env = ActionMasker(HPCenv(mode="training", config_dict=cfg), mask_fn)
 

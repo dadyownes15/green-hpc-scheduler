@@ -177,8 +177,6 @@ class HPCenv(Env):
 
         terminated = self.should_terminate()
 
-        if terminated:
-            info['episode_metrics'] = self._compute_episode_metrics()
 
         # Expose reward breakdown for logging/analysis
         info.update({
