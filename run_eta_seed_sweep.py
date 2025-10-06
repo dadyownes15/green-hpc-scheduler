@@ -22,7 +22,7 @@ def find_project_root(start: Path) -> Path:
 PROJECT_ROOT = find_project_root(Path(__file__).resolve().parent)
 DEFAULT_WORKLOAD = PROJECT_ROOT / "data" / "workloads" / "4h_mean" / "training_workload.swf"
 CONFIG_PATH = PROJECT_ROOT / "config_file" / "config.ini"
-ETA_VALUES = [0, 0.25, 0.5, 0.75, 1]
+ETA_VALUES = [0.01, 0.1, 0.001]
 SEED_VALUES = list(range(1, 6))
 LOG_PATH = PROJECT_ROOT / "validation_summary.txt"
 
