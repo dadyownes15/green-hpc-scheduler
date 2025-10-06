@@ -7,12 +7,14 @@ import csv
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from src.utils import create_experiment_name, get_config_as_dict, convert_numpy_types
+from src.utils import convert_numpy_types, create_experiment_name, get_config_as_dict
 from src.validation import Validation
 
 WORKLOAD_PATH = Path("data/workloads/training_workload.swf")
+DEFAULT_STEPS_PER_CHECKPOINT = 2
+
 SEED_FILE_PATTERN = re.compile(r"^seed_(?P<seed>\d+)_(?P<timesteps>\d+)_steps$")
 MODEL_FILE_PATTERN = re.compile(r"^(?:model|seed_\d+)_(?P<timesteps>\d+)_steps$")
 
@@ -57,6 +59,12 @@ def parse_args() -> argparse.Namespace:
         help="Number of evaluation episodes to run per checkpoint.",
     )
     parser.add_argument(
+        "--steps-per-checkpoint",
+        type=int,
+        default=DEFAULT_STEPS_PER_CHECKPOINT,
+        help="Number of CSV step increments that correspond to one saved checkpoint.",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable verbose logging inside the validation loop.",
@@ -77,6 +85,17 @@ def load_base_config(config_path: Path) -> Dict[str, Any]:
     return get_config_as_dict(parser)
 
 
+def load_run_config(run_dir: Path) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {}
+    cfg_path = run_dir / "config.json"
+    if cfg_path.exists():
+        try:
+            payload = json.loads(cfg_path.read_text())
+        except json.JSONDecodeError:
+            pass
+    return payload
+
+
 def read_best_rows(csv_path: Path) -> List[Dict[str, Any]]:
     if not csv_path.exists():
         raise FileNotFoundError(f"Best-in-validation CSV not found: {csv_path}")
@@ -91,13 +110,13 @@ def read_best_rows(csv_path: Path) -> List[Dict[str, Any]]:
             try:
                 eta = float(raw["eta"])
                 seed = int(float(raw["seed"]))
-                step_index = int(float(raw["steps"]))
+                step_value = int(float(raw["steps"]))
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"Invalid row in {csv_path}: {raw}") from exc
             rows.append({
                 "eta": eta,
                 "seed": seed,
-                "step_index": step_index,
+                "step_value": step_value,
                 "raw": raw,
             })
     return rows
@@ -176,7 +195,7 @@ def collect_seed_checkpoints(run_dir: Path, seed: int) -> List[Tuple[int, Path]]
     if not logs_dir.exists():
         raise FileNotFoundError(f"Logs directory missing under {run_dir}")
 
-    checkpoints: List[Tuple[int, Path]] = []
+    checkpoints: Dict[int, Path] = {}
 
     def consider(path: Path, parent_seed: Optional[int]) -> None:
         parsed = parse_checkpoint_filename(path.name, parent_seed)
@@ -187,7 +206,7 @@ def collect_seed_checkpoints(run_dir: Path, seed: int) -> List[Tuple[int, Path]]
             file_seed = parent_seed
         if file_seed != seed:
             return
-        checkpoints.append((timesteps, path))
+        checkpoints.setdefault(timesteps, path)
 
     for child in logs_dir.iterdir():
         if child.is_file():
@@ -201,15 +220,39 @@ def collect_seed_checkpoints(run_dir: Path, seed: int) -> List[Tuple[int, Path]]
     if not checkpoints:
         raise FileNotFoundError(f"No checkpoints for seed={seed} in {logs_dir}")
 
-    checkpoints.sort(key=lambda item: item[0])
-    return checkpoints
+    return sorted(checkpoints.items(), key=lambda item: item[0])
 
 
-def pick_checkpoint(checkpoints: List[Tuple[int, Path]], step_index: int) -> Tuple[Path, int]:
-    if step_index < 0 or step_index >= len(checkpoints):
-        raise IndexError(f"Requested step index {step_index} but only {len(checkpoints)} checkpoints available")
-    return checkpoints[step_index][1], checkpoints[step_index][0]
+def infer_n_steps(run_config: Dict[str, Any], base_config: Dict[str, Any], checkpoints: Sequence[Tuple[int, Path]]) -> Optional[int]:
+    for source in (run_config, base_config):
+        try:
+            candidate = int(source.get("n_steps"))  # type: ignore[arg-type]
+        except (TypeError, ValueError, AttributeError):
+            candidate = None
+        if candidate and candidate > 0:
+            return candidate
+    timesteps = sorted({ts for ts, _ in checkpoints})
+    diffs = [b - a for a, b in zip(timesteps, timesteps[1:]) if b > a]
+    if diffs:
+        return min(diffs)
+    return timesteps[0] if timesteps else None
 
+
+def select_checkpoint(
+    checkpoints: Sequence[Tuple[int, Path]],
+    step_value: int,
+    n_steps: Optional[int],
+    steps_per_checkpoint: int,
+) -> Tuple[Path, int, bool, Optional[int], int, int]:
+    stride = max(steps_per_checkpoint, 1)
+    bucket_index = max(step_value // stride, 0)
+    selected_index = min(bucket_index, len(checkpoints) - 1)
+    timesteps, path = checkpoints[selected_index]
+    expected_timesteps = None
+    if n_steps is not None and n_steps > 0:
+        expected_timesteps = n_steps * (bucket_index + 1)
+    exact_match = expected_timesteps == timesteps if expected_timesteps is not None else False
+    return path, timesteps, bool(exact_match), expected_timesteps, bucket_index, selected_index
 
 def flatten_metrics(metrics: Dict[str, Any]) -> Dict[str, Any]:
     flat: Dict[str, Any] = {}
@@ -276,12 +319,13 @@ def main() -> None:
     for entry in best_rows:
         eta = entry["eta"]
         seed = entry["seed"]
-        step_index = entry["step_index"]
+        step_value = entry["step_value"]
         run_info: Dict[str, Any] = {
             "eta": eta,
             "seed": seed,
-            "step_index": step_index,
+            "step_value": step_value,
         }
+
         try:
             run_dir = resolve_model_dir(base_config, eta, args.results_root)
         except FileNotFoundError as exc:
@@ -292,6 +336,8 @@ def main() -> None:
             continue
 
         run_info["model_dir"] = str(run_dir)
+
+        run_config = load_run_config(run_dir)
 
         try:
             checkpoints = collect_seed_checkpoints(run_dir, seed)
@@ -304,24 +350,29 @@ def main() -> None:
             print(f"[SKIP] {run_info}: {exc}")
             continue
 
-        try:
-            checkpoint_file, timesteps = pick_checkpoint(checkpoints, step_index)
-        except IndexError as exc:
-            run_info.update({
-                "status": "missing_checkpoint",
-                "checkpoint_count": len(checkpoints),
-                "error": str(exc),
-            })
-            results.append(run_info)
-            print(f"[SKIP] {run_info}: {exc}")
-            continue
+        n_steps = infer_n_steps(run_config, base_config, checkpoints)
 
+        selection = select_checkpoint(
+            checkpoints=checkpoints,
+            step_value=step_value,
+            n_steps=n_steps,
+            steps_per_checkpoint=args.steps_per_checkpoint,
+        )
+        checkpoint_file, timesteps, exact_match, expected_ts, bucket_index, selected_index = selection
         checkpoint_dir = checkpoint_file.parent
         run_info.update({
             "checkpoint_dir": str(checkpoint_dir),
             "checkpoint_name": checkpoint_file.name,
             "timesteps": timesteps,
+            "timesteps_match": "exact" if exact_match else "approximate",
         })
+        if expected_ts is not None:
+            run_info["expected_timesteps"] = expected_ts
+        elif n_steps is not None:
+            run_info["inferred_n_steps"] = n_steps
+        if bucket_index != selected_index:
+            run_info["bucket_index"] = bucket_index
+            run_info["selected_index"] = selected_index
 
         if args.dry_run:
             run_info["status"] = "pending"
@@ -351,7 +402,7 @@ def main() -> None:
         run_info.update(flat_metrics)
         run_info["status"] = "ok"
         results.append(run_info)
-        print(f"[OK] eta={eta} seed={seed} step={step_index} -> {checkpoint_file.name}")
+        print(f"[OK] eta={eta} seed={seed} step={step_value} -> {checkpoint_file.name}")
 
     write_results(results, args.output)
     print(f"Wrote {len(results)} rows to {args.output}")
