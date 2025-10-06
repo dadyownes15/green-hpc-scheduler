@@ -13,7 +13,8 @@ from src.utils import create_experiment_name, get_config_as_dict, convert_numpy_
 from src.validation import Validation
 
 WORKLOAD_PATH = Path("data/workloads/training_workload.swf")
-CHECKPOINT_PATTERN = re.compile(r"(?:model|seed_\\d+)_(\\d+)_steps(?:\\.zip)?$")
+SEED_FILE_PATTERN = re.compile(r"^seed_(?P<seed>\d+)_(?P<timesteps>\d+)_steps$")
+MODEL_FILE_PATTERN = re.compile(r"^(?:model|seed_\d+)_(?P<timesteps>\d+)_steps$")
 
 
 def parse_args() -> argparse.Namespace:
@@ -139,7 +140,6 @@ def resolve_model_dir(base_config: Dict[str, Any], eta: float, results_root: Pat
         raise FileNotFoundError(f"No trained run found for eta={eta}")
     if len(candidates) == 1:
         return candidates[0][0]
-    # Prefer directories with matching batch size and reward type.
     target_batch = base_config.get("batch_size")
     target_reward = base_config.get("reward_type")
     filtered = [c for c in candidates if c[1].get("batch_size") == target_batch and c[1].get("reward_type") == target_reward]
@@ -149,43 +149,65 @@ def resolve_model_dir(base_config: Dict[str, Any], eta: float, results_root: Pat
     return candidates[0][0]
 
 
-def resolve_seed_dir(run_dir: Path, seed: int) -> Path:
+def parse_checkpoint_filename(filename: str, parent_seed: Optional[int]) -> Optional[Tuple[Optional[int], int]]:
+    stem = filename[:-4] if filename.endswith(".zip") else filename
+    match = SEED_FILE_PATTERN.match(stem)
+    if match:
+        return int(match.group("seed")), int(match.group("timesteps"))
+    match = MODEL_FILE_PATTERN.match(stem)
+    if match:
+        return parent_seed, int(match.group("timesteps"))
+    return None
+
+
+def _infer_seed_from_name(name: str) -> Optional[int]:
+    if name.isdigit():
+        return int(name)
+    if name.startswith("seed_"):
+        try:
+            return int(name.split("_", 1)[1])
+        except (ValueError, IndexError):
+            return None
+    return None
+
+
+def collect_seed_checkpoints(run_dir: Path, seed: int) -> List[Tuple[int, Path]]:
     logs_dir = run_dir / "logs"
     if not logs_dir.exists():
         raise FileNotFoundError(f"Logs directory missing under {run_dir}")
-    direct = logs_dir / str(seed)
-    if direct.exists():
-        return direct
-    prefixed = logs_dir / f"seed_{seed}"
-    if prefixed.exists():
-        return prefixed
-    matches = [p for p in logs_dir.iterdir() if p.is_dir() and re.fullmatch(r"seed_?%d" % seed, p.name)]
-    if matches:
-        return matches[0]
-    raise FileNotFoundError(f"No checkpoints folder for seed={seed} in {logs_dir}")
 
+    checkpoints: List[Tuple[int, Path]] = []
 
-def list_checkpoints(seed_dir: Path) -> List[Tuple[int, Path]]:
-    candidates: List[Tuple[int, Path]] = []
-    if not seed_dir.exists():
-        return candidates
-    for item in seed_dir.iterdir():
-        if not item.is_file():
-            continue
-        match = CHECKPOINT_PATTERN.search(item.name)
-        if match is None:
-            continue
-        candidates.append((int(match.group(1)), item))
-    candidates.sort(key=lambda entry: entry[0])
-    return candidates
+    def consider(path: Path, parent_seed: Optional[int]) -> None:
+        parsed = parse_checkpoint_filename(path.name, parent_seed)
+        if parsed is None:
+            return
+        file_seed, timesteps = parsed
+        if file_seed is None:
+            file_seed = parent_seed
+        if file_seed != seed:
+            return
+        checkpoints.append((timesteps, path))
 
+    for child in logs_dir.iterdir():
+        if child.is_file():
+            consider(child, None)
+        elif child.is_dir():
+            inferred_seed = _infer_seed_from_name(child.name)
+            for file_path in child.iterdir():
+                if file_path.is_file():
+                    consider(file_path, inferred_seed)
 
-def pick_checkpoint(seed_dir: Path, step_index: int) -> Tuple[Path, int]:
-    checkpoints = list_checkpoints(seed_dir)
     if not checkpoints:
-        raise FileNotFoundError(f"No checkpoints found in {seed_dir}")
+        raise FileNotFoundError(f"No checkpoints for seed={seed} in {logs_dir}")
+
+    checkpoints.sort(key=lambda item: item[0])
+    return checkpoints
+
+
+def pick_checkpoint(checkpoints: List[Tuple[int, Path]], step_index: int) -> Tuple[Path, int]:
     if step_index < 0 or step_index >= len(checkpoints):
-        raise IndexError(f"Requested step index {step_index} but only {len(checkpoints)} checkpoints available in {seed_dir}")
+        raise IndexError(f"Requested step index {step_index} but only {len(checkpoints)} checkpoints available")
     return checkpoints[step_index][1], checkpoints[step_index][0]
 
 
@@ -255,7 +277,7 @@ def main() -> None:
         eta = entry["eta"]
         seed = entry["seed"]
         step_index = entry["step_index"]
-        run_info = {
+        run_info: Dict[str, Any] = {
             "eta": eta,
             "seed": seed,
             "step_index": step_index,
@@ -269,12 +291,13 @@ def main() -> None:
             print(f"[SKIP] {run_info}: {exc}")
             continue
 
+        run_info["model_dir"] = str(run_dir)
+
         try:
-            seed_dir = resolve_seed_dir(run_dir, seed)
+            checkpoints = collect_seed_checkpoints(run_dir, seed)
         except FileNotFoundError as exc:
             run_info.update({
                 "status": "missing_seed",
-                "model_dir": str(run_dir),
                 "error": str(exc),
             })
             results.append(run_info)
@@ -282,23 +305,22 @@ def main() -> None:
             continue
 
         try:
-            checkpoint_file, timestep = pick_checkpoint(seed_dir, step_index)
-        except (FileNotFoundError, IndexError) as exc:
+            checkpoint_file, timesteps = pick_checkpoint(checkpoints, step_index)
+        except IndexError as exc:
             run_info.update({
                 "status": "missing_checkpoint",
-                "model_dir": str(run_dir),
-                "checkpoint_dir": str(seed_dir),
+                "checkpoint_count": len(checkpoints),
                 "error": str(exc),
             })
             results.append(run_info)
             print(f"[SKIP] {run_info}: {exc}")
             continue
 
+        checkpoint_dir = checkpoint_file.parent
         run_info.update({
-            "model_dir": str(run_dir),
-            "checkpoint_dir": str(seed_dir),
+            "checkpoint_dir": str(checkpoint_dir),
             "checkpoint_name": checkpoint_file.name,
-            "timesteps": timestep,
+            "timesteps": timesteps,
         })
 
         if args.dry_run:
@@ -311,7 +333,7 @@ def main() -> None:
             metrics = evaluate_checkpoint(
                 run_dir=run_dir,
                 checkpoint_path=checkpoint_file,
-                checkpoint_dir=seed_dir,
+                checkpoint_dir=checkpoint_dir,
                 episodes=args.episodes,
                 mode=args.mode,
                 debug=args.debug,
