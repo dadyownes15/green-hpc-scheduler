@@ -82,6 +82,7 @@ class Validation():
 
         
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
+        carbon_intensity.set_mode(mode)
         return self.process_metrics(
             stats_dict=stats_dict,
             carbon_intensity_calculator=carbon_intensity,
@@ -208,10 +209,10 @@ class Validation():
         baselines = [
 
             FCFSBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
-                        PercentileBaseline(config_dict=self.config_dict, percentile=10, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
-            PercentileBaseline(config_dict=self.config_dict, percentile=25, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
-            PercentileBaseline(config_dict=self.config_dict, percentile = 50, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
-            FCFSEasyBackfillBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
+                        PercentileBaseline(config_dict=self.config_dict, percentile=10, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
+            PercentileBaseline(config_dict=self.config_dict, percentile=25, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
+            PercentileBaseline(config_dict=self.config_dict, percentile = 50, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
+            PercentileBaseline(config_dict=self.config_dict, percentile = 100, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
                     ]
         
         stats_dict = {}
@@ -466,8 +467,7 @@ class Validation():
             ci.set_mode('validation')
 
         def ci_at_time(t):
-            idx = int((t + ci.start_offset) // ci.seconds_per_slot) % ci.total_slots
-            return ci.carbonIntensityList[idx]
+            return float(ci.intensity_at(t))
 
         # Build event list from schedule entries
         procs_per_node = max(1, int(self.config_dict.get('procs_per_node', 1)))

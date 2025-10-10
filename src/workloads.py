@@ -3,10 +3,13 @@ import os
 import csv
 import configparser
 import copy
-from src.job import Job
+import math
 from typing import Dict
-import re
+
 import numpy as np
+import re
+
+from src.job import Job
 
 
 class Workloads:
@@ -32,10 +35,12 @@ class Workloads:
         # Load configuration for power settings
         self.config_dict = config_dict
 
-       #TO DO: Optimize this, to avoid multiple loops. The aggregate calculates are nesacarry for normalization
+        procs_per_node = max(1, int(self.config_dict.get('procs_per_node', 1)))
+        # TO DO: Optimize this, to avoid multiple loops. The aggregate calculations are necessary for normalization
         with open(path) as fp:
             processor_list = []  # Use standard lists for appending
             run_time_list = []   # This is more efficient for building the data
+            compute_hours_list = []
 
             for line in fp:
                 if line.startswith(";"):
@@ -47,19 +52,33 @@ class Workloads:
                 line = line.strip()
                 s_array = re.split("\\s+", line)
                 
-                # Append to standard Python lists
-                processor_list.append(int(s_array[4]))
-                run_time_list.append(int(s_array[3]))
+                requested_processors = int(s_array[4])
+                run_time = int(s_array[3])
+                requested_nodes = max(1, int(math.ceil(float(requested_processors) / float(procs_per_node))))
+
+                processor_list.append(requested_processors)
+                run_time_list.append(run_time)
+                compute_hours_list.append(requested_nodes * run_time)
 
         # Convert to numpy arrays outside the loop after all data is collected
         processor_list = np.array(processor_list)
         run_time_list = np.array(run_time_list)
+        compute_hours_list = np.array(compute_hours_list, dtype=np.float64)
 
-        self.run_time_mean = np.mean(run_time_list)
-        self.run_time_std = np.std(run_time_list)
+        self.run_time_mean = float(np.mean(run_time_list)) if run_time_list.size else 0.0
+        self.run_time_std = float(np.std(run_time_list)) if run_time_list.size else 1.0
+        if self.run_time_std == 0:
+            self.run_time_std = 1.0
 
-        self.processor_mean = np.mean(processor_list)
-        self.processor_std = np.mean(processor_list)
+        self.processor_mean = float(np.mean(processor_list)) if processor_list.size else 0.0
+        self.processor_std = float(np.std(processor_list)) if processor_list.size else 1.0
+        if self.processor_std == 0:
+            self.processor_std = 1.0
+
+        self.compute_hours_mean = float(np.mean(compute_hours_list)) if compute_hours_list.size else 0.0
+        self.compute_hours_std = float(np.std(compute_hours_list)) if compute_hours_list.size else 1.0
+        if self.compute_hours_std == 0:
+            self.compute_hours_std = 1.0
 
         with open(path) as fp:
             for line in fp:
@@ -71,7 +90,16 @@ class Workloads:
                         self.max_procs = int(line.split(":")[1].strip())
                     continue
 
-                j = Job(self.config_dict, self.run_time_mean, self.run_time_std, self.processor_mean, self.processor_std, line)
+                j = Job(
+                    self.config_dict,
+                    self.run_time_mean,
+                    self.run_time_std,
+                    self.processor_mean,
+                    self.processor_std,
+                    self.compute_hours_mean,
+                    self.compute_hours_std,
+                    line,
+                )
                 
                 # Set power based on configuration
                 j.power_usage = self.config_dict['constant_power_per_processor'] * j.request_number_of_processors
@@ -130,4 +158,3 @@ class Workloads:
             reader = csv.reader(file)
             data_list = [row[0] for row in reader]
         return data_list
-

@@ -24,13 +24,13 @@ class Baseline(abc.ABC):
         pass
 
 class PercentileBaseline(Baseline):
-    def __init__(self,config_dict, env, percentile, global_cutoff = True):
+    def __init__(self,config_dict, env, percentile, mode):
         """
         Initializes the MedianBaseline, which schedules jobs based on carbon intensity.
         """
         super().__init__(config_dict,env)
         self.name = f"{percentile}-percentile Baseline"
-        self.global_cutoff = global_cutoff
+        self.mode = mode
         self.percentile = percentile
         
     def run(self, seed=42, debug = False):
@@ -56,17 +56,21 @@ class PercentileBaseline(Baseline):
             assert len(carbon_forecast) == (self.config_dict['green_forecast_length'] - 1) * self.config_dict['green_feature_pr_timeslot']
             assert (self.config_dict['green_feature_pr_timeslot'] == 1), "NOT IMPLEMENTED FOR NON multiple green feature pr timeslot"
 
-            mean = self.env.carbon_intensity.mean
-            std = self.env.carbon_intensity.std
 
-            cutoffs = {10:(31.9240-mean)/std, 25: (47.3247-mean)/std, 50:(78.4003-mean)/std}
+            cutoffs = {'validation': {10: np.float64(49.23500000000001),
+  25: np.float64(61.78025),
+  50: np.float64(83.49033333333334),
+   100: np.float64(-10000)
+  },
 
-            if self.global_cutoff:
-                carbon_forecast_percentile = cutoffs[self.percentile]
-                print("cutoff: ", carbon_forecast_percentile)
-            else: 
-                carbon_forecast_percentile = np.percentile(carbon_forecast, q=self.percentile)
+ 'test': {10: np.float64(24.151466666666668),
+  25: np.float64(33.60491666666667),
+  50: np.float64(51.55383333333333),
+  100: np.float64(-10000)}}
+
             
+            carbon_forecast_percentile = cutoffs[self.mode][self.percentile]
+
             if current_carbon_intensity < carbon_forecast_percentile:
                 mask = self.env.valid_action_mask()
                 job_mask = mask[:self.config_dict['max_queue_size']]

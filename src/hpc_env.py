@@ -48,10 +48,10 @@ class HPCenv(Env):
         if self.mode == "training":
             self.workload_path = "data/workloads/training_workload.swf"
         if self.mode == "validation":
-            self.config_dict["episode_length"] = 8174 # This value is hardcoded to be the length of the whole validation set
+            self.config_dict["episode_length"] = 8174  # cover entire validation trace
             self.workload_path = "data/workloads/validation_workload.swf"
         if self.mode == "test":
-            self.config_dict["episode_length"] = 22341 # this is hardcoded to be the length of the whole test set
+            self.config_dict["episode_length"] = 22341  # cover entire test trace
             self.workload_path = "data/workloads/test_workload.swf"
 
         ## -------- Action and observation space def -------
@@ -92,7 +92,9 @@ class HPCenv(Env):
         # Load workloads and cluster
         self.loads = Workloads(self.workload_path, config_dict=self.config_dict)
         self.cluster = Cluster(self.loads.max_nodes, self.config_dict['procs_per_node'], self.config_dict['idle_power'])
-        self.carbon_intensity = CarbonIntensity( green_win_length=self.config_dict['green_forecast_length'], custom_intensity=config_dict['custom_intensity'])
+        self.carbon_intensity = CarbonIntensity(
+                normalize= self.mode == "training",
+             green_win_length=self.config_dict['green_forecast_length'], custom_intensity=config_dict['custom_intensity'])
         self.carbon_intensity.set_mode(self.mode)
         self.total_processors = self.loads.max_procs
 
