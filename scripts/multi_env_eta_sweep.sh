@@ -4,7 +4,7 @@
 #SBATCH --array=1-5%3
 # Number of CPUs to allocate for each task
 #SBATCH --cpus-per-task=4
-# Max run time is 24 hours
+# Max run time is 5 hours
 #SBATCH --time=5:00:00
 # Store stdout/stderr per array task
 #SBATCH --output=logs/multi_env_eta_sweep_%A_%a.out
