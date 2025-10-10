@@ -107,10 +107,13 @@ def create_directory_if_not_exists(directory_path: str):
         print(f"Error creating directory at '{directory_path}': {e}")
 
 def mask_fn(env: gym.Env) -> np.ndarray:
-    # Do whatever you'd like in this function to return the action mask
-    # for the current env. In this example, we assume the env has a
-    # helpful method we can rely on.
-    return env.valid_action_mask()
+    # Walk through wrappers until the base env exposes the mask helper.
+    current_env = env
+    while current_env is not None:
+        if hasattr(current_env, "valid_action_mask"):
+            return current_env.valid_action_mask()
+        current_env = getattr(current_env, "env", None)
+    raise AttributeError("Underlying env does not implement valid_action_mask()")
 
 
 def create_experiment_name(config: dict, workload_file: None) -> str:
@@ -199,4 +202,3 @@ def convert_numpy_types(obj):
         return [convert_numpy_types(item) for item in obj]
     else:
         return obj
-

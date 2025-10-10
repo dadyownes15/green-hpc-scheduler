@@ -38,8 +38,9 @@ class HPCenv(Env):
         self.action_trace = []  # list of dict entries, one per env.step()
         self.step_counter = 0
         self.episode_start_hour_offset = 0
-
-
+        self.carbon_reward_booster = config_dict["carbon_reward_booster"]
+        self.wait_reward_booster = config_dict["wait_reward_booster"]
+        
         ## ------ Reward config -------
         self.reward_type = config_dict["reward_type"]
         self.eta = config_dict["eta"]
@@ -688,7 +689,8 @@ class HPCenv(Env):
                 carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
 
-                carbon_reward = - np.clip(carbon_emission, -self.config_dict["abs_carbon_reward_clip"],self.config_dict["abs_carbon_reward_clip"] )
+                assert self.carbon_reward_booster != None and self.carbon_reward_booster != 0
+                carbon_reward = - np.clip(carbon_emission * self.carbon_reward_booster, -self.config_dict["abs_carbon_reward_clip"],self.config_dict["abs_carbon_reward_clip"] )
 
                 wait = - (actual_wait / self.config_dict["max_wait_time"])
                 wait_reward = np.clip(wait, -self.config_dict['wait_reward_clip'], 0)

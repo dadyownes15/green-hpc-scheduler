@@ -8,6 +8,7 @@ import json
 import math
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+from copy import deepcopy
 
 from src.validation import Validation
 from src.utils import convert_numpy_types
@@ -395,3 +396,86 @@ class StepInfoLoggerCallback(BaseCallback):
     def _on_training_end(self) -> None:
         # Final flush on training complete
         self._flush()
+
+
+class BestValidationCallback(BaseCallback):
+    """
+    Periodically validates the current policy and keeps the best model checkpoint.
+    Existing checkpoints are overwritten so that only the latest best model is stored.
+    """
+
+    def __init__(
+        self,
+        config_dict: dict,
+        save_path: str | Path,
+        eval_freq: int,
+        n_eval_episodes: int = 1,
+        metric: str = "Validation Reward",
+        mode: str = "validation",
+        greater_is_better: bool = True,
+        run=None,
+        seed_label: str | None = None,
+        verbose: int = 0,
+    ) -> None:
+        super().__init__(verbose)
+        self.config_dict = deepcopy(config_dict)
+        self.save_path = Path(save_path)
+        self.eval_freq = max(1, int(eval_freq))
+        self.n_eval_episodes = max(1, int(n_eval_episodes))
+        self.metric = metric
+        self.mode = mode
+        self.greater_is_better = bool(greater_is_better)
+        self.run = run
+        self.seed_label = seed_label
+        self._best_score = -np.inf if self.greater_is_better else np.inf
+        self._validator: Validation | None = None
+
+    @property
+    def best_score(self) -> float:
+        return float(self._best_score)
+
+    def _init_callback(self) -> None:
+        self.save_path.parent.mkdir(parents=True, exist_ok=True)
+        self._validator = Validation().load_dir(config_dict=self.config_dict)
+
+    def _on_step(self) -> bool:
+        if self._validator is None:
+            return True
+        if self.num_timesteps == 0 or (self.num_timesteps % self.eval_freq) != 0:
+            return True
+
+        metrics, _ = self._validator.validate_model(
+            n_eval_episodes=self.n_eval_episodes,
+            model=self.model,
+            mode=self.mode,
+            debug=False,
+        )
+        result = metrics.get("model", {})
+        current_score = result.get(self.metric)
+        if current_score is None:
+            return True
+
+        is_better = (
+            current_score > self._best_score
+            if self.greater_is_better
+            else current_score < self._best_score
+        )
+        if is_better:
+            self._best_score = current_score
+            self.model.save(str(self.save_path))
+
+        log_prefix = f"{self.seed_label}/" if self.seed_label else ""
+        metric_key = f"{log_prefix}validation/{self.metric}"
+        best_key = f"{log_prefix}validation/best_{self.metric}"
+        self.logger.record(metric_key, float(current_score))
+        self.logger.record(best_key, float(self._best_score))
+        if self.run is not None:
+            self.run.log(
+                {
+                    metric_key: float(current_score),
+                    best_key: float(self._best_score),
+                },
+                step=self.num_timesteps,
+            )
+
+        return True
