@@ -248,7 +248,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--count",
         type=int,
-        default=20,
+        default=50,
         help="Number of agents to execute for the sweep.",
     )
     parser.add_argument(
