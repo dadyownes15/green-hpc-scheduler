@@ -1,12 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=multi_env_eta_sweep
-# We start 5 tasks numbered 1-5 but only 3 can run in parallel
-#SBATCH --array=1-5%3
 # Number of CPUs to allocate for each task
-#SBATCH --cpus-per-task=4
-# Max run time is 5 hours
-#SBATCH --time=5:00:00
-# Store stdout/stderr per array task
+#SBATCH --cpus-per-task=8
+#SBATCH --time=10:00:00
 #SBATCH --output=logs/multi_env_eta_sweep_%A_%a.out
 #SBATCH --error=logs/multi_env_eta_sweep_%A_%a.err
 
