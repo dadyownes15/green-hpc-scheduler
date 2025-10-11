@@ -14,7 +14,7 @@ def main() -> None:
     config.read(config_path)
     config_dict = get_config_as_dict(config)
 
-    n_envs = 8
+    n_envs = 16
     rollout_steps = max(1, config_dict.get("n_steps", 2048) // n_envs)
     env = make_vec_env(
         HPCenv,
@@ -40,7 +40,7 @@ def main() -> None:
         clip_range_vf=config_dict.get("clip_range_vf", 1.0),
         learning_rate=config_dict.get("learning_rate", 3e-4),
 
-        verbose=1,
+        verbose=0,
         seed=config_dict.get("seed", 42),
     )
     model.learn(total_timesteps=config_dict.get("total_timesteps", 1_000_000))
