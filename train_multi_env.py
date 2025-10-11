@@ -16,7 +16,7 @@ from wandb.integration.sb3 import WandbCallback
 
 from src.callbacks import BestValidationCallback
 from src.hpc_env import HPCenv
-from src.utils import create_experiment_name, get_config_as_dict, mask_fn
+from src.utils import get_config_as_dict, mask_fn
 
 
 warnings.filterwarnings(
@@ -138,8 +138,7 @@ def train_multi_env(args: argparse.Namespace) -> None:
     else:
         seeds_to_run = list(range(1, num_seeds + 1))
 
-    run_id = create_experiment_name(config=base_cfg, workload_file=None)
-    run_path = Path("results") / run_id
+    run_path = Path("results") / "train_multi_env"
     run_path.mkdir(parents=True, exist_ok=True)
     _save_config(base_cfg, run_path / "config.json")
 
@@ -169,7 +168,7 @@ def train_multi_env(args: argparse.Namespace) -> None:
             "config": cfg_seed,
             "name": run_name,
             "sync_tensorboard": True,
-            "tags": [run_id],
+            "tags": [],
         }
         if args.wandb_dir is not None:
             wandb_kwargs["dir"] = args.wandb_dir
