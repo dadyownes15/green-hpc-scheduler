@@ -3,6 +3,7 @@ import configparser
 import json
 import math
 import os
+import warnings
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
@@ -16,6 +17,16 @@ from wandb.integration.sb3 import WandbCallback
 from src.callbacks import BestValidationCallback
 from src.hpc_env import HPCenv
 from src.utils import create_experiment_name, get_config_as_dict, mask_fn
+
+
+warnings.filterwarnings(
+    "ignore",
+    message="The 'repr' attribute with value False was provided to the `Field()` function",
+)
+warnings.filterwarnings(
+    "ignore",
+    message="The 'frozen' attribute with value True was provided to the `Field()` function",
+)
 
 
 def _to_int_list(values: Any) -> Any:
@@ -34,15 +45,12 @@ def _format_suffix_value(value: Any) -> str:
         return str(value)
 
 
-def _build_wandb_run_name(base_name: str, cfg: Dict[str, Any]) -> str:
-    suffix: list[str] = []
+def _build_wandb_run_name(cfg: Dict[str, Any]) -> str:
     seed = cfg.get("seed")
-    if seed is not None:
-        suffix.append(f"seed{seed}")
     eta = cfg.get("eta")
-    if eta is not None:
-        suffix.append(f"eta{_format_suffix_value(eta)}")
-    return f"{base_name}__{'_'.join(suffix)}" if suffix else base_name
+    seed_part = f"seed{seed}" if seed is not None else "seedNA"
+    eta_value = _format_suffix_value(eta) if eta is not None else "NA"
+    return f"{seed_part}_eta{eta_value}"
 
 
 def _save_config(cfg: Dict[str, Any], path: Path) -> None:
@@ -152,16 +160,19 @@ def train_multi_env(args: argparse.Namespace) -> None:
         seed_dir.mkdir(parents=True, exist_ok=True)
         _save_config(cfg_seed, seed_dir / "config.json")
 
+        run_name = args.run_name or _build_wandb_run_name(cfg_seed)
+        if num_seeds > 1 and args.run_name is not None:
+            run_name = f"{args.run_name}__seed{seed}"
+
         wandb_kwargs = {
             "project": args.project,
             "config": cfg_seed,
+            "name": run_name,
+            "sync_tensorboard": True,
+            "tags": [run_id],
         }
         if args.wandb_dir is not None:
             wandb_kwargs["dir"] = args.wandb_dir
-
-        run_name = args.run_name or _build_wandb_run_name(run_id, cfg_seed)
-        if num_seeds > 1 and args.run_name is not None:
-            run_name = f"{args.run_name}__seed{seed}"
 
         with wandb.init(**wandb_kwargs) as run:
             run.name = run_name
@@ -177,6 +188,8 @@ def train_multi_env(args: argparse.Namespace) -> None:
             )
 
             policy_kwargs = _build_policy_kwargs(cfg_seed)
+            tensorboard_dir = seed_dir / "tensorboard"
+            tensorboard_dir.mkdir(parents=True, exist_ok=True)
             model = MaskablePPO(
                 "MlpPolicy",
                 env,
@@ -195,6 +208,7 @@ def train_multi_env(args: argparse.Namespace) -> None:
                 vf_coef=cfg_seed["vf_coef"],
                 max_grad_norm=cfg_seed.get("max_grad_norm", 0.5),
                 policy_kwargs=policy_kwargs,
+                tensorboard_log=str(tensorboard_dir),
             )
 
             wandb_cb = WandbCallback(
