@@ -217,7 +217,7 @@ def train_multi_env(args: argparse.Namespace) -> None:
                 total_timesteps=int(cfg_seed["total_timesteps"]),
                 callback=[wandb_cb, best_cb],
                 progress_bar=False,
-                log_interval=None,
+                log_interval=1,
             )
 
             env.close()
