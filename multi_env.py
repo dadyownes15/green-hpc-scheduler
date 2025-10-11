@@ -6,7 +6,8 @@ from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.ppo_mask import MaskablePPO
 from src.hpc_env import HPCenv
 from src.utils import get_config_as_dict, mask_fn
-
+from src.callbacks import BestValidationCallback
+from wandb.integration.sb3 import WandbCallback
 
 def main() -> None:
     config = configparser.ConfigParser()
@@ -26,6 +27,7 @@ def main() -> None:
         seed=config_dict.get("seed", 42),
     )
 
+
     model = MaskablePPO(
         "MlpPolicy",
         env,
@@ -40,10 +42,12 @@ def main() -> None:
         clip_range_vf=config_dict.get("clip_range_vf", 1.0),
         learning_rate=config_dict.get("learning_rate", 3e-4),
 
-        verbose=0,
+        verbose=1,
         seed=config_dict.get("seed", 42),
     )
-    model.learn(total_timesteps=config_dict.get("total_timesteps", 1_000_000))
+    model.learn(total_timesteps=config_dict.get("total_timesteps", 1_000_000),
+                callback=[BestValidationCallback, WandbCallbacak]
+                )
 
 
 if __name__ == "__main__":

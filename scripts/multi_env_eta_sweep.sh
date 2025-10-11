@@ -1,46 +1,22 @@
 #!/bin/bash
-#SBATCH --job-name=multi_env_eta_sweep
-# Number of CPUs to allocate for each task
+#SBATCH --job-name=sweep
+#SBATCH --array=1-5%5           # 5 tasks total, 3 can run in parallel
 #SBATCH --cpus-per-task=8
-#SBATCH --time=10:00:00
-#SBATCH --output=logs/multi_env_eta_sweep_%A_%a.out
-#SBATCH --error=logs/multi_env_eta_sweep_%A_%a.err
+#SBATCH --time=5:00:00
 
-set -euo pipefail
+# Define eta values
+etas=(1 0 0.5 0.1 0.01)
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-cd "${PROJECT_ROOT}"
+# Select eta based on the SLURM array ID
+eta=${etas[$SLURM_ARRAY_TASK_ID-1]}
 
-PYTHON_BIN="${PROJECT_ROOT}/venv/bin/python"
-if [ ! -x "${PYTHON_BIN}" ]; then
-  PYTHON_BIN="$(command -v python || true)"
-fi
-if [ -z "${PYTHON_BIN}" ]; then
-  echo "python executable not found; load your environment before submitting." >&2
-  exit 127
-fi
+echo "Running with eta=$eta"
 
-LOG_DIR="${PROJECT_ROOT}/logs"
-mkdir -p "${LOG_DIR}"
+# Activate your virtual environment if needed
+source venv/bin/activate
 
-echo "[$(date --iso-8601=seconds)] SLURM job ${SLURM_JOB_ID:-N/A} (array index ${SLURM_ARRAY_TASK_ID:-N/A}) running on ${HOSTNAME:-unknown}"
-echo "Working directory: ${PROJECT_ROOT}"
-echo "Python binary: ${PYTHON_BIN}"
-echo "Git commit: $(git -C "${PROJECT_ROOT}" rev-parse --short HEAD 2>/dev/null || echo 'N/A')"
+# Run the Python script with the chosen eta
+python multi_env_train.py --seeds 5 --eta "$eta"
 
-# Eta values to sweep over (index matches SLURM_ARRAY_TASK_ID - 1)
-eta_values=(1 0.5 0.1 0.01 0)
-
-index=$((SLURM_ARRAY_TASK_ID - 1))
-if [ "$index" -lt 0 ] || [ "$index" -ge "${#eta_values[@]}" ]; then
-  echo "Invalid SLURM_ARRAY_TASK_ID: ${SLURM_ARRAY_TASK_ID}" >&2
-  exit 1
-fi
-
-eta="${eta_values[$index]}"
-echo "Launching sweep_multi_env.py for eta=${eta}"
-
-"${PYTHON_BIN}" sweep_multi_env.py --sweep multi_env_sweep.yaml --eta "${eta}"
-
-echo "[$(date --iso-8601=seconds)] Finished eta=${eta}"
+# Deactivate environment
+deactivate

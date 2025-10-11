@@ -70,7 +70,15 @@ def merge_overrides(base_cfg: Dict[str, Any], overrides: Dict[str, Any]) -> Dict
                 else:
                     value = bool(value)
             elif isinstance(base_value, int):
-                value = int(value)
+                try:
+                    float_value = float(value)
+                except (TypeError, ValueError):
+                    value = int(value)
+                else:
+                    if float_value.is_integer():
+                        value = int(float_value)
+                    else:
+                        value = float_value
             elif isinstance(base_value, float):
                 value = float(value)
         except Exception:
