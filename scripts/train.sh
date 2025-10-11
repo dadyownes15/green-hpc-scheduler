@@ -21,7 +21,7 @@ echo "Running with eta=$eta"
 source venv/bin/activate
 
 # Run the Python script with the chosen eta
-python train_multi_env.py --eta "$eta" --seeds 5 --total_timesteps 3000000  | tee "$LOGFILE"
+python train_multi_env.py --eta "$eta" --seeds 5 --total-timesteps 3000000  | tee "$LOGFILE"
 
 # Deactivate environment
 deactivate
