@@ -17,6 +17,9 @@ set -e
 # Activate the virtual environment
 source venv/bin/activate
 
+export WANDB_API_KEY="418d10fc7ab5763a7e2ec89f2dc5aed81c38bd8e"
+
+
 # Define log file (timestamped)
 LOGFILE="run_$(date +%Y%m%d_%H%M%S).log"
 
@@ -25,5 +28,3 @@ python sweep_multi_env.py --sweep multi_env_sweep.yaml --count 100 --eta 0 | tee
 
 # Deactivate virtual environment
 deactivate
-
-echo "Run completed. Logs saved to $LOGFILE"
