@@ -103,7 +103,15 @@ def _apply_overrides(cfg: Dict[str, Any], overrides: Iterable[tuple[str, Optiona
                 else:
                     updated[key] = bool(value)
             elif isinstance(base_value, int):
-                updated[key] = int(value)
+                try:
+                    numeric_value = float(value)
+                except (TypeError, ValueError):
+                    updated[key] = value
+                else:
+                    if numeric_value.is_integer():
+                        updated[key] = int(numeric_value)
+                    else:
+                        updated[key] = numeric_value
             elif isinstance(base_value, float):
                 updated[key] = float(value)
             elif isinstance(base_value, (list, tuple)):
