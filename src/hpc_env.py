@@ -101,7 +101,7 @@ class HPCenv(Env):
 
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]
-        assert self.reward_type in ["wait_abs_ems", "wait_abs_ems_clip","bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems","bd_abs_ems_clip"]
+        assert self.reward_type in ["wait_abs_ems", "wait_abs_ems_clip","wait_abs_ems_ci_clip","bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems","bd_abs_ems_clip"]
  
     def step(self, action):
         self.new_job_arrived_in_step = False
@@ -701,6 +701,31 @@ class HPCenv(Env):
 
             else: 
                 reward = 0   
+        if self.reward_type == "wait_abs_ems_ci_clip":
+            if scheduled_job:
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+
+                power_usage = scheduled_job.power_usage
+                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+                actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
+
+                assert self.carbon_reward_booster is not None and self.carbon_reward_booster != 0
+                carbon_reward = -np.clip(
+                    carbon_emission * self.carbon_reward_booster,
+                    -self.config_dict["abs_carbon_reward_clip"],
+                    self.config_dict["abs_carbon_reward_clip"],
+                )
+
+                wait = -(actual_wait / self.config_dict["max_wait_time"])
+                wait_reward = np.clip(wait, -self.config_dict["wait_reward_clip"], 0)
+
+                job_ci = float(np.clip(getattr(scheduled_job, "carbon_consideration", 1.0), 0.0, 1.0))
+                components['carbon'] = carbon_reward * (1.0 - job_ci)
+                components['wait'] = wait_reward * job_ci
+                reward = components['wait'] + components['carbon']
+            else:
+                reward = 0
                                 
         if self.reward_type == "bd_abs_ems_clip":
             if scheduled_job: 

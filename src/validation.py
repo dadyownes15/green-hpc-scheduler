@@ -41,7 +41,8 @@ class Validation():
         if debug:
             print("Validating policy on data from:", self.mode)
 
-        self.config_dict["reward_type"] = "wait_abs_ems"
+        if not self.config_dict.get("reward_type"):
+            self.config_dict["reward_type"] = "wait_abs_ems"
         # Enable tracing in env so we can collect action traces for analysis
         self.env = ActionMasker(
             HPCenv(config_dict=self.config_dict, mode=self.mode, debug=debug, trace_enabled=True),

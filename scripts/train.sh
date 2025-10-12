@@ -2,7 +2,7 @@
 #SBATCH --job-name=sweep
 #SBATCH --array=1-5%5           
 #SBATCH --cpus-per-task=8
-#SBATCH --time=24:00:00
+#SBATCH --time=2:00:00
 
 export WANDB_API_KEY="418d10fc7ab5763a7e2ec89f2dc5aed81c38bd8e"
 # Define log file (timestamped)

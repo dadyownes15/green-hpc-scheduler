@@ -81,14 +81,16 @@ The rest are not used in are simplified envoriemnt
         # Compute-hours proxy: processor-seconds requested for the job
         self.compute_hours = self.request_number_of_processors * self.request_time
         
-        # Carbon consideration index from the SWF file (if available)
-        # If the file has 19 fields, the last one is the carbon consideration index
-        if len(s_array) >= 19:
+        user_ci_mode = str(self.config_dict.get('user_ci', 'disabled')).lower()
+
+        if user_ci_mode and user_ci_mode != "disabled":
+            self.carbon_consideration = self._generate_carbon_consideration(user_ci_mode)
+        elif len(s_array) >= 19:
+            # Carbon consideration index exists in the SWF file
             self.carbon_consideration = float(s_array[18])
         else:
-            # Fallback: all jobs have carbon consideration 0 (very low concern)
-            # This means no carbon optimization when using original SWF files
-            self.carbon_consideration = 1 
+            # Fallback when user_ci is disabled and SWF file does not contain the feature
+            self.carbon_consideration = 1.0
     
         self.scheduled_time = -1
         self.allocated_machines = None
@@ -100,6 +102,22 @@ The rest are not used in are simplified envoriemnt
         self.slurm_qos = 0
         self.slurm_tres_cpu = 0.0
         self.power_usage = -1.0
+
+    def _generate_carbon_consideration(self, mode: str) -> float:
+        """
+        Generates a carbon consideration index according to the configured distribution.
+        """
+        if mode == "uniform":
+            return float(np.random.uniform(0.0, 1.0))
+        if mode in ("two_bins", "binomial"):
+            return 1.0 if np.random.uniform(0.0, 1.0) < 0.8 else 0.1
+        if mode in ("exp_drop", "exponential"):
+            drop = np.random.exponential(scale=1.0)
+            return float(np.clip(1.0 - drop, 0.0, 1.0))
+        if mode == "disabled":
+            return 1.0
+
+        raise ValueError(f"Unsupported user_ci mode: {mode}")
 
     def __eq__(self, other):
         return self.job_id == other.job_id

@@ -48,8 +48,12 @@ def _format_suffix_value(value: Any) -> str:
 def _build_wandb_run_name(cfg: Dict[str, Any]) -> str:
     eta = cfg.get("eta")
     seed = cfg.get("seed")
+    user_ci = cfg.get("user_ci")
+    parts = []
+    if user_ci is not None:
+        parts.append(f"ci{_format_suffix_value(user_ci)}")
     eta_part = f"eta{_format_suffix_value(eta)}" if eta is not None else "etaNA"
-    parts = [eta_part]
+    parts.append(eta_part)
     if seed is not None:
         parts.append(f"seed{seed}")
     return "_".join(parts)
@@ -174,6 +178,7 @@ def train_and_eval(args: argparse.Namespace) -> None:
         ("learning_rate", args.learning_rate),
         ("batch_size", args.batch_size),
         ("n_steps", args.n_steps),
+        ("user_ci", args.user_ci),
     ]
     base_cfg = _apply_overrides(cfg, overrides)
 
@@ -182,9 +187,14 @@ def train_and_eval(args: argparse.Namespace) -> None:
     run_root = Path("results") / "train_and_eval"
     run_root.mkdir(parents=True, exist_ok=True)
 
+    user_ci_value = base_cfg.get("user_ci", "disabled") or "disabled"
+    user_ci_suffix = str(_format_suffix_value(user_ci_value)).replace(" ", "_").replace("/", "_")
+    user_ci_dir = run_root / f"user_ci_{user_ci_suffix}"
+    user_ci_dir.mkdir(parents=True, exist_ok=True)
+
     eta_value = base_cfg.get("eta")
     eta_suffix = _format_suffix_value(eta_value) if eta_value is not None else "NA"
-    eta_dir = run_root / f"eta_{eta_suffix}"
+    eta_dir = user_ci_dir / f"eta_{eta_suffix}"
     eta_dir.mkdir(parents=True, exist_ok=True)
     _save_config(base_cfg, eta_dir / "config.json")
     eval_log_path = eta_dir / "test_eval_log.jsonl"
@@ -319,6 +329,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--n-steps", type=int, default=None)
     parser.add_argument("--n-envs", type=int, default=None)
     parser.add_argument("--seeds", type=int, default=1, help="Number of seeds to train over, starting at seed 1.")
+    parser.add_argument("--user-ci", type=str, default=None, help="Override user_ci distribution (e.g., disabled, uniform, two_bins, exp_drop).")
     return parser.parse_args()
 
 
