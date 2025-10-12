@@ -24,7 +24,7 @@ export WANDB_API_KEY="418d10fc7ab5763a7e2ec89f2dc5aed81c38bd8e"
 LOGFILE="run_$(date +%Y%m%d_%H%M%S).log"
 
 # Run your Python sweep script and save output to log
-python sweep_multi_env.py --sweep multi_env_sweep.yaml --count 100 --eta 0 | tee "$LOGFILE"
+python sweep_multi_env.py --sweep multi_env_sweep.yaml --count 100 --eta 0.5 | tee "$LOGFILE"
 
 # Deactivate virtual environment
 deactivate

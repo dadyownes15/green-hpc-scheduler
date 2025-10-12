@@ -221,7 +221,7 @@ def train_and_eval(args: argparse.Namespace) -> None:
             run_name = f"{args.run_name}__seed{seed}"
 
         wandb_kwargs = {
-            "project": args.project,
+            "project": "green_hpc_scheduler_v2",
             "config": cfg_seed,
             "name": run_name,
             "sync_tensorboard": True,
@@ -230,7 +230,11 @@ def train_and_eval(args: argparse.Namespace) -> None:
         if args.wandb_dir is not None:
             wandb_kwargs["dir"] = args.wandb_dir
 
-        with wandb.init(**wandb_kwargs) as run:
+        with wandb.init(
+            
+            **wandb_kwargs
+                        
+                        ) as run:
             run.name = run_name
 
             env = make_vec_env(

@@ -5,6 +5,7 @@ runs/
 results/
 model_test.zip
 wandb/
+old_results/
 venv/
 renderings/
 figures/
