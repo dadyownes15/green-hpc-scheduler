@@ -16,6 +16,14 @@ import os
 from pathlib import Path
 
 
+def _wandb_sanitize_key(logger_key: str) -> str:
+    """
+    Match W&B expectations: strip empty parts, lowercase, replace spaces with underscores.
+    """
+    parts = logger_key.split("/")
+    return "/".join(part.replace(" ", "_").lower() for part in parts if part)
+
+
 class ValidationCallback(BaseCallback):
     """
     Runs validation on the latest checkpoint at a fixed frequency using
@@ -133,6 +141,42 @@ class ValidationCallback(BaseCallback):
         self.run.log(log_dict)
 
         return super().on_rollout_end()
+
+class WandbTrainingMetricsCallback(BaseCallback):
+    """
+    Mirrors SB3 logger outputs into Weights & Biases at the end of each rollout.
+    """
+
+    def __init__(self, run, prefix: str = "", verbose: int = 0) -> None:
+        super().__init__(verbose)
+        self.run = run
+        self.prefix = prefix or ""
+
+    def _compose_key(self, key: str) -> str:
+        merged = f"{self.prefix}{key}" if self.prefix else key
+        return _wandb_sanitize_key(merged)
+
+    def _on_step(self) -> bool:
+        return True
+
+    def _on_rollout_end(self) -> None:
+        if self.run is None:
+            return
+        if not getattr(self.model, "logger", None):
+            return
+
+        payload: Dict[str, float] = {}
+        for key, value in self.model.logger.name_to_value.items():
+            converted = convert_numpy_types(value)
+            try:
+                payload[self._compose_key(key)] = float(converted)
+            except (TypeError, ValueError):
+                continue
+
+        if payload:
+            self.run.log(payload, step=self.model.num_timesteps)
+
+        return None
 
 
 class debugCallback(BaseCallback):
@@ -450,10 +494,30 @@ class BestValidationCallback(BaseCallback):
             mode=self.mode,
             debug=False,
         )
+        print(metrics["model"])
         result = metrics.get("model", {})
         current_score = result.get(self.metric)
         if current_score is None:
             return True
+
+        log_prefix = f"{self.seed_label}/" if self.seed_label else ""
+        wandb_payload: Dict[str, float] = {}
+
+        metric_key = f"{log_prefix}validation/{self.metric}"
+        self.logger.record(metric_key, float(current_score))
+        wandb_payload[_wandb_sanitize_key(metric_key)] = float(current_score)
+
+        metrics_map = {
+            "Avg Wait": "validation/Avg Wait",
+            "Carbon Emissions": "validation/Carbon Emissions",
+        }
+        for source_key, logger_suffix in metrics_map.items():
+            value = result.get(source_key)
+            if value is None:
+                continue
+            logger_key = f"{log_prefix}{logger_suffix}"
+            self.logger.record(logger_key, float(value))
+            wandb_payload[_wandb_sanitize_key(logger_key)] = float(value)
 
         is_better = (
             current_score > self._best_score
@@ -464,18 +528,10 @@ class BestValidationCallback(BaseCallback):
             self._best_score = current_score
             self.model.save(str(self.save_path))
 
-        log_prefix = f"{self.seed_label}/" if self.seed_label else ""
-        metric_key = f"{log_prefix}validation/{self.metric}"
         best_key = f"{log_prefix}validation/best_{self.metric}"
-        self.logger.record(metric_key, float(current_score))
         self.logger.record(best_key, float(self._best_score))
-        if self.run is not None:
-            self.run.log(
-                {
-                    metric_key: float(current_score),
-                    best_key: float(self._best_score),
-                },
-                step=self.num_timesteps,
-            )
+        wandb_payload[_wandb_sanitize_key(best_key)] = float(self._best_score)
+        if self.run is not None and wandb_payload:
+            self.run.log(wandb_payload, step=self.num_timesteps)
 
         return True

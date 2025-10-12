@@ -35,8 +35,8 @@ class Validation():
             raise RuntimeError("Call load_dir(...) before validate_policy().")
 
         self.mode = mode.lower()
-        if self.mode not in {"validation", "test"}:
-            raise ValueError("mode must be either 'validation' or 'test'.")
+        if self.mode not in {"training", "validation", "test"}:
+            raise ValueError("mode must be 'training', 'validation', or 'test'.")
 
         if debug:
             print("Validating policy on data from:", self.mode)
@@ -120,7 +120,7 @@ class Validation():
         Args:
             n_eval_episodes: Number of evaluation episodes.
             model: A trained RL model (e.g., MaskablePPO) to evaluate.
-            mode: One of "validation" or "test". Controls which dataset the env uses.
+            mode: One of "training", "validation", or "test". Controls which dataset the env uses.
             debug: If True, prints progress information.
 
         Returns:
@@ -129,7 +129,7 @@ class Validation():
         assert getattr(self, 'config_dict', None) is not None, "Call load_dir(...) to set config first."
 
         self.mode = mode.lower()
-        assert self.mode in ["validation", "test"]
+        assert self.mode in ["training", "validation", "test"]
 
         if debug:
             print("Validating provided model on data from:", self.mode)

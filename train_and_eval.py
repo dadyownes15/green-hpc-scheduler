@@ -16,7 +16,8 @@ from wandb.integration.sb3 import WandbCallback
 
 from src.callbacks import BestValidationCallback
 from src.hpc_env import HPCenv
-from src.utils import get_config_as_dict, mask_fn
+from src.utils import convert_numpy_types, get_config_as_dict, mask_fn
+from src.validation import Validation
 
 
 warnings.filterwarnings(
@@ -27,7 +28,6 @@ warnings.filterwarnings(
     "ignore",
     message="The 'frozen' attribute with value True was provided to the `Field()` function",
 )
-
 
 def _to_int_list(values: Any) -> Any:
     if isinstance(values, (list, tuple)):
@@ -46,11 +46,13 @@ def _format_suffix_value(value: Any) -> str:
 
 
 def _build_wandb_run_name(cfg: Dict[str, Any]) -> str:
-    seed = cfg.get("seed")
     eta = cfg.get("eta")
-    seed_part = f"seed{seed}" if seed is not None else "seedNA"
-    eta_value = _format_suffix_value(eta) if eta is not None else "NA"
-    return f"{seed_part}_eta{eta_value}"
+    seed = cfg.get("seed")
+    eta_part = f"eta{_format_suffix_value(eta)}" if eta is not None else "etaNA"
+    parts = [eta_part]
+    if seed is not None:
+        parts.append(f"seed{seed}")
+    return "_".join(parts)
 
 
 def _save_config(cfg: Dict[str, Any], path: Path) -> None:
@@ -91,9 +93,7 @@ def _load_config(path: str) -> Dict[str, Any]:
 def _apply_overrides(cfg: Dict[str, Any], overrides: Iterable[tuple[str, Optional[Any]]]) -> Dict[str, Any]:
     updated = dict(cfg)
     for key, value in overrides:
-        if value is None:
-            continue
-        if key not in updated:
+        if value is None or key not in updated:
             continue
         base_value = updated[key]
         try:
@@ -125,13 +125,49 @@ def _apply_overrides(cfg: Dict[str, Any], overrides: Iterable[tuple[str, Optiona
     return updated
 
 
-def train_multi_env(args: argparse.Namespace) -> None:
-    cfg = _load_config(args.config)
+def _determine_seeds(cfg: Dict[str, Any], args: argparse.Namespace) -> list[int]:
+    if args.seed_list:
+        seeds = []
+        for item in args.seed_list.split(","):
+            item = item.strip()
+            if not item:
+                continue
+            seeds.append(int(item))
+        if not seeds:
+            raise ValueError("Provided --seed-list is empty after parsing.")
+        return seeds
+
     num_seeds = max(1, int(getattr(args, "seeds", 1)))
-    seed_override = args.seed if args.seed is not None and num_seeds == 1 else None
+    if num_seeds == 1:
+        return [int(cfg.get("seed", args.seed or 0))]
+    return list(range(1, num_seeds + 1))
+
+
+def _evaluate_best_checkpoint(seed_dir: Path, model_path: Path) -> Dict[str, Any]:
+    if not model_path.exists():
+        return {}
+
+    try:
+        evaluator = Validation().load_dir(model_dir=str(seed_dir))
+        metrics, _ = evaluator.validate_policy(
+            n_eval_episodes=1,
+            checkpoints=[model_path.name],
+            mode="test",
+            debug=False,
+            checkpoint_dir=model_path.parent,
+        )
+    except Exception as exc:
+        print(f"[train_and_eval] Test evaluation failed for '{model_path}': {exc}")
+        return {}
+
+    return metrics.get(model_path.name, {})
+
+
+def train_and_eval(args: argparse.Namespace) -> None:
+    cfg = _load_config(args.config)
     overrides = [
         ("eta", args.eta),
-        ("seed", seed_override),
+        ("seed", args.seed),
         ("total_timesteps", args.total_timesteps),
         ("validation_freq", args.validation_freq),
         ("validation_episodes", args.validation_episodes),
@@ -141,34 +177,37 @@ def train_multi_env(args: argparse.Namespace) -> None:
     ]
     base_cfg = _apply_overrides(cfg, overrides)
 
-    if num_seeds == 1:
-        seeds_to_run = [int(base_cfg.get("seed", 0))]
-    else:
-        seeds_to_run = list(range(1, num_seeds + 1))
+    seeds_to_run = _determine_seeds(base_cfg, args)
 
-    run_path = Path("results") / "train_multi_env"
-    run_path.mkdir(parents=True, exist_ok=True)
-    _save_config(base_cfg, run_path / "config.json")
+    run_root = Path("results") / "train_and_eval"
+    run_root.mkdir(parents=True, exist_ok=True)
+
+    eta_value = base_cfg.get("eta")
+    eta_suffix = _format_suffix_value(eta_value) if eta_value is not None else "NA"
+    eta_dir = run_root / f"eta_{eta_suffix}"
+    eta_dir.mkdir(parents=True, exist_ok=True)
+    _save_config(base_cfg, eta_dir / "config.json")
+    eval_log_path = eta_dir / "test_eval_log.jsonl"
 
     for seed in seeds_to_run:
         cfg_seed = dict(base_cfg)
         cfg_seed["seed"] = int(seed)
 
         n_envs = args.n_envs if args.n_envs is not None else cfg_seed.get("n_envs", 8)
-        n_envs = max(1, int(n_envs))
-        cfg_seed["n_envs"] = n_envs
+        cfg_seed["n_envs"] = max(1, int(n_envs))
+
         batch_size = int(cfg_seed.get("batch_size", 64))
         cfg_seed["batch_size"] = batch_size
         cfg_seed["n_steps"] = _ensure_multiple(int(cfg_seed.get("n_steps", 2048)), batch_size)
-        rollout_steps = max(1, cfg_seed["n_steps"] // n_envs)
-        cfg_seed["n_steps"] = rollout_steps * n_envs
+        rollout_steps = max(1, cfg_seed["n_steps"] // cfg_seed["n_envs"])
+        cfg_seed["n_steps"] = rollout_steps * cfg_seed["n_envs"]
 
-        seed_dir = run_path / f"seed_{seed}"
+        seed_dir = eta_dir / f"seed_{seed}"
         seed_dir.mkdir(parents=True, exist_ok=True)
         _save_config(cfg_seed, seed_dir / "config.json")
 
         run_name = args.run_name or _build_wandb_run_name(cfg_seed)
-        if num_seeds > 1 and args.run_name is not None:
+        if args.run_name and len(seeds_to_run) > 1:
             run_name = f"{args.run_name}__seed{seed}"
 
         wandb_kwargs = {
@@ -186,12 +225,12 @@ def train_multi_env(args: argparse.Namespace) -> None:
 
             env = make_vec_env(
                 HPCenv,
-                n_envs=n_envs,
+                n_envs=cfg_seed["n_envs"],
                 env_kwargs=dict(config_dict=cfg_seed, mode="training"),
                 wrapper_class=ActionMasker,
                 wrapper_kwargs=dict(action_mask_fn=mask_fn),
                 vec_env_cls=SubprocVecEnv,
-                seed=seed,
+                seed=cfg_seed["seed"],
             )
 
             policy_kwargs = _build_policy_kwargs(cfg_seed)
@@ -207,7 +246,7 @@ def train_multi_env(args: argparse.Namespace) -> None:
                 n_epochs=cfg_seed["n_epochs"],
                 n_steps=rollout_steps,
                 ent_coef=cfg_seed["ent_coef"],
-                seed=seed,
+                seed=cfg_seed["seed"],
                 learning_rate=cfg_seed["learning_rate"],
                 clip_range=cfg_seed["clip_range"],
                 clip_range_vf=_parse_optional(cfg_seed.get("clip_range_vf")),
@@ -228,10 +267,10 @@ def train_multi_env(args: argparse.Namespace) -> None:
             best_cb = BestValidationCallback(
                 config_dict=cfg_seed,
                 save_path=best_model_path,
-                eval_freq=cfg_seed.get("validation_freq", cfg_seed["n_steps"]),
+                eval_freq=max(1, cfg_seed["n_steps"]),
                 n_eval_episodes=cfg_seed.get("validation_episodes", 1),
                 run=run,
-                seed_label=f"seed_{seed}",
+                seed_label=None,
             )
 
             model.learn(
@@ -240,23 +279,37 @@ def train_multi_env(args: argparse.Namespace) -> None:
                 progress_bar=False,
                 log_interval=1,
             )
-
             env.close()
-            final_model_path = seed_dir / "final_model.zip"
-            model.save(str(final_model_path))
+
             best_score = best_cb.best_score
             run.summary["best_validation_reward"] = best_score if math.isfinite(best_score) else float("nan")
-            run.summary["final_model_path"] = str(final_model_path)
             run.summary["best_model_path"] = str(best_model_path)
+
+            test_metrics = _evaluate_best_checkpoint(seed_dir, best_model_path)
+            if test_metrics:
+                test_metrics = convert_numpy_types(test_metrics)
+                run.summary["test_eval_metrics"] = test_metrics
+
+            log_payload: Dict[str, Any] = {
+                "seed": seed,
+                "eta": cfg_seed.get("eta"),
+                "best_model_path": str(best_model_path),
+                "best_validation_reward": best_score,
+                "test_eval_metrics": test_metrics,
+            }
+            with eval_log_path.open("a", encoding="utf-8") as handle:
+                json.dump(convert_numpy_types(log_payload), handle)
+                handle.write("\n")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train MaskablePPO with multiple HPC envs.")
+    parser = argparse.ArgumentParser(description="Train MaskablePPO across seeds with validation and test eval.")
     parser.add_argument("--config", type=str, default=os.path.join("config_file", "config.ini"))
     parser.add_argument("--project", type=str, default="green_scheduler")
     parser.add_argument("--wandb-dir", type=str, default=None)
     parser.add_argument("--run-name", type=str, default=None)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--seed-list", type=str, default=None, help="Comma separated list of seeds to run. Overrides --seed/--seeds.")
     parser.add_argument("--eta", type=float, default=None)
     parser.add_argument("--total-timesteps", type=int, default=None)
     parser.add_argument("--validation-freq", type=int, default=None)
@@ -270,4 +323,4 @@ def parse_args() -> argparse.Namespace:
 
 
 if __name__ == "__main__":
-    train_multi_env(parse_args())
+    train_and_eval(parse_args())
