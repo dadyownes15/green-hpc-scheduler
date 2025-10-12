@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=8
 #We expect that our program should not run longer than 2 days
 #Note that a program will be killed once it exceeds this time!
-#SBATCH --time=2-00:00:00
+#SBATCH --time=1-00:00:00
 #Skipping many options! see man sbatch
 # From here on, we can start our program
 
