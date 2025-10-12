@@ -10,7 +10,12 @@ import wandb
 from sb3_contrib import MaskablePPO
 from wandb.integration.sb3 import WandbCallback
 from src.hpc_env import HPCenv
-from src.utils import create_experiment_name, mask_fn, get_config_as_dict
+from src.utils import (
+    create_experiment_name,
+    generate_unique_run_suffix,
+    get_config_as_dict,
+    mask_fn,
+)
 from src.callbacks import ValidationCallback
 from sb3_contrib.common.wrappers import ActionMasker
 from stable_baselines3.common.monitor import Monitor
@@ -95,7 +100,7 @@ def _format_suffix_value(value) -> str:
         return str(value)
 
 
-def _build_wandb_run_name(base_name: str, cfg: dict) -> str:
+def _build_wandb_run_name(base_name: str, cfg: dict, suffix: str | None = None) -> str:
     suffix_parts = []
     seed = cfg.get("seed")
     if seed is not None:
@@ -103,6 +108,8 @@ def _build_wandb_run_name(base_name: str, cfg: dict) -> str:
     eta = cfg.get("eta")
     if eta is not None:
         suffix_parts.append(f"eta{_format_suffix_value(eta)}")
+    if suffix:
+        suffix_parts.append(str(suffix))
     if not suffix_parts:
         return base_name
     return f"{base_name}__{'_'.join(map(str, suffix_parts))}"
@@ -118,7 +125,9 @@ def train():
         # log the effective merged config so the run is fully reproducible
         wandb.config.update(cfg, allow_val_change=True)
         
-        run_id = create_experiment_name(config=cfg, workload_file=None)
+        base_run_id = create_experiment_name(config=cfg, workload_file=None)
+        run_suffix = generate_unique_run_suffix()
+        run_id = f"{base_run_id}__{run_suffix}"
         run_path = Path("results") / run_id
         run_path.mkdir(parents=True, exist_ok=True)
 
@@ -128,7 +137,7 @@ def train():
 
         print(f"Repository created at {run_path} and config saved to {config_path}")
 
-        run.name = _build_wandb_run_name(run_id, cfg)
+        run.name = _build_wandb_run_name(base_run_id, cfg, suffix=run_suffix)
    
         env = ActionMasker(HPCenv(mode="training", config_dict=cfg), mask_fn)
 
@@ -182,6 +191,10 @@ def train():
            ], progress_bar=False,
             log_interval=None,
         )
+        run.summary["run_base_name"] = base_run_id
+        run.summary["run_suffix"] = run_suffix
+        run.summary["run_id"] = run_id
+        run.summary["run_path"] = str(run_path)
 
         env.close()
 

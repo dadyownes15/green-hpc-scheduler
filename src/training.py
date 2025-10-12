@@ -12,7 +12,11 @@ from wandb.integration.sb3 import WandbCallback
 
 from src.callbacks import BestValidationCallback, WandbTrainingMetricsCallback
 from src.hpc_env import HPCenv
-from src.utils import create_experiment_name, mask_fn
+from src.utils import (
+    create_experiment_name,
+    generate_unique_run_suffix,
+    mask_fn,
+)
 
 
 def _format_suffix_value(value) -> str:
@@ -22,7 +26,7 @@ def _format_suffix_value(value) -> str:
         return str(value)
 
 
-def _build_wandb_run_name(base_name: str, config: dict) -> str:
+def _build_wandb_run_name(base_name: str, config: dict, suffix: str | None = None) -> str:
     suffix_parts = []
     seed = config.get("seed")
     if seed is not None:
@@ -30,6 +34,8 @@ def _build_wandb_run_name(base_name: str, config: dict) -> str:
     eta = config.get("eta")
     if eta is not None:
         suffix_parts.append(f"eta{_format_suffix_value(eta)}")
+    if suffix:
+        suffix_parts.append(str(suffix))
     if not suffix_parts:
         return base_name
     return f"{base_name}__{'_'.join(map(str, suffix_parts))}"
@@ -45,7 +51,9 @@ class Train:
     ) -> None:
         self.config_dict = dict(config_dict)
         self.save_freq = int(save_freq)
-        self.run_id = create_experiment_name(config=self.config_dict, workload_file=workload_path)
+        self.base_run_name = create_experiment_name(config=self.config_dict, workload_file=workload_path)
+        self.run_suffix = generate_unique_run_suffix()
+        self.run_id = f"{self.base_run_name}__{self.run_suffix}"
         self.run_path = Path("results") / self.run_id
         self.run_path.mkdir(parents=True, exist_ok=True)
         self.run_dir = str(self.run_path)
@@ -122,7 +130,7 @@ class Train:
         validation_log_path: str | Path | None = None,
     ):
         self.env.reset()
-        run_name = _build_wandb_run_name(self.run_id, self.config_dict)
+        run_name = _build_wandb_run_name(self.base_run_name, self.config_dict, suffix=self.run_suffix)
 
         project_name = (
             self.config_dict.get("wandb_project")
@@ -179,6 +187,10 @@ class Train:
             callback=callbacks,
             log_interval=self.log_interval,
         )
+        run_wandb.summary["run_base_name"] = self.base_run_name
+        run_wandb.summary["run_suffix"] = self.run_suffix
+        run_wandb.summary["run_id"] = self.run_id
+        run_wandb.summary["run_path"] = str(self.run_path)
 
         if best_callback is not None:
             if best_callback.save_path.exists():

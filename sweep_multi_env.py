@@ -17,7 +17,12 @@ from wandb.integration.sb3 import WandbCallback
 
 from src.callbacks import BestValidationCallback
 from src.hpc_env import HPCenv
-from src.utils import create_experiment_name, get_config_as_dict, mask_fn
+from src.utils import (
+    create_experiment_name,
+    generate_unique_run_suffix,
+    get_config_as_dict,
+    mask_fn,
+)
 
 CONFIG_DICT: Dict[str, Any] = {}
 
@@ -115,7 +120,7 @@ def _format_suffix_value(value: Any) -> str:
         return str(value)
 
 
-def _build_wandb_run_name(base_name: str, cfg: Dict[str, Any]) -> str:
+def _build_wandb_run_name(base_name: str, cfg: Dict[str, Any], suffix: str | None = None) -> str:
     suffix_parts: List[str] = []
     seeds = _ensure_seed_sequence(cfg.get("sweep_seeds")) or [cfg.get("seed")]
     if seeds:
@@ -123,6 +128,8 @@ def _build_wandb_run_name(base_name: str, cfg: Dict[str, Any]) -> str:
     eta = cfg.get("eta")
     if eta is not None:
         suffix_parts.append(f"eta{_format_suffix_value(eta)}")
+    if suffix:
+        suffix_parts.append(str(suffix))
     if not suffix_parts:
         return base_name
     return f"{base_name}__{'_'.join(suffix_parts)}"
@@ -212,14 +219,20 @@ def train():
         sweep_overrides = dict(run.config)
         cfg = merge_overrides(CONFIG_DICT, sweep_overrides)
 
-        run_id = create_experiment_name(config=cfg, workload_file=None)
-        run.name = _build_wandb_run_name(run_id, cfg)
+        base_run_id = create_experiment_name(config=cfg, workload_file=None)
+        run_suffix = generate_unique_run_suffix()
+        run_id = f"{base_run_id}__{run_suffix}"
+        run.name = _build_wandb_run_name(base_run_id, cfg, suffix=run_suffix)
         run_path = Path("results") / run_id
         run_path.mkdir(parents=True, exist_ok=True)
 
         _save_config(cfg, run_path / "config.json")
 
         wandb.config.update(cfg, allow_val_change=True)
+        run.summary["run_base_name"] = base_run_id
+        run.summary["run_suffix"] = run_suffix
+        run.summary["run_id"] = run_id
+        run.summary["run_path"] = str(run_path)
 
         seeds = _ensure_seed_sequence(cfg.get("sweep_seeds"))
         if not seeds:

@@ -16,7 +16,7 @@ from wandb.integration.sb3 import WandbCallback
 
 from src.callbacks import BestValidationCallback
 from src.hpc_env import HPCenv
-from src.utils import convert_numpy_types, get_config_as_dict, mask_fn
+from src.utils import convert_numpy_types, generate_unique_run_suffix, get_config_as_dict, mask_fn
 from src.validation import Validation
 
 
@@ -45,7 +45,7 @@ def _format_suffix_value(value: Any) -> str:
         return str(value)
 
 
-def _build_wandb_run_name(cfg: Dict[str, Any]) -> str:
+def _build_wandb_run_name(cfg: Dict[str, Any], suffix: str | None = None) -> str:
     eta = cfg.get("eta")
     seed = cfg.get("seed")
     user_ci = cfg.get("user_ci")
@@ -56,6 +56,8 @@ def _build_wandb_run_name(cfg: Dict[str, Any]) -> str:
     parts.append(eta_part)
     if seed is not None:
         parts.append(f"seed{seed}")
+    if suffix:
+        parts.append(str(suffix))
     return "_".join(parts)
 
 
@@ -183,9 +185,11 @@ def train_and_eval(args: argparse.Namespace) -> None:
     base_cfg = _apply_overrides(cfg, overrides)
 
     seeds_to_run = _determine_seeds(base_cfg, args)
+    session_suffix = generate_unique_run_suffix()
 
-    run_root = Path("results") / "train_and_eval"
+    run_root = Path("results") / "train_and_eval" / f"session_{session_suffix}"
     run_root.mkdir(parents=True, exist_ok=True)
+    print(f"[train_and_eval] Outputs will be written to {run_root}")
 
     user_ci_value = base_cfg.get("user_ci", "disabled") or "disabled"
     user_ci_suffix = str(_format_suffix_value(user_ci_value)).replace(" ", "_").replace("/", "_")
@@ -216,9 +220,13 @@ def train_and_eval(args: argparse.Namespace) -> None:
         seed_dir.mkdir(parents=True, exist_ok=True)
         _save_config(cfg_seed, seed_dir / "config.json")
 
-        run_name = args.run_name or _build_wandb_run_name(cfg_seed)
-        if args.run_name and len(seeds_to_run) > 1:
-            run_name = f"{args.run_name}__seed{seed}"
+        if args.run_name:
+            base_run_name = args.run_name
+            if len(seeds_to_run) > 1:
+                base_run_name = f"{base_run_name}__seed{seed}"
+            run_name = f"{base_run_name}__{session_suffix}"
+        else:
+            run_name = _build_wandb_run_name(cfg_seed, suffix=session_suffix)
 
         wandb_kwargs = {
             "project": "green_hpc_scheduler_v2",
@@ -296,6 +304,8 @@ def train_and_eval(args: argparse.Namespace) -> None:
             env.close()
 
             best_score = best_cb.best_score
+            run.summary["session_suffix"] = session_suffix
+            run.summary["output_root"] = str(run_root)
             run.summary["best_validation_reward"] = best_score if math.isfinite(best_score) else float("nan")
             run.summary["best_model_path"] = str(best_model_path)
 
@@ -307,6 +317,7 @@ def train_and_eval(args: argparse.Namespace) -> None:
             log_payload: Dict[str, Any] = {
                 "seed": seed,
                 "eta": cfg_seed.get("eta"),
+                "session_suffix": session_suffix,
                 "best_model_path": str(best_model_path),
                 "best_validation_reward": best_score,
                 "test_eval_metrics": test_metrics,

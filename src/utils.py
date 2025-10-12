@@ -1,6 +1,8 @@
 from pathlib import Path
 import configparser
 import ast
+from datetime import datetime, timezone
+import uuid
 from moviepy import ImageSequenceClip
 import glob
 import numpy as np
@@ -114,6 +116,13 @@ def mask_fn(env: gym.Env) -> np.ndarray:
             return current_env.valid_action_mask()
         current_env = getattr(current_env, "env", None)
     raise AttributeError("Underlying env does not implement valid_action_mask()")
+
+
+def generate_unique_run_suffix() -> str:
+    """Build a short, filesystem-friendly identifier with UTC timestamp and random token."""
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    random_part = uuid.uuid4().hex[:6]
+    return f"{timestamp}Z-{random_part}"
 
 
 def create_experiment_name(config: dict, workload_file: None) -> str:
