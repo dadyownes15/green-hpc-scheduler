@@ -269,7 +269,7 @@ class Validation():
             assert num_episodes == 1, f"Expected exactly one episode, got {num_episodes}"
 
             # Validation reward (assumed scalar per episode)
-            validation_reward = float(rewards_list[0])
+            env_reward = float(rewards_list[0])
 
             jobs = (data.get('job_scheduled_history', [[]])[0]) if 'job_scheduled_history' in data else []
             assert jobs, "No jobs found in job_scheduled_history[0]"
@@ -350,8 +350,19 @@ class Validation():
                 system_utilization = (time_procs / episode_last_finish) / total_procs
 
             # --- Compile results (now includes Validation Reward) ---
+            reward_type = str(config_dict.get("reward_type", "")).lower()
+            eta_value_raw = config_dict.get("eta", 0.0)
+            try:
+                eta_value = float(eta_value_raw)
+            except (TypeError, ValueError):
+                eta_value = 0.0
+            if reward_type in {"wait_abs_ems", "wait_abs_ems_clip"} and eta_value == 0.0:
+                validation_reward = -float(episode_carbon_emissions)
+            else:
+                validation_reward = env_reward
+
             processed_stats[checkpoint] = {
-                "Validation Reward": validation_reward,                # <-- NEW
+                "Validation Reward": validation_reward,
                 "Avg Wait": float(np.mean(waits)),
                 "Max Wait": float(np.max(waits)),
                 "Avg Response": float(np.mean(responses)),
@@ -360,6 +371,8 @@ class Validation():
                 "Carbon Emissions": float(episode_carbon_emissions),
                 "Weighted Carbon Emissions": float(episode_weighted_carbon_emissions),
             }
+            if validation_reward != env_reward:
+                processed_stats[checkpoint]["Env Reward"] = env_reward
             if system_utilization is not None:
                 processed_stats[checkpoint]["System Utilization"] = float(system_utilization)
 

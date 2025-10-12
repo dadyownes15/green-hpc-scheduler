@@ -10,10 +10,10 @@ LOGFILE="run_$(date +%Y%m%d_%H%M%S).log"
 
 
 # Define eta values
-etas=(1 0 0.75 0.5 0.25 0.9 0.95 0.99)
+etas=(1.0 0.0 0.75 0.5 0.25 0.9 0.95 0.99)
 
 # Select eta based on the SLURM array ID
-eta=${etas[$SLURM_ARRAY_TASK_ID-1]}
+eta=0.0
 
 echo "Running with eta=$eta"
 

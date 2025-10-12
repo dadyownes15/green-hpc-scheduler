@@ -1,0 +1,186 @@
+Using cpu device
+Logging to results/train_and_eval/eta_0/seed_1/tensorboard/PPO_2
+{'Validation Reward': -31131.035619213904, 'Avg Wait': 10253.46709077563, 'Max Wait': 2277401.0, 'Avg Response': 14805.085882065085, 'Avg Slowdown': 207.2704154360725, 'Episode Duration': 7915291.0, 'Carbon Emissions': 27744182.59194925, 'Weighted Carbon Emissions': -27744182.59194925, 'System Utilization': 0.5766848765612345, 'Action Analysis': {'Total Actions': 26736, 'Schedule Action Percentage': 30.573010173548774, 'Fixed Delay Percentage': 43.56298623578695, 'Wait Delay Percentage': 25.86400359066427, 'Fixed Delays': {'2400s': 3912, '7200s': 2763, '300s': 2248, '1800s': 689, '3600s': 103, '600s': 1757, '1200s': 175}, 'Wait for Jobs': {'2 jobs': 3512, '3 jobs': 2598, '1 jobs': 731, '4 jobs': 74}}}
+-----------------------------------------
+| rollout/                  |           |
+|    ep_len_mean            | 840       |
+|    ep_rew_mean            | -11.8     |
+| time/                     |           |
+|    fps                    | 1491      |
+|    iterations             | 1         |
+|    time_elapsed           | 43        |
+|    total_timesteps        | 65536     |
+| validation/               |           |
+|    Avg Wait               | 1.03e+04  |
+|    Carbon Emissions       | 2.77e+07  |
+|    Validation Reward      | -3.11e+04 |
+|    best_Validation Reward | -3.11e+04 |
+-----------------------------------------
+{'Validation Reward': -30719.572534893287, 'Avg Wait': 2306960.890384145, 'Max Wait': 9126119.0, 'Avg Response': 2311512.5091754342, 'Avg Slowdown': 107890.20575547779, 'Episode Duration': 10153312.0, 'Carbon Emissions': 24052718.402722787, 'Weighted Carbon Emissions': -24052718.402722787, 'System Utilization': 0.4495704074967114, 'Action Analysis': {'Total Actions': 50401, 'Schedule Action Percentage': 16.21793218388524, 'Fixed Delay Percentage': 83.78206781611476, 'Wait Delay Percentage': 0.0, 'Fixed Delays': {'300s': 35615, '600s': 6612}, 'Wait for Jobs': {}}}
+--------------------------------------------
+| rollout/                  |              |
+|    ep_len_mean            | 842          |
+|    ep_rew_mean            | -9.3         |
+| time/                     |              |
+|    fps                    | 1229         |
+|    iterations             | 2            |
+|    time_elapsed           | 106          |
+|    total_timesteps        | 131072       |
+| train/                    |              |
+|    approx_kl              | 0.0014321837 |
+|    clip_fraction          | 0.0396       |
+|    clip_range             | 0.1          |
+|    clip_range_vf          | 0.1          |
+|    entropy_loss           | -2.82        |
+|    explained_variance     | 0.155        |
+|    learning_rate          | 0.0003       |
+|    loss                   | 0.397        |
+|    n_updates              | 2            |
+|    policy_gradient_loss   | -0.00189     |
+|    value_loss             | 0.785        |
+| validation/               |              |
+|    Avg Wait               | 2.31e+06     |
+|    Carbon Emissions       | 2.41e+07     |
+|    Validation Reward      | -3.07e+04    |
+|    best_Validation Reward | -3.07e+04    |
+--------------------------------------------
+{'Validation Reward': -31304.983254408, 'Avg Wait': 2847388.799730854, 'Max Wait': 10588721.0, 'Avg Response': 2851940.4185221433, 'Avg Slowdown': 132337.42225069393, 'Episode Duration': 10675289.0, 'Carbon Emissions': 23098079.31224389, 'Weighted Carbon Emissions': -23098079.31224389, 'System Utilization': 0.42758829416995175, 'Action Analysis': {'Total Actions': 54134, 'Schedule Action Percentage': 15.099567739313555, 'Fixed Delay Percentage': 84.90043226068644, 'Wait Delay Percentage': 0.0, 'Fixed Delays': {'300s': 43119, '600s': 2841}, 'Wait for Jobs': {}}}
+--------------------------------------------
+| rollout/                  |              |
+|    ep_len_mean            | 841          |
+|    ep_rew_mean            | -9.76        |
+| time/                     |              |
+|    fps                    | 1155         |
+|    iterations             | 3            |
+|    time_elapsed           | 170          |
+|    total_timesteps        | 196608       |
+| train/                    |              |
+|    approx_kl              | 0.0009050255 |
+|    clip_fraction          | 0.0163       |
+|    clip_range             | 0.1          |
+|    clip_range_vf          | 0.1          |
+|    entropy_loss           | -2.81        |
+|    explained_variance     | 0.78         |
+|    learning_rate          | 0.0003       |
+|    loss                   | 0.823        |
+|    n_updates              | 4            |
+|    policy_gradient_loss   | -0.00143     |
+|    value_loss             | 1.78         |
+| validation/               |              |
+|    Avg Wait               | 2.85e+06     |
+|    Carbon Emissions       | 2.31e+07     |
+|    Validation Reward      | -3.13e+04    |
+|    best_Validation Reward | -3.07e+04    |
+--------------------------------------------
+{'Validation Reward': -30410.187421509083, 'Avg Wait': 2721937.5283826767, 'Max Wait': 9248233.0, 'Avg Response': 2726489.1471739663, 'Avg Slowdown': 126659.59837873444, 'Episode Duration': 10456373.0, 'Carbon Emissions': 23153010.010911465, 'Weighted Carbon Emissions': -23153010.010911465, 'System Utilization': 0.43654033891878663, 'Action Analysis': {'Total Actions': 50431, 'Schedule Action Percentage': 16.208284586861257, 'Fixed Delay Percentage': 83.76593761773512, 'Wait Delay Percentage': 0.02577779540362079, 'Fixed Delays': {'300s': 32335, '600s': 9909}, 'Wait for Jobs': {'1 jobs': 13}}}
+--------------------------------------------
+| rollout/                  |              |
+|    ep_len_mean            | 838          |
+|    ep_rew_mean            | -8.05        |
+| time/                     |              |
+|    fps                    | 1128         |
+|    iterations             | 4            |
+|    time_elapsed           | 232          |
+|    total_timesteps        | 262144       |
+| train/                    |              |
+|    approx_kl              | 0.0013435166 |
+|    clip_fraction          | 0.0339       |
+|    clip_range             | 0.1          |
+|    clip_range_vf          | 0.1          |
+|    entropy_loss           | -2.81        |
+|    explained_variance     | 0.538        |
+|    learning_rate          | 0.0003       |
+|    loss                   | 0.316        |
+|    n_updates              | 6            |
+|    policy_gradient_loss   | -0.00148     |
+|    value_loss             | 0.691        |
+| validation/               |              |
+|    Avg Wait               | 2.72e+06     |
+|    Carbon Emissions       | 2.32e+07     |
+|    Validation Reward      | -3.04e+04    |
+|    best_Validation Reward | -3.04e+04    |
+--------------------------------------------
+{'Validation Reward': -31314.94503287188, 'Avg Wait': 2946968.4471494984, 'Max Wait': 9539886.0, 'Avg Response': 2951520.065940788, 'Avg Slowdown': 136558.55698705834, 'Episode Duration': 10732044.0, 'Carbon Emissions': 22794384.106446527, 'Weighted Carbon Emissions': -22794384.106446527, 'System Utilization': 0.4253270498407619, 'Action Analysis': {'Total Actions': 53761, 'Schedule Action Percentage': 15.204330276594558, 'Fixed Delay Percentage': 84.79566972340544, 'Wait Delay Percentage': 0.0, 'Fixed Delays': {'300s': 43546, '600s': 757, '14400s': 1284}, 'Wait for Jobs': {}}}
+-------------------------------------------
+| rollout/                  |             |
+|    ep_len_mean            | 841         |
+|    ep_rew_mean            | 0.581       |
+| time/                     |             |
+|    fps                    | 1094        |
+|    iterations             | 5           |
+|    time_elapsed           | 299         |
+|    total_timesteps        | 327680      |
+| train/                    |             |
+|    approx_kl              | 0.001094636 |
+|    clip_fraction          | 0.0259      |
+|    clip_range             | 0.1         |
+|    clip_range_vf          | 0.1         |
+|    entropy_loss           | -2.8        |
+|    explained_variance     | 0.498       |
+|    learning_rate          | 0.0003      |
+|    loss                   | 0.367       |
+|    n_updates              | 8           |
+|    policy_gradient_loss   | -0.00121    |
+|    value_loss             | 0.923       |
+| validation/               |             |
+|    Avg Wait               | 2.95e+06    |
+|    Carbon Emissions       | 2.28e+07    |
+|    Validation Reward      | -3.13e+04   |
+|    best_Validation Reward | -3.04e+04   |
+-------------------------------------------
+{'Validation Reward': -33906.23731883142, 'Avg Wait': 4171892.4571813066, 'Max Wait': 12064531.0, 'Avg Response': 4176444.075972596, 'Avg Slowdown': 192455.7333695128, 'Episode Duration': 12145525.0, 'Carbon Emissions': 20472457.387291558, 'Weighted Carbon Emissions': -20472457.387291558, 'System Utilization': 0.3758280200552261, 'Action Analysis': {'Total Actions': 60194, 'Schedule Action Percentage': 13.579426520915705, 'Fixed Delay Percentage': 86.4205734790843, 'Wait Delay Percentage': 0.0, 'Fixed Delays': {'300s': 51921, '600s': 99}, 'Wait for Jobs': {}}}
+--------------------------------------------
+| rollout/                  |              |
+|    ep_len_mean            | 846          |
+|    ep_rew_mean            | -2.39        |
+| time/                     |              |
+|    fps                    | 1067         |
+|    iterations             | 6            |
+|    time_elapsed           | 368          |
+|    total_timesteps        | 393216       |
+| train/                    |              |
+|    approx_kl              | 0.0015608623 |
+|    clip_fraction          | 0.043        |
+|    clip_range             | 0.1          |
+|    clip_range_vf          | 0.1          |
+|    entropy_loss           | -2.78        |
+|    explained_variance     | 0.502        |
+|    learning_rate          | 0.0003       |
+|    loss                   | 0.181        |
+|    n_updates              | 10           |
+|    policy_gradient_loss   | -0.00157     |
+|    value_loss             | 0.531        |
+| validation/               |              |
+|    Avg Wait               | 4.17e+06     |
+|    Carbon Emissions       | 2.05e+07     |
+|    Validation Reward      | -3.39e+04    |
+|    best_Validation Reward | -3.04e+04    |
+--------------------------------------------
+{'Validation Reward': -33350.90186174173, 'Avg Wait': 4470885.771715195, 'Max Wait': 12010526.0, 'Avg Response': 4475437.390506484, 'Avg Slowdown': 206189.24962558813, 'Episode Duration': 12435313.0, 'Carbon Emissions': 20504959.686824534, 'Weighted Carbon Emissions': -20504959.686824534, 'System Utilization': 0.3670698609099144, 'Action Analysis': {'Total Actions': 61169, 'Schedule Action Percentage': 13.362977979041672, 'Fixed Delay Percentage': 86.63702202095833, 'Wait Delay Percentage': 0.0, 'Fixed Delays': {'300s': 52990, '1200s': 5}, 'Wait for Jobs': {}}}
+--------------------------------------------
+| rollout/                  |              |
+|    ep_len_mean            | 838          |
+|    ep_rew_mean            | -1.09        |
+| time/                     |              |
+|    fps                    | 1034         |
+|    iterations             | 7            |
+|    time_elapsed           | 443          |
+|    total_timesteps        | 458752       |
+| train/                    |              |
+|    approx_kl              | 0.0014916945 |
+|    clip_fraction          | 0.0373       |
+|    clip_range             | 0.1          |
+|    clip_range_vf          | 0.1          |
+|    entropy_loss           | -2.78        |
+|    explained_variance     | 0.738        |
+|    learning_rate          | 0.0003       |
+|    loss                   | 0.313        |
+|    n_updates              | 12           |
+|    policy_gradient_loss   | -0.00156     |
+|    value_loss             | 0.753        |
+| validation/               |              |
+|    Avg Wait               | 4.47e+06     |
+|    Carbon Emissions       | 2.05e+07     |
+|    Validation Reward      | -3.34e+04    |
+|    best_Validation Reward | -3.04e+04    |
+--------------------------------------------
