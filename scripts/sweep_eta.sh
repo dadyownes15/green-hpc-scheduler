@@ -2,14 +2,14 @@
 #The partition is the queue you want to run on. standard is gpu and can be ommitted.
 #SBATCH -p gpu
 #SBATCH --job-name=eta_sweep
-#SBATCH --array=1-5%3 
+#SBATCH --array=1-6%3 
 #number of independent tasks we are going to start in this script
 #SBATCH --ntasks=1
 #number of cpus we want to allocate for each program
 #SBATCH --cpus-per-task=8
 #We expect that our program should not run longer than 2 days
 #Note that a program will be killed once it exceeds this time!
-#SBATCH --time= 6:00:00
+#SBATCH --time= 12:00:00
 #Skipping many options! see man sbatch
 # From here on, we can start our program
 
@@ -20,7 +20,7 @@ source venv/bin/activate
 
 
 # Define eta values
-etas=(1 0.75 0.5 0.25 0.1)
+etas=(1 0.9 0.75 0.5 0.25 0.1)
 
 # Select eta based on the SLURM array ID
 eta=${etas[$SLURM_ARRAY_TASK_ID-1]}
