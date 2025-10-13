@@ -7,10 +7,10 @@ metric:
 
 parameters:
   abs_carbon_reward_clip:
-    values: [10, 20, 40, 80]
+    values: [5,10, 20, 40, 80]
 
   wait_reward_clip:
-    values: [10,20, 40, 80]
+    values: [5,10,20, 40, 80]
 
   wait_reward_booster:
     values: [0.01,0.1,0.5, 1.0,2, 5,10,]
@@ -38,7 +38,7 @@ parameters:
     values: [1,3, 4, 5,8]
 
   pi_nn:
-    values: ["64,64","256,256","512,512", "1024,1024", "4000,1000", "6000,1500"]
+    values: ["256,256","512,512", "1024,1024", "4000,1000",]
 
   vf_nn:
     values: ["512,256", "1024,512", "2048,1024"]
@@ -50,10 +50,10 @@ parameters:
     values: [500000]
 
   ent_coef:
-    values: [0.0, 0.005, 0.01]
+    values: [0.0, 0.005, 0.01,0.02]
 
   learning_rate:
-    values: [0.00005,0.0001, 0.0003, 0.001]
+    values: [0.00005,0.0001, 0.0003, 0.001,0.003]
 
   clip_range:
     values: [0.1, 0.2, 0.3]
@@ -63,7 +63,6 @@ parameters:
 
   max_grad_norm:
     values: [0.3, 0.5, 0.8]
-
 
   max_wait_n_jobs:
     values: [2, 4, 6,8]

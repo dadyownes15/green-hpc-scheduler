@@ -672,7 +672,7 @@ class HPCenv(Env):
                 carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
                 components['carbon'] = - carbon_emission*(1-self.eta)
-                components['wait'] = - (actual_wait / self.config_dict["max_wait_time"])*100*self.eta
+                components['wait'] = - (actual_wait / self.config_dict["max_wait_time"])*self.eta
     
                 reward = components['wait'] + components['carbon']
 
@@ -690,10 +690,12 @@ class HPCenv(Env):
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
 
                 assert self.carbon_reward_booster != None and self.carbon_reward_booster != 0
+
+                assert self.wait_reward_booster != None and self.carbon_reward_booster != 0
                 carbon_reward = - np.clip(carbon_emission * self.carbon_reward_booster, -self.config_dict["abs_carbon_reward_clip"],self.config_dict["abs_carbon_reward_clip"] )
 
                 wait = - (actual_wait / self.config_dict["max_wait_time"])
-                wait_reward = np.clip(wait, -self.config_dict['wait_reward_clip'], 0)
+                wait_reward = np.clip(wait*self.wait_reward_booster, -self.config_dict['wait_reward_clip'], 0)
                 components['carbon'] = carbon_reward*(1-self.eta)
                 components['wait'] = wait_reward*self.eta
     

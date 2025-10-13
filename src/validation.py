@@ -71,15 +71,19 @@ class Validation():
                 "rewards": [],
                 "job_scheduled_history": [],
                 "action_traces": [],
+                "reward_components": [],
             }
 
             for i in range(n_eval_episodes):
                 if debug and i % 10 == 0:
                     print("Val episode:", i)
-                total_reward, job_hist, action_trace = self.evaluate_policy(seed=i, model=model, debug=debug)
+                total_reward, job_hist, action_trace, reward_components = self.evaluate_policy(
+                    seed=i, model=model, debug=debug
+                )
                 stats_dict[checkpoint]["rewards"].append(total_reward)
                 stats_dict[checkpoint]["job_scheduled_history"].append(job_hist)
                 stats_dict[checkpoint]["action_traces"].append(action_trace)
+                stats_dict[checkpoint]["reward_components"].append(reward_components)
 
         
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
@@ -141,13 +145,21 @@ class Validation():
         )
 
         stats_dict = {
-            "model": {"rewards": [], "job_scheduled_history": [], "action_traces": []}
+            "model": {
+                "rewards": [],
+                "job_scheduled_history": [],
+                "action_traces": [],
+                "reward_components": [],
+            }
         }
 
-        total_reward, job_hist, action_trace = self.evaluate_policy(seed=1, model=model, debug=debug)
+        total_reward, job_hist, action_trace, reward_components = self.evaluate_policy(
+            seed=1, model=model, debug=debug
+        )
         stats_dict["model"]["rewards"].append(total_reward)
         stats_dict["model"]["job_scheduled_history"].append(job_hist)
         stats_dict["model"]["action_traces"].append(action_trace)
+        stats_dict["model"]["reward_components"].append(reward_components)
 
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
         return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
@@ -213,19 +225,25 @@ class Validation():
                         PercentileBaseline(config_dict=self.config_dict, percentile=10, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
             PercentileBaseline(config_dict=self.config_dict, percentile=25, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
             PercentileBaseline(config_dict=self.config_dict, percentile = 50, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
-            PercentileBaseline(config_dict=self.config_dict, percentile = 100, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
+       
                     ]
         
         stats_dict = {}
         for baseline in baselines:
-            stats_dict[baseline.name] = {"rewards": [], "action_traces": [], "job_scheduled_history": []}
+            stats_dict[baseline.name] = {
+                "rewards": [],
+                "action_traces": [],
+                "job_scheduled_history": [],
+                "reward_components": [],
+            }
             print("Executing baseline: ", baseline.name)
             for i in range(n_eval_episodes): 
                 print("Episode ", i)
-                reward, action_trace = baseline.run(seed=i, debug=debug)
+                reward, reward_components, action_trace = baseline.run(seed=i, debug=debug)
                 stats_dict[baseline.name]["rewards"].append(reward)
                 stats_dict[baseline.name]["action_traces"].append(action_trace)
                 stats_dict[baseline.name]["job_scheduled_history"].append(baseline.env.scheduled_job_history)
+                stats_dict[baseline.name]["reward_components"].append(reward_components)
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
         return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
     
@@ -235,6 +253,9 @@ class Validation():
         
         terminated = False
         total_reward = 0.0
+        reward_wait_component = 0.0
+        reward_carbon_component = 0.0
+        reward_total_component = 0.0
         step = 0;
         while not terminated:
             action_masks = get_action_masks(self.env)
@@ -242,11 +263,19 @@ class Validation():
             obs, reward, terminated, truncated, info = self.env.step(action)
             # print("step: ", step, "reward: ", reward)
             total_reward += float(reward)
+            reward_wait_component += float(info.get('reward_wait', 0.0))
+            reward_carbon_component += float(info.get('reward_carbon', 0.0))
+            reward_total_component += float(info.get('reward_total', reward))
             step += 1
 
         job_scheduled_history = self.env.unwrapped.scheduled_job_history
         action_trace = self.env.unwrapped.get_action_trace() if hasattr(self.env.unwrapped, 'get_action_trace') else []
-        return total_reward, job_scheduled_history, action_trace
+        reward_components = {
+            "wait": float(reward_wait_component),
+            "carbon": float(reward_carbon_component),
+            "total": float(reward_total_component),
+        }
+        return total_reward, job_scheduled_history, action_trace, reward_components
 
     def process_metrics(self, stats_dict, carbon_intensity_calculator, config_dict):
         """
@@ -270,6 +299,15 @@ class Validation():
 
             # Validation reward (assumed scalar per episode)
             env_reward = float(rewards_list[0])
+
+            reward_components_list = data.get("reward_components", [])
+            if reward_components_list:
+                assert len(reward_components_list) == num_episodes, (
+                    "Mismatch between reward components and episode count"
+                )
+                component_entry = reward_components_list[0] or {}
+            else:
+                component_entry = {}
 
             jobs = (data.get('job_scheduled_history', [[]])[0]) if 'job_scheduled_history' in data else []
             assert jobs, "No jobs found in job_scheduled_history[0]"
@@ -371,6 +409,15 @@ class Validation():
                 "Carbon Emissions": float(episode_carbon_emissions),
                 "Weighted Carbon Emissions": float(episode_weighted_carbon_emissions),
             }
+            if component_entry:
+                wait_component_val = float(component_entry.get("wait", 0.0))
+                carbon_component_val = float(component_entry.get("carbon", 0.0))
+                total_component_val = float(
+                    component_entry.get("total", wait_component_val + carbon_component_val)
+                )
+                processed_stats[checkpoint]["Reward Wait Component"] = wait_component_val
+                processed_stats[checkpoint]["Reward Carbon Component"] = carbon_component_val
+                processed_stats[checkpoint]["Reward Total Component"] = total_component_val
             if validation_reward != env_reward:
                 processed_stats[checkpoint]["Env Reward"] = env_reward
             if system_utilization is not None:

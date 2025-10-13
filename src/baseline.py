@@ -38,6 +38,7 @@ class PercentileBaseline(Baseline):
         terminated = False
         obs = self.env.build_observation()
         reward = 0
+        reward_components = {"wait": 0.0, "carbon": 0.0, "total": 0.0}
         step_count = 0
         
         assert len(self.env.job_queue) != 0, "NO jobs are start, will lead to error"
@@ -86,23 +87,33 @@ class PercentileBaseline(Baseline):
                         action = self.config_dict['max_queue_size']
                         obs, rwd, terminated, truncated, info = self.env.step(action)
                     reward += rwd
+                    reward_components["wait"] += float(info.get("reward_wait", 0.0))
+                    reward_components["carbon"] += float(info.get("reward_carbon", 0.0))
+                    reward_components["total"] += float(info.get("reward_total", rwd))
                 else:
                     # Schedule the first job in queue
                     action = np.where(job_mask)[0][0]
                     
                     obs, rwd, terminated, truncated, info = self.env.step(action)
                     reward += rwd
+                    reward_components["wait"] += float(info.get("reward_wait", 0.0))
+                    reward_components["carbon"] += float(info.get("reward_carbon", 0.0))
+                    reward_components["total"] += float(info.get("reward_total", rwd))
             else:
                 # Delay 300 sekunds
                 action = self.config_dict['max_queue_size']
                 obs, rwd, terminated, truncated, info = self.env.step(action)
+                reward += rwd
+                reward_components["wait"] += float(info.get("reward_wait", 0.0))
+                reward_components["carbon"] += float(info.get("reward_carbon", 0.0))
+                reward_components["total"] += float(info.get("reward_total", rwd))
             
             step_count += 1
             if debug:
                 print("Step: ", step_count, " Reward: ", rwd, " Action: ", action)
 
- 
-        return reward, self.env.get_action_trace() 
+        reward_components["total"] = float(reward)
+        return reward, reward_components, self.env.get_action_trace() 
 class FCFSBaseline(Baseline):
     def __init__(self, config_dict, env):
         """
@@ -125,6 +136,7 @@ class FCFSBaseline(Baseline):
         self.env.reset(seed=seed, options={})
         terminated = False
         reward = 0
+        reward_components = {"wait": 0.0, "carbon": 0.0, "total": 0.0}
         step_count = 0
 
         assert len(self.env.job_queue) != 0, "Job queue is empty at the start, this may cause an error."
@@ -156,12 +168,16 @@ class FCFSBaseline(Baseline):
             # Execute the chosen action in the environment
             obs, rwd, terminated, truncated, info = self.env.step(action)
             reward += rwd
+            reward_components["wait"] += float(info.get("reward_wait", 0.0))
+            reward_components["carbon"] += float(info.get("reward_carbon", 0.0))
+            reward_components["total"] += float(info.get("reward_total", rwd))
             
             step_count += 1
             if debug:
                 print(f"Step: {step_count}, Action: {action}, Reward: {rwd:.2f}")
             
-        return reward, self.env.get_action_trace() 
+        reward_components["total"] = float(reward)
+        return reward, reward_components, self.env.get_action_trace() 
 
 class FCFSEasyBackfillBaseline(Baseline):
     def __init__(self, config_dict, env, backfill_max_runtime=None):
@@ -246,6 +262,7 @@ class FCFSEasyBackfillBaseline(Baseline):
         self.env.reset(seed=seed, options={})
         terminated = False
         reward = 0.0
+        reward_components = {"wait": 0.0, "carbon": 0.0, "total": 0.0}
         step_count = 0
 
         assert len(self.env.job_queue) != 0, "Job queue is empty at start."
@@ -303,9 +320,13 @@ class FCFSEasyBackfillBaseline(Baseline):
             # Step the environment
             obs, rwd, terminated, truncated, info = self.env.step(action)
             reward += rwd
+            reward_components["wait"] += float(info.get("reward_wait", 0.0))
+            reward_components["carbon"] += float(info.get("reward_carbon", 0.0))
+            reward_components["total"] += float(info.get("reward_total", rwd))
             step_count += 1
 
             if debug:
                 print(f"Step {step_count:4d} | Action {action:3d} | Reward {rwd: .4f}")
 
-        return reward, self.env.get_action_trace()
+        reward_components["total"] = float(reward)
+        return reward, reward_components, self.env.get_action_trace()
