@@ -399,9 +399,11 @@ class Validation():
             else:
                 validation_reward = env_reward
 
+            avg_wait = np.mean(waits)
             processed_stats[checkpoint] = {
                 "Validation Reward": validation_reward,
-                "Avg Wait": float(np.mean(waits)),
+                "val_objective": val_objective(avg_wait,episode_carbon_emissions,eta=eta_value),
+                "Avg Wait": float(avg_wait),
                 "Max Wait": float(np.max(waits)),
                 "Avg Response": float(np.mean(responses)),
                 "Avg Slowdown": float(np.mean(slowdowns)),
@@ -811,3 +813,11 @@ class Validation():
             print(f"[render] Built interactive Matplotlib figure in {time.time() - t0:.3f}s")
 
         return (png_path if save_png else None), fig
+
+
+
+def val_objective(avg_wait,total_carbon_emissions,eta):
+    fcfs_wait_baseline = 6241.40
+    best_carbon = 18596164.61
+
+    return eta*min(1,(fcfs_wait_baseline/avg_wait))+min(1,(1-eta)*(best_carbon/total_carbon_emissions))

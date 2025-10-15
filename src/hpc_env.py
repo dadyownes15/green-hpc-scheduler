@@ -588,6 +588,7 @@ class HPCenv(Env):
         # If no more arrivals remain and at least one job can be scheduled now,
         # mask out all delay actions (both fixed delays and wait-for-N-jobs).
 
+        """         
         ## TO DO: Remove this, and figure out why we need this
         no_more_arrivals = not (self.next_arriving_job_idx < self.last_job_in_batch and self.next_arriving_job_idx < self.loads.size())
         any_schedulable = any(
@@ -596,7 +597,7 @@ class HPCenv(Env):
         if self.mode in ["validation", "test"] and no_more_arrivals and any_schedulable:
             # Mask all delay actions: indices from max_queue_size to end
             mask[self.config_dict['max_queue_size']:] = False
-            
+        """
         return mask
 
     def get_reward(self,scheduled_job : Job | None, current_timestamp, time_advanced: int = 0, was_delay: bool = False):
