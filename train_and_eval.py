@@ -6,12 +6,13 @@ import os
 import warnings
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
-
+from torch.distributions import Distribution
+Distribution.set_default_validate_args(False)
 import wandb
 from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.ppo_mask import MaskablePPO
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
+from stable_baselines3.common.vec_env import SubprocVecEnv
 from wandb.integration.sb3 import WandbCallback
 
 from src.callbacks import BestValidationCallback
@@ -245,10 +246,9 @@ def train_and_eval(args: argparse.Namespace) -> None:
                         ) as run:
             run.name = run_name
 
-
             env = make_vec_env(
-            HPCenv,
-               n_envs=cfg_seed["n_envs"],
+                HPCenv,
+                n_envs=cfg_seed["n_envs"],
                 env_kwargs=dict(config_dict=cfg_seed, mode="training"),
                 wrapper_class=ActionMasker,
                 wrapper_kwargs=dict(action_mask_fn=mask_fn),
@@ -256,15 +256,6 @@ def train_and_eval(args: argparse.Namespace) -> None:
                 seed=cfg_seed["seed"],
             )
 
-            # Normalize obs + rewards (stable training)
-            env = VecNormalize(
-                env,
-                norm_obs=True,
-                norm_reward=True,
-                clip_obs=10.0,
-                clip_reward=10.0,
-                gamma=cfg_seed["gamma"],  # keep consistent with PPO
-            )
             policy_kwargs = _build_policy_kwargs(cfg_seed)
             tensorboard_dir = seed_dir / "tensorboard"
             tensorboard_dir.mkdir(parents=True, exist_ok=True)
@@ -299,7 +290,7 @@ def train_and_eval(args: argparse.Namespace) -> None:
             best_cb = BestValidationCallback(
                 config_dict=cfg_seed,
                 save_path=best_model_path,
-                eval_freq=max(1, cfg_seed["n_steps"]*10),
+                eval_freq=max(1, cfg_seed["n_steps"]),
                 n_eval_episodes=cfg_seed.get("validation_episodes", 1),
                 run=run,
                 seed_label=None,

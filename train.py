@@ -1,6 +1,7 @@
 import os
 import configparser
-
+from torch.distributions import Distribution
+Distribution.set_default_validate_args(False)
 from src.training import Train
 from src.utils import get_config_as_dict
 
