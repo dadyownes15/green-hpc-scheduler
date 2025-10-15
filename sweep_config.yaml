@@ -13,10 +13,14 @@ parameters:
     values: [5,10,20, 40, 80]
 
   wait_reward_booster:
-    values: [0.01,0.1,0.5, 1.0,2, 5,10,]
+    distribution: uniform
+    min: 0.01
+    max: 100
 
   carbon_reward_booster:
-    values: [0.01,0.1,0.5, 1.0, 2, 5,10]
+    distribution: uniform
+    min: 0.01
+    max: 100
 
   episode_length:
     values: [32, 64, 128,256,512,1024,2048]
@@ -47,13 +51,15 @@ parameters:
     values: [16384,32768, 65536]
 
   total_timesteps:
-    values: [500000]
+    values: [524288]
 
   ent_coef:
     values: [0.0, 0.005, 0.01,0.02]
 
   learning_rate:
-    values: [0.00005,0.0001, 0.0003, 0.001,0.003]
+    distribution: uniform 
+    min: 0.00005
+    max: 0.001
 
   clip_range:
     values: [0.1, 0.2, 0.3]

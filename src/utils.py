@@ -113,7 +113,9 @@ def mask_fn(env: gym.Env) -> np.ndarray:
     current_env = env
     while current_env is not None:
         if hasattr(current_env, "valid_action_mask"):
-            return current_env.valid_action_mask()
+            action_mask = current_env.valid_action_mask()
+            assert any(action_mask)
+            return action_mask
         current_env = getattr(current_env, "env", None)
     raise AttributeError("Underlying env does not implement valid_action_mask()")
 

@@ -110,6 +110,11 @@ class HPCenv(Env):
         terminated = False
         truncated = False
         self.step_counter += 1
+        
+        if self.step_counter % 10_000 == 0 and (self.mode == "test" or self.mode == "validation"):
+            print("Current secounds after start: ", self.current_timestamp)
+
+        
 
         # Auto-advance: if the queue is empty and there are future arrivals,
         # advance time to the next job submission so the agent doesn't need
@@ -163,20 +168,36 @@ class HPCenv(Env):
             # Should not happen if action_space is correct
             raise AssertionError("Action index out of predefined categories in env.step")
 
-        # TODO: potential truncated logic or episode termination conditions
         
         # Compute reward for the action
         # Note: for delay actions, time may have advanced. We capture the delta
         # to attribute a small waiting penalty per-second to all queued jobs.
         dt = self.current_timestamp - t_before
+
+        obs = self.build_observation()
+        info = {}
+        if self.current_timestamp - self.time_offset > 57303812: ## episode duration for 5th percentile
+            print("Timestamp at exit: ", self.current_timestamp)
+            if len(self.scheduled_job_history) > 0:
+                print("Last job: ", self.scheduled_job_history[-1])
+                print("FIrst job: ", self.scheduled_job_history[0])
+            else:
+                print("No scheduled jobs")
+            truncated = True;
+            print("Truncating episode")
+            print("Jobs in queue: ", len(self.job_queue))
+            print("Jobs left in episode: ",self.config_dict["episode_length"]  - self.scheduled_jobs) 
+            print("Jobs unseen in episode: ",self.config_dict["episode_length"]  - self.scheduled_jobs - len(self.job_queue)) 
+            reward = -100*self.config_dict["episode_length"] 
+            return obs, reward, terminated, truncated, info
+
         reward, components = self.get_reward(
             scheduled_job=scheduled_job,
             current_timestamp=self.current_timestamp,
             time_advanced=dt,
             was_delay=self.last_action_info['is_delay'],
         )
-        obs = self.build_observation()
-        info = {}
+       
 
         terminated = self.should_terminate()
 
@@ -187,7 +208,10 @@ class HPCenv(Env):
             'reward_wait': float(components.get('wait', 0.0)),
             'reward_carbon': float(components.get('carbon', 0.0)),
         })
-            
+
+        
+                # TODO: potential truncated logic or episode termination conditions
+
         if self.trace_enabled:
             self._finalize_trace_entry(trace_entry)
 
@@ -215,8 +239,8 @@ class HPCenv(Env):
         self.loads.reset(start_job_offset=self.start_job_offset)
 
         first_job = self.loads.get_job(0)
-        time_offset = first_job.submit_time
-        self.episode_start_hour_offset = time_offset // 3600 
+        self.time_offset = first_job.submit_time
+        self.episode_start_hour_offset = self.time_offset // 3600 
         self.action_trace = []
         self.step_counter = 0
 
@@ -236,8 +260,9 @@ class HPCenv(Env):
         self.new_job_arrived_in_step = True # True on reset to force first render
         self.last_action_info = {'type': None, 'is_delay': False}
         # First job
-        first_job = self.loads.get_job(0)
+      
         self.job_queue.append(first_job)
+
 
         self.scheduled_jobs = 0 
         self.current_timestamp = first_job.submit_time
@@ -307,7 +332,6 @@ class HPCenv(Env):
         # Guard index
         if queue_index < 0 or queue_index >= len(self.job_queue):
             # Check if the the queue index was block
-            masked =  self.valid_action_mask()[queue_index]
             raise IndexError("schedule_job: queue_index out of range")
 
         job = self.job_queue[queue_index]
@@ -381,6 +405,7 @@ class HPCenv(Env):
             job_ids = [job.job_id for job in self.job_queue ]
             print("queue, ", job_ids)
             print("Nodes free, ", self.cluster.free_node)
+
         start_delay_time = self.current_timestamp
         next_time_after_skip = self.current_timestamp + skip_time
         self._process_events_until(next_time_after_skip, events=events)
@@ -598,6 +623,7 @@ class HPCenv(Env):
             # Mask all delay actions: indices from max_queue_size to end
             mask[self.config_dict['max_queue_size']:] = False
         """
+        assert np.all(mask[self.config_dict['max_queue_size']:self.config_dict["delay_time_list_length"]])
         return mask
 
     def get_reward(self,scheduled_job : Job | None, current_timestamp, time_advanced: int = 0, was_delay: bool = False):
@@ -690,9 +716,6 @@ class HPCenv(Env):
                 carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
 
-                assert self.carbon_reward_booster != None and self.carbon_reward_booster != 0
-
-                assert self.wait_reward_booster != None and self.carbon_reward_booster != 0
                 carbon_reward = - np.clip(carbon_emission * self.carbon_reward_booster, -self.config_dict["abs_carbon_reward_clip"],self.config_dict["abs_carbon_reward_clip"] )
 
                 wait = - (actual_wait / self.config_dict["max_wait_time"])
@@ -754,3 +777,10 @@ class HPCenv(Env):
       
         components['total'] = float(reward)
         return float(reward), components
+
+
+def _assert_finite(x, name):
+    x = np.asarray(x)
+    if not np.isfinite(x).all():
+        bad = np.where(~np.isfinite(x))
+        raise ValueError(f"Non-finite {name} detected at indices {bad}")

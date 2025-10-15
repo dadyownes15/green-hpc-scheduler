@@ -9,7 +9,7 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor
 from wandb.integration.sb3 import WandbCallback
-
+import numpy as np
 from src.callbacks import BestValidationCallback, WandbTrainingMetricsCallback
 from src.hpc_env import HPCenv
 from src.utils import (
@@ -122,6 +122,136 @@ class Train:
             policy_kwargs=policy_kwargs,
         )
         self.model.set_logger(logger)
+    def _debug_rollout_buffer(self, buf, n_samples: int = 5):
+
+        buf = buf
+        print(f"\nRolloutBuffer debug:")
+        print(f" - buffer size: {buf.buffer_size}")
+        print(f" - num_envs: {buf.n_envs}")
+        print(f" - obs shape: {buf.observations.shape}")
+        print(f" - actions shape: {buf.actions.shape}")
+
+        if hasattr(buf, "action_masks"):
+            mask = buf.action_masks
+            print(f" - action_masks shape: {mask.shape}")
+        else:
+            print(" - No action_masks found on buffer")
+            return
+
+        # === Handle both 2D and 3D cases ===
+        if mask.ndim == 3:
+            # (buffer_size, n_envs, n_actions)
+            all_false_per_env = (~mask.any(axis=2)).sum(axis=0)
+            total_all_false = all_false_per_env.sum()
+            print(f"\nTotal all-false masks: {total_all_false}")
+            for env_id, n in enumerate(all_false_per_env):
+                if n > 0:
+                    print(f" ⚠️ Env {env_id} had {n} timesteps with all actions masked")
+
+        elif mask.ndim == 2:
+            # (buffer_size, n_actions)
+            total_all_false = (~mask.any(axis=1)).sum()
+            print(f"\nTotal all-false masks: {total_all_false}")
+            if total_all_false > 0:
+                bad_idx = np.where(~mask.any(axis=1))[0]
+                print(f" ⚠️ Indices with all-false masks: {bad_idx[:20]}...")
+
+        else:
+            print(f"Unexpected mask dimensions: {mask.ndim}")
+
+        # === Print a few random samples ===
+        idxs = np.random.choice(buf.buffer_size, size=min(n_samples, buf.buffer_size), replace=False)
+        for i in idxs:
+            print(f"\n--- Sample {i} ---")
+            m = mask[i]
+            valid = m.sum()
+            print(f"mask valid actions: {valid}/{m.size}")
+            if valid == 0:
+                print("⚠️ ALL ACTIONS MASKED")
+                print(m.astype(int))
+            print("action:", buf.actions[i])
+            print("value:", buf.values[i])
+            print("reward:", buf.rewards[i])
+
+    def _probe_logits_from_buffer(self):
+        import numpy as np
+        import torch
+
+        policy = self.model.policy
+        buf = self.model.rollout_buffer
+
+        # to torch
+        obs = torch.as_tensor(buf.observations, device=policy.device, dtype=torch.float32)
+        masks_np = getattr(buf, "action_masks", None)
+        if masks_np is None:
+            print("[Probe] buffer has no action_masks")
+            return
+        masks = torch.as_tensor(masks_np, device=policy.device, dtype=torch.bool)
+
+        # ==== Forward pass w/o private methods ====
+        # 1) extract features
+        features = policy.extract_features(obs)
+        # 2) get actor/critic latents
+        if hasattr(policy, "mlp_extractor"):
+            latent_pi, latent_vf = policy.mlp_extractor(features)
+        else:
+            # some policies name it differently; fall back
+            latent_pi = features
+            latent_vf = features
+
+        # 3) raw action logits from actor head
+        logits = policy.action_net(latent_pi)  # shape: (batch, n_actions)
+
+        # Basic stats on raw logits
+        def tstats(t, name):
+            finite = torch.isfinite(t)
+            print(f"{name}: shape={tuple(t.shape)}, "
+                f"min={torch.nan_to_num(t).min().item():.3e}, "
+                f"max={torch.nan_to_num(t).max().item():.3e}, "
+                f"any_nan={torch.isnan(t).any().item()}, "
+                f"any_inf={(~finite).any().item()}")
+
+        print("\n[Probe] Raw action logits BEFORE masking")
+        tstats(logits, "logits")
+
+        # ==== Apply masks and compute probs manually (stable) ====
+        # guard against any row being fully false (you already checked, but keep safe)
+        row_any = masks.any(dim=-1)
+        if not torch.all(row_any):
+            bad = torch.where(~row_any)[0]
+            print(f"[Probe] Found {bad.numel()} rows with all-false masks (unexpected): {bad[:10].tolist()}")
+
+        # masked logits: set invalid actions to -inf, then stabilize before softmax
+        masked_logits = logits.clone()
+        masked_logits[~masks] = float("-inf")
+        # stabilize: subtract max over VALID entries only
+        # (if a row is all -inf, max is -inf; we protected above)
+        row_max = torch.amax(masked_logits, dim=-1, keepdim=True)
+        masked_logits = masked_logits - row_max
+
+        probs = torch.softmax(masked_logits, dim=-1)
+
+        print("\n[Probe] Probs AFTER masking")
+        tstats(probs, "probs")
+
+        # ==== Check simplex ====
+        row_sum = probs.sum(dim=-1)
+        nonneg = (probs >= 0).all(dim=-1)
+        finite = torch.isfinite(probs).all(dim=-1)
+        ok_sum = torch.isfinite(row_sum) & ((row_sum - 1.0).abs() < 1e-5)
+
+        bad_idx = torch.where(~(nonneg & finite & ok_sum))[0]
+        print(f"[Probe] bad rows: {bad_idx.numel()} / {probs.shape[0]}")
+        if bad_idx.numel() > 0:
+            for i in bad_idx[:10].tolist():
+                rs = row_sum[i].item()
+                any_nan = torch.isnan(probs[i]).any().item()
+                any_inf = (~torch.isfinite(probs[i])).any().item()
+                vmin = torch.nan_to_num(probs[i]).min().item()
+                vmax = torch.nan_to_num(probs[i]).max().item()
+                valid_count = masks[i].sum().item()
+                print(f"  idx {i}: sum={rs:.8f}, any_nan={any_nan}, any_inf={any_inf}, "
+                    f"min={vmin:.3e}, max={vmax:.3e}, valid_actions={valid_count}")
 
     def run(
         self,
@@ -180,13 +310,24 @@ class Train:
                 verbose=1,
             )
             callbacks.append(best_callback)
-       
-
-        self.model.learn(
-            total_timesteps=self.config_dict['total_timesteps'],
-            callback=callbacks,
-            log_interval=self.log_interval,
-        )
+            self.model.learn(
+                total_timesteps=self.config_dict['total_timesteps'],
+                callback=callbacks,
+                log_interval=self.log_interval,
+            ) 
+        """ try: 
+            self.model.learn(
+                total_timesteps=self.config_dict['total_timesteps'],
+                callback=callbacks,
+                log_interval=self.log_interval,
+            )
+        except:
+            print("\n===== EXCEPTION DURING TRAINING =====")
+            print("\n===== DEBUGGING ROLLOUT BUFFER =====")
+            self._debug_rollout_buffer(buf=self.model.rollout_buffer)
+            self._probe_logits_from_buffer()"""
+        
+        
         run_wandb.summary["run_base_name"] = self.base_run_name
         run_wandb.summary["run_suffix"] = self.run_suffix
         run_wandb.summary["run_id"] = self.run_id

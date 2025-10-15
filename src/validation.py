@@ -152,17 +152,25 @@ class Validation():
                 "reward_components": [],
             }
         }
+        try: 
+            total_reward, job_hist, action_trace, reward_components = self.evaluate_policy(
+                seed=1, model=model, debug=debug
+            )
+            stats_dict["model"]["rewards"].append(total_reward)
+            stats_dict["model"]["job_scheduled_history"].append(job_hist)
+            stats_dict["model"]["action_traces"].append(action_trace)
+            stats_dict["model"]["reward_components"].append(reward_components)
 
-        total_reward, job_hist, action_trace, reward_components = self.evaluate_policy(
-            seed=1, model=model, debug=debug
-        )
-        stats_dict["model"]["rewards"].append(total_reward)
-        stats_dict["model"]["job_scheduled_history"].append(job_hist)
-        stats_dict["model"]["action_traces"].append(action_trace)
-        stats_dict["model"]["reward_components"].append(reward_components)
+            carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
+            return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
+        except:
+            ## Case where the model does not execute within 10 years
+            
+            process_metrics_failure = {
+                "model": {'Validation Reward': -math.inf, 'val_objective': np.float64(0), 'Avg Wait': math.inf, 'Max Wait': 48151356.0, 'Avg Response': 22314115.59911672, 'Avg Slowdown': 1060238.915216845, 'Episode Duration': 49235507.0, 'Carbon Emissions': math.inf, 'Weighted Carbon Emissions': -17792147.735698707, 'Reward Wait Component': -15850.0, 'Reward Carbon Component': -69864.46503252067, 'Reward Total Component': -903114.4650325208, 'System Utilization': 0.08737759613389885, 'Action Analysis': {'Total Actions': 108520, 'Schedule Action Percentage': 7.302801326944342, 'Fixed Delay Percentage': 85.39531883523775, 'Wait Delay Percentage': 7.301879837817914, 'Fixed Delays': {'300s': 6939, '600s': 84308, '1200s': 1296, '2400s': 128}, 'Wait for Jobs': {'4 jobs': 7924}}}
+            }
+            return process_metrics_failure, {}
 
-        carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
-        return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
 
     def load_dir(self, model_dir: str = None, config_dict: dict = None):
         """
@@ -252,12 +260,13 @@ class Validation():
         obs, _ = self.env.reset(seed=seed, options={})
         
         terminated = False
+        truncated = False
         total_reward = 0.0
         reward_wait_component = 0.0
         reward_carbon_component = 0.0
         reward_total_component = 0.0
         step = 0;
-        while not terminated:
+        while not terminated and not truncated:
             action_masks = get_action_masks(self.env)
             action, _states = model.predict(obs, action_masks=action_masks, deterministic = True)
             obs, reward, terminated, truncated, info = self.env.step(action)
@@ -275,6 +284,11 @@ class Validation():
             "carbon": float(reward_carbon_component),
             "total": float(reward_total_component),
         }
+        
+        if truncated:
+            # We cant give good statitics if it didnt 
+            return None
+        
         return total_reward, job_scheduled_history, action_trace, reward_components
 
     def process_metrics(self, stats_dict, carbon_intensity_calculator, config_dict):
@@ -820,4 +834,4 @@ def val_objective(avg_wait,total_carbon_emissions,eta):
     fcfs_wait_baseline = 6241.40
     best_carbon = 18596164.61
 
-    return eta*min(1,(fcfs_wait_baseline/avg_wait))+min(1,(1-eta)*(best_carbon/total_carbon_emissions))
+    return eta*(fcfs_wait_baseline/avg_wait)+(1-eta)*(best_carbon/total_carbon_emissions)

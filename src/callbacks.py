@@ -454,7 +454,7 @@ class BestValidationCallback(BaseCallback):
         save_path: str | Path,
         eval_freq: int,
         n_eval_episodes: int = 1,
-        metric: str = "Validation Reward",
+        metric: str = "val_objective",
         mode: str = "validation",
         greater_is_better: bool = True,
         run=None,
@@ -487,7 +487,7 @@ class BestValidationCallback(BaseCallback):
             return True
         if self.num_timesteps == 0 or (self.num_timesteps % self.eval_freq) != 0:
             return True
-
+        print("Beginning validation")
         metrics, _ = self._validator.validate_model(
             n_eval_episodes=self.n_eval_episodes,
             model=self.model,
@@ -510,6 +510,7 @@ class BestValidationCallback(BaseCallback):
         metrics_map = {
             "Avg Wait": "validation/Avg Wait",
             "Carbon Emissions": "validation/Carbon Emissions",
+            "val_objective": "validation/Validation Object"
         }
         for source_key, logger_suffix in metrics_map.items():
             value = result.get(source_key)
