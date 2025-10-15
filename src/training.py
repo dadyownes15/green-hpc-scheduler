@@ -7,7 +7,7 @@ from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.ppo_mask import MaskablePPO
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.logger import configure
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor, VecNormalize
 from wandb.integration.sb3 import WandbCallback
 import numpy as np
 from src.callbacks import BestValidationCallback, WandbTrainingMetricsCallback
@@ -89,9 +89,20 @@ class Train:
             seed=self.config_dict.get("seed"),
         )
 
+        # Normalize obs + rewards (stable training)
+        self.env = VecNormalize(
+            env,
+            norm_obs=True,
+            norm_reward=True,
+            clip_obs=10.0,
+            clip_reward=10.0,
+            gamma=self.config_dict["gamma"],  # keep consistent with PPO
+        )
+
+        # Monitor AFTER normalization so logs reflect what PPO sees
         monitor_dir = self.run_path / "monitor"
         monitor_dir.mkdir(parents=True, exist_ok=True)
-        self.env = VecMonitor(env, filename=str(monitor_dir / "monitor.csv"))
+        self.env = VecMonitor(self.env, filename=str(monitor_dir / "monitor.csv"))
 
         self.logger_dir = self.run_path / "training_logs"
         self.logger_dir.mkdir(parents=True, exist_ok=True)

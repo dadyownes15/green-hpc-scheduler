@@ -145,7 +145,7 @@ The rest are not used in are simplified envoriemnt
         """
         status = "Queued"
         if self.scheduled_time != -1:
-            status = f"Running (Scheduled at {self.scheduled_time}s)"
+            status = f"Scheduled at {self.scheduled_time}s"
 
         return (
             f"--- Job Details ---\n"

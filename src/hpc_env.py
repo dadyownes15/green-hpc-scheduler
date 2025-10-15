@@ -188,7 +188,7 @@ class HPCenv(Env):
             print("Jobs in queue: ", len(self.job_queue))
             print("Jobs left in episode: ",self.config_dict["episode_length"]  - self.scheduled_jobs) 
             print("Jobs unseen in episode: ",self.config_dict["episode_length"]  - self.scheduled_jobs - len(self.job_queue)) 
-            reward = -100*self.config_dict["episode_length"] 
+            reward = -10000*self.config_dict["episode_length"] 
             return obs, reward, terminated, truncated, info
 
         reward, components = self.get_reward(
