@@ -12,7 +12,7 @@ import yaml
 from sb3_contrib.ppo_mask import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 from wandb.integration.sb3 import WandbCallback
 
 from src.callbacks import BestValidationCallback
@@ -156,13 +156,23 @@ def _run_single_seed(
     rollout_steps = max(1, int(cfg["n_steps"]) // n_envs)
 
     env = make_vec_env(
-        HPCenv,
-        n_envs=n_envs,
+    HPCenv,
+        n_envs=cfg["n_envs"],
         env_kwargs=dict(config_dict=cfg, mode="training"),
         wrapper_class=ActionMasker,
         wrapper_kwargs=dict(action_mask_fn=mask_fn),
         vec_env_cls=SubprocVecEnv,
-        seed=seed,
+        seed=cfg["seed"],
+    )
+
+    # Normalize obs + rewards (stable training)
+    env = VecNormalize(
+        env,
+        norm_obs=True,
+        norm_reward=True,
+        clip_obs=10.0,
+        clip_reward=10.0,
+        gamma=cfg["gamma"],  # keep consistent with PPO
     )
 
     policy_kwargs = build_policy_kwargs(cfg)
