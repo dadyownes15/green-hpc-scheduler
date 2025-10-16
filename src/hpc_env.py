@@ -113,7 +113,7 @@ class HPCenv(Env):
         
         if self.step_counter % 10_000 == 0 and (self.mode == "test" or self.mode == "validation"):
             print("Current secounds after start: ", self.current_timestamp)
-
+            print(self.scheduled_jobs)
         
 
         # Auto-advance: if the queue is empty and there are future arrivals,
@@ -130,7 +130,6 @@ class HPCenv(Env):
 
         # Snapshot for logging and reward attribution
         t_before = self.current_timestamp
-        qlen_before = len(self.job_queue)
         trace_entry = self._init_trace_entry(int(action)) if self.trace_enabled else None
 
 
@@ -176,7 +175,7 @@ class HPCenv(Env):
 
         obs = self.build_observation()
         info = {}
-        if self.current_timestamp - self.time_offset > 57303812: ## episode duration for 5th percentile
+        if self.current_timestamp - self.time_offset > 57303812 : ## episode duration for 5th percentile
             print("Timestamp at exit: ", self.current_timestamp)
             if len(self.scheduled_job_history) > 0:
                 print("Last job: ", self.scheduled_job_history[-1])
@@ -188,7 +187,7 @@ class HPCenv(Env):
             print("Jobs in queue: ", len(self.job_queue))
             print("Jobs left in episode: ",self.config_dict["episode_length"]  - self.scheduled_jobs) 
             print("Jobs unseen in episode: ",self.config_dict["episode_length"]  - self.scheduled_jobs - len(self.job_queue)) 
-            reward = -100*self.config_dict["episode_length"] 
+            reward = -1000000*self.config_dict["episode_length"] 
             return obs, reward, terminated, truncated, info
 
         reward, components = self.get_reward(
@@ -774,7 +773,27 @@ class HPCenv(Env):
                 reward = components['carbon'] + components['wait']
             else: 
                 reward = 0 
-      
+        if self.reward_type == "delay_queue_penalty_abs_ems":
+            # Only penalize when we actually delayed and time advanced
+            penalty = 0.0
+            if was_delay and time_advanced > 0:
+                scale = float(self.config_dict.get("base_line_wait_carbon_penality", 0.01))
+                max_wt = max(1, int(self.config_dict.get("max_wait_time", 20000)))
+                normalized_dt = min(time_advanced, max_wt) / max_wt
+                qlen = max(0, int(len(self.job_queue)))
+                penalty = - scale * normalized_dt * qlen  # negative by construction
+                components["wait"] = float(penalty) * (self.eta)
+            if scheduled_job:
+                power_usage = scheduled_job.power_usage
+                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+                actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
+                components["carbon"] = - carbon_emission * self.carbon_reward_booster * (1-self.eta)
+            else:
+                components["carbon"] = 0.0
+               
+            reward = components["wait"] + components["carbon"]
+            
+
         components['total'] = float(reward)
         return float(reward), components
 

@@ -12,7 +12,7 @@ import yaml
 from sb3_contrib.ppo_mask import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 from wandb.integration.sb3 import WandbCallback
 
 from src.callbacks import BestValidationCallback
@@ -164,6 +164,8 @@ def _run_single_seed(
         vec_env_cls=SubprocVecEnv,
         seed=seed,
     )
+
+    env = VecNormalize(env,norm_obs=False,)
 
     policy_kwargs = build_policy_kwargs(cfg)
 
