@@ -101,7 +101,7 @@ class HPCenv(Env):
         self.cutoff_timestamp = 57303812 ## matches the 5 percent tile baseline for co2
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]
-        assert self.reward_type in ["wait_abs_ems", "wait_abs_ems_clip","wait_abs_ems_ci_clip","bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems","bd_abs_ems_clip", "delay_queue_penalty_abs_ems"]
+        assert self.reward_type in ["wait_abs_ems", "wait_abs_ems_clip","wait_abs_ems_ci_clip","bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems","bd_abs_ems_clip", "delay_queue_penalty_abs_ems", "delay_queue_penalty_abs_ems_user_ci"]
  
     def step(self, action):
         self.new_job_arrived_in_step = False
@@ -787,7 +787,30 @@ class HPCenv(Env):
                 components["carbon"] = - carbon_emission * self.carbon_reward_booster * (1-self.eta)
                
             reward = components["wait"] + components["carbon"]
-            
+        if self.reward_type == "delay_queue_penalty_abs_ems_user_ci":
+            # Only penalize when we actually delayed and time advanced
+            components["wait"] = 0
+            components["carbon"] = 0
+            if was_delay and time_advanced > 0:
+
+                max_wt = max(1, int(self.config_dict.get("max_wait_time", 20000)))
+                normalized_dt = min(time_advanced, max_wt) / max_wt
+                qlen = max(0, int(len(self.job_queue)))
+                if qlen > 0:
+                    penalty = - normalized_dt * qlen  # negative by construction
+                    mean_carbon_consideration = np.mean([job.carbon_consideration for job in self.job_queue])
+                    components["wait"] = float(penalty) * (1-mean_carbon_consideration)
+            if scheduled_job:
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+
+                power_usage = scheduled_job.power_usage
+                carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
+                actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
+                components["carbon"] = - carbon_emission * self.carbon_reward_booster * (scheduled_job.carbon_consideration)
+               
+            reward = components["wait"] + components["carbon"]
+             
 
         components['total'] = float(reward)
         return float(reward), components
