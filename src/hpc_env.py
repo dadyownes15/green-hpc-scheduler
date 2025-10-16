@@ -60,11 +60,11 @@ class HPCenv(Env):
         max_queue_size = self.config_dict['max_queue_size']
         delay_action_count = self.config_dict['delay_time_list_length']
         wait_action_count = self.config_dict['max_wait_n_jobs']
-
-        job_action_count = max_queue_size
+        
+        self.job_action_count = max_queue_size
         noop_action_count = delay_action_count + wait_action_count
 
-        self.action_space_size = job_action_count + noop_action_count
+        self.action_space_size = self.job_action_count + noop_action_count
         self.action_space = spaces.Discrete(self.action_space_size)
 
         # Observation space
@@ -98,7 +98,7 @@ class HPCenv(Env):
              green_win_length=self.config_dict['green_forecast_length'], custom_intensity=config_dict['custom_intensity'])
         self.carbon_intensity.set_mode(self.mode)
         self.total_processors = self.loads.max_procs
-
+        self.cutoff_timestamp = 57303812 ## matches the 5 percent tile baseline for co2
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]
         assert self.reward_type in ["wait_abs_ems", "wait_abs_ems_clip","wait_abs_ems_ci_clip","bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems","bd_abs_ems_clip", "delay_queue_penalty_abs_ems"]
@@ -175,20 +175,7 @@ class HPCenv(Env):
 
         obs = self.build_observation()
         info = {}
-        if self.current_timestamp - self.time_offset > 57303812 : ## episode duration for 5th percentile
-            print("Timestamp at exit: ", self.current_timestamp)
-            if len(self.scheduled_job_history) > 0:
-                print("Last job: ", self.scheduled_job_history[-1])
-                print("FIrst job: ", self.scheduled_job_history[0])
-            else:
-                print("No scheduled jobs")
-            truncated = True;
-            print("Truncating episode")
-            print("Jobs in queue: ", len(self.job_queue))
-            print("Jobs left in episode: ",self.config_dict["episode_length"]  - self.scheduled_jobs) 
-            print("Jobs unseen in episode: ",self.config_dict["episode_length"]  - self.scheduled_jobs - len(self.job_queue)) 
-            reward = -1000000*self.config_dict["episode_length"] 
-            return obs, reward, terminated, truncated, info
+
 
         reward, components = self.get_reward(
             scheduled_job=scheduled_job,
@@ -214,6 +201,7 @@ class HPCenv(Env):
         if self.trace_enabled:
             self._finalize_trace_entry(trace_entry)
 
+            
         return obs, reward, terminated, truncated, info
 
     def should_terminate(self): 
@@ -622,7 +610,12 @@ class HPCenv(Env):
             # Mask all delay actions: indices from max_queue_size to end
             mask[self.config_dict['max_queue_size']:] = False
         """
-        assert np.all(mask[self.config_dict['max_queue_size']:self.config_dict["delay_time_list_length"]])
+
+        if self.current_timestamp - self.time_offset > self.cutoff_timestamp:
+            print("Masking delay")
+            for idx in range(self.job_action_count,self.job_action_count + 8):
+                mask[idx] = False 
+
         return mask
 
     def get_reward(self,scheduled_job : Job | None, current_timestamp, time_advanced: int = 0, was_delay: bool = False):

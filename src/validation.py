@@ -139,6 +139,8 @@ class Validation():
         if debug:
             print("Validating provided model on data from:", self.mode)
 
+        print(self.config_dict)
+
         self.env = ActionMasker(
             HPCenv(config_dict=self.config_dict, mode=self.mode, debug=debug, trace_enabled=True),
             action_mask_fn=mask_fn,
@@ -152,24 +154,16 @@ class Validation():
                 "reward_components": [],
             }
         }
-        try: 
-            total_reward, job_hist, action_trace, reward_components = self.evaluate_policy(
-                seed=1, model=model, debug=debug
-            )
-            stats_dict["model"]["rewards"].append(total_reward)
-            stats_dict["model"]["job_scheduled_history"].append(job_hist)
-            stats_dict["model"]["action_traces"].append(action_trace)
-            stats_dict["model"]["reward_components"].append(reward_components)
+        total_reward, job_hist, action_trace, reward_components = self.evaluate_policy(
+                    seed=1, model=model, debug=debug
+                )
+        stats_dict["model"]["rewards"].append(total_reward)
+        stats_dict["model"]["job_scheduled_history"].append(job_hist)
+        stats_dict["model"]["action_traces"].append(action_trace)
+        stats_dict["model"]["reward_components"].append(reward_components)
 
-            carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
-            return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
-        except:
-            ## Case where the model does not execute within 10 years
-            
-            process_metrics_failure = {
-                "model": {'Validation Reward': -math.inf, 'val_objective': np.float64(0), 'Avg Wait': math.inf, 'Max Wait': 48151356.0, 'Avg Response': 22314115.59911672, 'Avg Slowdown': 1060238.915216845, 'Episode Duration': 49235507.0, 'Carbon Emissions': math.inf, 'Weighted Carbon Emissions': -17792147.735698707, 'Reward Wait Component': -15850.0, 'Reward Carbon Component': -69864.46503252067, 'Reward Total Component': -903114.4650325208, 'System Utilization': 0.08737759613389885, 'Action Analysis': {'Total Actions': 108520, 'Schedule Action Percentage': 7.302801326944342, 'Fixed Delay Percentage': 85.39531883523775, 'Wait Delay Percentage': 7.301879837817914, 'Fixed Delays': {'300s': 6939, '600s': 84308, '1200s': 1296, '2400s': 128}, 'Wait for Jobs': {'4 jobs': 7924}}}
-            }
-            return process_metrics_failure, {}
+        carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
+        return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
 
 
     def load_dir(self, model_dir: str = None, config_dict: dict = None):
@@ -284,10 +278,6 @@ class Validation():
             "carbon": float(reward_carbon_component),
             "total": float(reward_total_component),
         }
-        
-        if truncated:
-            # We cant give good statitics if it didnt 
-            return None
         
         return total_reward, job_scheduled_history, action_trace, reward_components
 
@@ -857,5 +847,10 @@ def val_objective(avg_wait,total_carbon_emissions,eta):
 
     4990/6012 * 0.5 + 285/185*0.5 =
     0,3320026613 + 0,7307692308
+
+
+    17000/6012 * 0.5 + 270/185
+
+    2,7419354839 * 0.5 + 1,4594594595
     
     """
