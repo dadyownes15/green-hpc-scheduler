@@ -9,3 +9,11 @@ old_results/
 venv/
 renderings/
 figures/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# W&B logs
+wandb/git add .gitignore
+git commit -m "Add .gitignore for cache and log files"
