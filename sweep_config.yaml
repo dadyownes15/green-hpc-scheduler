@@ -40,7 +40,7 @@ parameters:
     values: [8192,16384,32768, 65536]
 
   total_timesteps:
-    values: [524288]
+    values: [327680]
 
   ent_coef:
     values: [0.0, 0.005, 0.01,0.02]
