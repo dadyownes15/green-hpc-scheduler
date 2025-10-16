@@ -779,11 +779,10 @@ class HPCenv(Env):
             components["carbon"] = 0
             if was_delay and time_advanced > 0:
 
-                scale = float(self.config_dict.get("base_line_wait_carbon_penality", 0.01))
                 max_wt = max(1, int(self.config_dict.get("max_wait_time", 20000)))
                 normalized_dt = min(time_advanced, max_wt) / max_wt
                 qlen = max(0, int(len(self.job_queue)))
-                penalty = - scale * normalized_dt * qlen  # negative by construction
+                penalty = - normalized_dt * qlen  # negative by construction
                 components["wait"] = float(penalty) * (self.eta)
             if scheduled_job:
                 start_time = current_timestamp

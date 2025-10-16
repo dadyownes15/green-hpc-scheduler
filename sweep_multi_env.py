@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import numpy as np
+from src.validation import Validation
 import wandb
 import yaml
 from sb3_contrib.ppo_mask import MaskablePPO
@@ -15,7 +16,7 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 from wandb.integration.sb3 import WandbCallback
 
-from src.callbacks import BestValidationCallback
+from src.callbacks import BestValidationCallback, _wandb_sanitize_key
 from src.hpc_env import HPCenv
 from src.utils import (
     create_experiment_name,
@@ -112,7 +113,52 @@ def build_policy_kwargs(cfg: Dict[str, Any]) -> Dict[str, Any]:
         }
     }
 
+def _evaluate_once(
+    model: MaskablePPO,
+    cfg: Dict[str, Any],
+    seed: int,
+    n_eval_episodes: int,
+    run,
+    seed_label: str | None = None,
+) -> float:
+    """
+    Single post-training validation using the same Validation metrics as during callbacks.
+    Returns the scalar val_objective used for sweep aggregation.
+    """
+    # Build validator exactly like your callbacks
+    validator = Validation().load_dir(config_dict=cfg)
 
+    # Use your preferred eval mode (defaults to "validation")
+    mode = cfg.get("eval_mode", "validation")
+
+    metrics, _ = validator.validate_model(
+        n_eval_episodes=int(n_eval_episodes),
+        model=model,
+        mode=mode,
+        debug=False,
+    )
+    result = dict(metrics.get("model", {}))
+
+    # Pull the canonical objective
+    val_objective = float(result.get("val_objective", np.nan))
+
+    # Log to W&B using the same keys you use in BestValidationCallback
+    prefix = f"{seed_label}/" if seed_label else ""
+    mapping = {
+        "val_objective": f"{prefix}validation/Validation Object",
+        "Avg Wait":     f"{prefix}validation/Avg Wait",
+        "Carbon Emissions": f"{prefix}validation/Carbon Emissions",
+    }
+
+    wandb_payload = {}
+    for src_key, wb_key in mapping.items():
+        if src_key in result and np.isfinite(result[src_key]):
+            wandb_payload[_wandb_sanitize_key(wb_key)] = float(result[src_key])
+
+    if wandb_payload and run is not None:
+        run.log(wandb_payload)
+
+    return val_objective
 def _format_suffix_value(value: Any) -> str:
     try:
         return f"{float(value):g}"
@@ -196,14 +242,7 @@ def _run_single_seed(
     )
 
     
-    best_cb = BestValidationCallback(
-        config_dict=cfg,
-        save_path=seed_dir / "best_model.zip",
-        eval_freq=cfg.get("validation_freq", cfg["total_timesteps"]),
-        n_eval_episodes=cfg.get("validation_episodes", 1),
-        run=run,
-        seed_label=f"seed_{seed}",
-    )
+
     
     model.learn(
         total_timesteps=cfg["total_timesteps"],
@@ -213,8 +252,13 @@ def _run_single_seed(
     )
 
     env.close()
-    run.summary[f"seed_{seed}_best_validation_reward"] = best_cb.best_score
-    return best_cb.best_score
+
+    val_eps = cfg.get("validation_episodes", 1)
+    seed_label = f"seed_{seed}"
+    val_objective = _evaluate_once(model, cfg, seed, val_eps, run, seed_label)
+
+    run.summary[f"{seed_label}_final_val_objective"] = val_objective
+    return val_objective
 
 
 def train():

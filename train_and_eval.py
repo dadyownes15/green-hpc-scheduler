@@ -255,7 +255,6 @@ def train_and_eval(args: argparse.Namespace) -> None:
                 vec_env_cls=SubprocVecEnv,
                 seed=cfg_seed["seed"],
             )
-        
 
             env = VecNormalize(venv=env)
 

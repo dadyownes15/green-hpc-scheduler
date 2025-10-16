@@ -3,7 +3,7 @@ method: bayes
 
 metric:
   name: objective
-  goal: maximize
+  goal: minimize
 
 parameters:
 
@@ -22,7 +22,7 @@ parameters:
     min: 0.8
     max: 0.9999
   carbon_reward_booster:
-    values: [0.001,0.1,1.0,10.0,20.0,50.0]
+    values: [0.001,0.01,0.1,1.0,10.0,]
 
   batch_size:
     values: [1024, 2048,4096, 8192, 16384,]
@@ -40,7 +40,7 @@ parameters:
     values: [8192,16384,32768, 65536]
 
   total_timesteps:
-    values: [327680]
+    values: [524288]
 
   ent_coef:
     values: [0.0, 0.005, 0.01,0.02]

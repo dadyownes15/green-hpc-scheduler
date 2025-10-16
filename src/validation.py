@@ -834,4 +834,28 @@ def val_objective(avg_wait,total_carbon_emissions,eta):
     fcfs_wait_baseline = 6241.40
     best_carbon = 18596164.61
 
-    return eta*(fcfs_wait_baseline/avg_wait)+(1-eta)*(best_carbon/total_carbon_emissions)
+    """     return eta*(fcfs_wait_baseline/avg_wait)+(1-eta)*(best_carbon/total_carbon_emissions) """
+
+    return eta*avg_wait/fcfs_wait_baseline + total_carbon_emissions/best_carbon * (1-eta)
+
+    """
+
+    worst carbon = 28000
+    
+    wait = 4990
+    carbon = 280
+
+    opt carbon = 185
+    opt wait 6012 
+
+    eta = 0.5
+
+    6012 / 4990 * 0.5 + 185/285 * 0.5 = 1,3591615664
+    0.6 + 0,7567567568
+    
+    6012 / 4990 * 0.5  + 280-185/280 * 0.5 = 0,3392857143
+
+    4990/6012 * 0.5 + 285/185*0.5 =
+    0,3320026613 + 0,7307692308
+    
+    """
