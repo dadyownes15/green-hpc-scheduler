@@ -101,7 +101,7 @@ class HPCenv(Env):
 
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]
-        assert self.reward_type in ["wait_abs_ems", "wait_abs_ems_clip","wait_abs_ems_ci_clip","bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems","bd_abs_ems_clip"]
+        assert self.reward_type in ["wait_abs_ems", "wait_abs_ems_clip","wait_abs_ems_ci_clip","bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems","bd_abs_ems_clip", "delay_queue_penalty_abs_ems"]
  
     def step(self, action):
         self.new_job_arrived_in_step = False
@@ -775,8 +775,10 @@ class HPCenv(Env):
                 reward = 0 
         if self.reward_type == "delay_queue_penalty_abs_ems":
             # Only penalize when we actually delayed and time advanced
-            penalty = 0.0
+            components["wait"] = 0
+            components["carbon"] = 0
             if was_delay and time_advanced > 0:
+
                 scale = float(self.config_dict.get("base_line_wait_carbon_penality", 0.01))
                 max_wt = max(1, int(self.config_dict.get("max_wait_time", 20000)))
                 normalized_dt = min(time_advanced, max_wt) / max_wt
@@ -784,12 +786,13 @@ class HPCenv(Env):
                 penalty = - scale * normalized_dt * qlen  # negative by construction
                 components["wait"] = float(penalty) * (self.eta)
             if scheduled_job:
+                start_time = current_timestamp
+                end_time = start_time + scheduled_job.run_time
+
                 power_usage = scheduled_job.power_usage
                 carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
                 actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
                 components["carbon"] = - carbon_emission * self.carbon_reward_booster * (1-self.eta)
-            else:
-                components["carbon"] = 0.0
                
             reward = components["wait"] + components["carbon"]
             
