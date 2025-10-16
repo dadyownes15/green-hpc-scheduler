@@ -195,18 +195,19 @@ def _run_single_seed(
         verbose=0,
     )
 
+    
     best_cb = BestValidationCallback(
         config_dict=cfg,
         save_path=seed_dir / "best_model.zip",
-        eval_freq=cfg.get("validation_freq", cfg["n_steps"]),
+        eval_freq=cfg.get("validation_freq", cfg["total_timesteps"]),
         n_eval_episodes=cfg.get("validation_episodes", 1),
         run=run,
         seed_label=f"seed_{seed}",
     )
-
+    
     model.learn(
         total_timesteps=cfg["total_timesteps"],
-        callback=[wandb_cb, best_cb],
+        callback=[wandb_cb],
         progress_bar=False,
         log_interval=1,
     )
