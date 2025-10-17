@@ -16,7 +16,7 @@ source venv/bin/activate
 
 
 # Define eta values
-etas=(0.001,0.0001,0.00001)
+etas=(0.001 0.0001 0.00001)
 
 # Select eta based on the SLURM array ID
 eta=${etas[$SLURM_ARRAY_TASK_ID-1]}
