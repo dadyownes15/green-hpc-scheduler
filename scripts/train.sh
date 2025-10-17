@@ -22,7 +22,7 @@ echo "Running with eta=$eta"
 source venv/bin/activate
 
 # Run the Python script with the chosen eta
-python train_and_eval.py --config $config --seeds 5 --total-timesteps 3000000  | tee "$LOGFILE"
+python train_and_eval.py --config $config --seeds 5 --total-timesteps 1500000  | tee "$LOGFILE"
 
 # Deactivate environment
 deactivate

@@ -7,7 +7,7 @@ set -euo pipefail
 
 USER_CIS=( "uniform" "two_bins" "exp_drop")
 SEED_COUNT=5
-TOTAL_TIMESTEPS=3000000
+TOTAL_TIMESTEPS=1500000
 
 echo "Starting train_and_eval sweep over user_ci settings: ${USER_CIS[*]}"
 
