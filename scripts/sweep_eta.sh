@@ -1,9 +1,9 @@
 #!/bin/bash
 #The partition is the queue you want to run on. standard is gpu and can be ommitted.
 #SBATCH --job-name=eta_sweep
-#SBATCH --array=1-6%6 
+#SBATCH --array=1-3%3 
 #number of cpus we want to allocate for each program
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #We expect that our program should not run longer than 2 days
 #Note that a program will be killed once it exceeds this time!
 #SBATCH --time=0-24:00:00
