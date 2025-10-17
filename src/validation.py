@@ -224,12 +224,12 @@ class Validation():
         baselines = [
 
             FCFSBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
-                        PercentileBaseline(config_dict=self.config_dict, percentile=10, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
-            PercentileBaseline(config_dict=self.config_dict, percentile=25, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)),
-            PercentileBaseline(config_dict=self.config_dict, percentile = 50, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
-       
+
                     ]
         
+        for percentile in [10, 25, 50,60,70,80,90,95,97]:
+            baselines.append(PercentileBaseline(config_dict=self.config_dict, percentile = percentile, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)))
+            
         stats_dict = {}
         for baseline in baselines:
             stats_dict[baseline.name] = {

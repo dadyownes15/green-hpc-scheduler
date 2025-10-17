@@ -61,13 +61,21 @@ class PercentileBaseline(Baseline):
             cutoffs = {'validation': {10: np.float64(49.23500000000001),
   25: np.float64(61.78025),
   50: np.float64(83.49033333333334),
-   100: np.float64(-10000)
-  },
-
+  60: np.float64(92.04976666666667),
+  70: np.float64(103.39266666666666),
+  80: np.float64(122.84040000000002),
+  90: np.float64(165.68719999999996),
+  95: np.float64(208.85681666666653),
+  97: np.float64(262.84869000000003)},
  'test': {10: np.float64(24.151466666666668),
   25: np.float64(33.60491666666667),
   50: np.float64(51.55383333333333),
-  100: np.float64(-10000)}}
+  60: np.float64(60.394),
+  70: np.float64(69.362),
+  80: np.float64(79.97233333333332),
+  90: np.float64(95.15533333333335),
+  95: np.float64(114.79651666666668),
+  97: np.float64(132.9291200000001)}}
 
             
             carbon_forecast_percentile = cutoffs[self.mode][self.percentile]
