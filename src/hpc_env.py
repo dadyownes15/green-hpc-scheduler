@@ -98,7 +98,13 @@ class HPCenv(Env):
              green_win_length=self.config_dict['green_forecast_length'], custom_intensity=config_dict['custom_intensity'])
         self.carbon_intensity.set_mode(self.mode)
         self.total_processors = self.loads.max_procs
-        self.cutoff_timestamp = 57303812 ## matches the 5 percent tile baseline for co2
+
+
+        if mode == "training" or "validation":
+            self.cutoff_timestamp = 14291716.0
+        if mode == "test":
+            self.cutoff_timestamp = 37813187.0 
+        
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]
         assert self.reward_type in ["wait_abs_ems", "wait_abs_ems_clip","wait_abs_ems_ci_clip","bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems","bd_abs_ems_clip", "delay_queue_penalty_abs_ems", "delay_queue_penalty_abs_ems_user_ci"]
