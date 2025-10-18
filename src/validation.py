@@ -1,5 +1,6 @@
 from src.baseline import Baseline, PercentileBaseline, FCFSBaseline, FCFSEasyBackfillBaseline
 from src.hpc_env import HPCenv
+from src.metrics import compute_average_wait, compute_carbon_emissions
 from src.utils import VideoGenerator, get_config_as_dict, mask_fn
 from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.ppo_mask import MaskablePPO
@@ -15,10 +16,15 @@ import collections
 import math
 import torch
 
+from datetime import datetime, timedelta
 from typing import List, Type, Optional, Sequence
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.cm as cm
+from matplotlib import colors as mcolors
 from pathlib import Path
+from matplotlib.ticker import FuncFormatter, MultipleLocator
+
 class Validation():
     """
     Validation suite takes a trained model, for now we will simply hardcode the baseline.py and evaluates the model and produces rendering, and overview statistics for n different episodes.
@@ -41,8 +47,8 @@ class Validation():
         if debug:
             print("Validating policy on data from:", self.mode)
 
-        if not self.config_dict.get("reward_type"):
-            self.config_dict["reward_type"] = "wait_abs_ems"
+        self.config_dict["reward_type"] = "wait_abs_ems"
+            
         # Enable tracing in env so we can collect action traces for analysis
         self.env = ActionMasker(
             HPCenv(config_dict=self.config_dict, mode=self.mode, debug=debug, trace_enabled=True),
@@ -139,8 +145,6 @@ class Validation():
         if debug:
             print("Validating provided model on data from:", self.mode)
 
-        print(self.config_dict)
-
         self.env = ActionMasker(
             HPCenv(config_dict=self.config_dict, mode=self.mode, debug=debug, trace_enabled=True),
             action_mask_fn=mask_fn,
@@ -163,6 +167,7 @@ class Validation():
         stats_dict["model"]["reward_components"].append(reward_components)
 
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
+        carbon_intensity.set_mode(self.mode)
         return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
 
 
@@ -247,6 +252,7 @@ class Validation():
                 stats_dict[baseline.name]["job_scheduled_history"].append(baseline.env.scheduled_job_history)
                 stats_dict[baseline.name]["reward_components"].append(reward_components)
         carbon_intensity = CarbonIntensity(green_win_length=24, normalize=False)
+        carbon_intensity.set_mode(str(mode).lower())
         return self.process_metrics(stats_dict=stats_dict, carbon_intensity_calculator=carbon_intensity, config_dict=self.config_dict), stats_dict
     
 
@@ -351,8 +357,6 @@ class Validation():
             waits, responses, slowdowns = [], [], []
             episode_last_finish = 0.0
             utilization_events = collections.defaultdict(int)
-            episode_carbon_emissions = 0.0
-            episode_weighted_carbon_emissions = 0.0
 
             for job in jobs:
                 wait = job.scheduled_time - job.submit_time
@@ -365,16 +369,13 @@ class Validation():
                 slowdowns.append(slowdown)
                 episode_last_finish = max(episode_last_finish, finish)
 
-                # Carbon
-                job_emissions = carbon_intensity_calculator.getCarbonEmissions(
-                    job.power_usage, job.scheduled_time, finish
-                )
-                episode_carbon_emissions += job_emissions
-                episode_weighted_carbon_emissions += job_emissions * getattr(job, 'carbon_consideration', 1.0)
-
                 # Utilization (+ at start, - at finish)
                 utilization_events[job.scheduled_time] += job.request_number_of_processors
                 utilization_events[finish] -= job.request_number_of_processors
+
+            episode_carbon_emissions, episode_weighted_carbon_emissions = compute_carbon_emissions(
+                jobs, carbon_intensity_calculator
+            )
 
             # --- Utilization across [0, episode_last_finish] ---
             system_utilization = None
@@ -403,7 +404,7 @@ class Validation():
             else:
                 validation_reward = env_reward
 
-            avg_wait = np.mean(waits)
+            avg_wait = compute_average_wait(jobs)
             processed_stats[checkpoint] = {
                 "Validation Reward": validation_reward,
                 "val_objective": val_objective(avg_wait,episode_carbon_emissions,eta=eta_value),
@@ -508,18 +509,44 @@ class Validation():
         )
 
 
-    def _compute_timeseries_from_trace(self, action_trace, mode='validation', rolling_window: int = 10):
+    def _compute_timeseries_from_trace(
+        self,
+        action_trace,
+        mode: str = 'validation',
+        rolling_window: int = 10,
+        calendar_mode: str | None = None,
+    ):
         """
         Builds exact node utilization from schedule events in action_trace.
-        Returns (usage_segments, delay_spans, ci_times, ci_values, wait_times_x, wait_rolling_avg, queue_times, queue_lengths) where:
-          - usage_segments: list of {start, end, used_nodes}
+        Returns (usage_segments, delay_spans, ci_times, ci_values, wait_times_x, wait_rolling_avg, queue_times, queue_lengths, calendar_start_dt) where:
+          - usage_segments: list of {start, end, used_nodes, unique_jobs}
           - delay_spans: list of (start, end) for shaded skipped periods
           - ci_times/ci_values: carbon intensity line
           - wait_times_x/wait_rolling_avg: job-schedule-time indexed rolling average wait (seconds)
           - queue_times/queue_lengths: per-step queue length at timestamp_after
+          - calendar_start_dt: datetime for start of selected calendar window used for plotting
         """
+        def _normalize_split(split: str) -> str:
+            mapping = {
+                'val': 'validation',
+                'validation': 'validation',
+                'test': 'test',
+                'train': 'training',
+                'training': 'training',
+            }
+            key = split.lower()
+            if key in mapping:
+                return mapping[key]
+            if key in CarbonIntensity.SPLIT_WINDOWS:
+                return key
+            raise ValueError("calendar split must be one of {'validation', 'val', 'test', 'training', 'train'}.")
+
+        chosen_calendar_mode = calendar_mode or mode or 'validation'
+        normalized_calendar = _normalize_split(chosen_calendar_mode)
+        calendar_start_dt = CarbonIntensity.SPLIT_WINDOWS[normalized_calendar][0]
+
         if not action_trace:
-            return [], [], [], [], [], [], [], []
+            return [], [], [], [], [], [], [], [], calendar_start_dt
 
         if not hasattr(action_trace[0], 'get'):
             raise TypeError(
@@ -532,13 +559,15 @@ class Validation():
             ci.set_mode(mode)
         except Exception:
             ci.set_mode('validation')
+            normalized_calendar = 'validation'
+            calendar_start_dt = CarbonIntensity.SPLIT_WINDOWS[normalized_calendar][0]
 
         def ci_at_time(t):
             return float(ci.intensity_at(t))
 
         # Build event list from schedule entries
         procs_per_node = max(1, int(self.config_dict.get('procs_per_node', 1)))
-        events = []  # (time, delta_nodes)
+        events = []  # (time, event_type, nodes, job_uid)
         t_min = None
         t_max = None
         # For rolling wait-time series
@@ -547,7 +576,7 @@ class Validation():
         # For queue length over time
         queue_times = []
         queue_lengths = []
-        for e in action_trace:
+        for idx, e in enumerate(action_trace):
             t_before = int(e.get('timestamp_before') or 0)
             t_after = int(e.get('timestamp_after') or t_before)
             t_min = t_before if t_min is None else min(t_min, t_before)
@@ -570,43 +599,67 @@ class Validation():
                     nodes = (procs + procs_per_node - 1) // procs_per_node
                 nodes = int(nodes)
                 if nodes > 0 and run_time > 0:
-                    events.append((start, nodes))
-                    events.append((end, -nodes))
+                    job_uid = e.get('scheduled_job_id')
+                    if job_uid is None:
+                        job_uid = f"schedule_{idx}"
+                    events.append((start, 'start', nodes, job_uid))
+                    events.append((end, 'end', nodes, job_uid))
                 # Collect wait for rolling average if available
                 w = e.get('scheduled_job_wait_time')
                 if w is not None:
                     schedule_times.append(start)
                     wait_values.append(int(w))
 
-        events.sort()
+        events.sort(key=lambda ev: (ev[0], 0 if ev[1] == 'end' else 1))
 
         # Build usage segments from events (piecewise constant)
         usage_segments = []
         used_nodes = 0
+        active_jobs: dict[str, int] = {}
         if not events:
             # No schedules; flat zero usage over episode bounds
             if t_min is None or t_max is None or t_max <= t_min:
-                return [], [], [], [], [], [], [], []
-            usage_segments.append({'start': t_min, 'end': t_max, 'used_nodes': 0})
+                return [], [], [], [], [], [], [], [], calendar_start_dt
+            usage_segments.append({'start': t_min, 'end': t_max, 'used_nodes': 0, 'unique_jobs': 0})
         else:
             last_time = events[0][0] if t_min is None else t_min
             # If first event happens after t_min, include initial zero segment
             if last_time > (t_min or last_time):
-                usage_segments.append({'start': t_min, 'end': last_time, 'used_nodes': 0})
+                usage_segments.append({'start': t_min, 'end': last_time, 'used_nodes': 0, 'unique_jobs': 0})
             idx = 0
             n = len(events)
             while idx < n:
-                t = events[idx][0]
-                if t > last_time:
-                    usage_segments.append({'start': last_time, 'end': t, 'used_nodes': used_nodes})
-                    last_time = t
-                # Apply all deltas at time t
-                while idx < n and events[idx][0] == t:
-                    used_nodes += events[idx][1]
+                current_time = events[idx][0]
+                if current_time > last_time:
+                    usage_segments.append(
+                        {
+                            'start': last_time,
+                            'end': current_time,
+                            'used_nodes': used_nodes,
+                            'unique_jobs': len(active_jobs),
+                        }
+                    )
+                    last_time = current_time
+                # Apply all deltas at time current_time
+                while idx < n and events[idx][0] == current_time:
+                    _, event_type, event_nodes, event_job_uid = events[idx]
+                    if event_type == 'end':
+                        used_nodes = max(0, used_nodes - event_nodes)
+                        active_jobs.pop(event_job_uid, None)
+                    else:
+                        used_nodes += event_nodes
+                        active_jobs[event_job_uid] = event_nodes
                     idx += 1
             # Tail segment to t_max if available
             if t_max is not None and t_max > last_time:
-                usage_segments.append({'start': last_time, 'end': t_max, 'used_nodes': used_nodes})
+                usage_segments.append(
+                    {
+                        'start': last_time,
+                        'end': t_max,
+                        'used_nodes': used_nodes,
+                        'unique_jobs': len(active_jobs),
+                    }
+                )
 
         # Collect delay spans from trace
         delay_spans = []
@@ -641,9 +694,25 @@ class Validation():
                 wait_times_x.append(t)
                 wait_rolling_avg.append(csum / len(q))
 
-        return usage_segments, delay_spans, ci_times, ci_values, wait_times_x, wait_rolling_avg, queue_times, queue_lengths
+        return usage_segments, delay_spans, ci_times, ci_values, wait_times_x, wait_rolling_avg, queue_times, queue_lengths, calendar_start_dt
 
-    def render_timeseries_plot(self, action_trace, name="timeseries", output_dir="renderings", mode='validation', rolling_window: int = 10, shade_delays: bool = True, max_delay_spans: int | None = None, debug: bool = False, save_png: bool = True, episode_index: int | None = None, display_carbon_itensity = True):
+    def render_timeseries_plot(
+        self,
+        action_trace,
+        name: str = "timeseries",
+        output_dir: str = "renderings",
+        mode: str = 'validation',
+        rolling_window: int = 10,
+        shade_delays: bool = True,
+        max_delay_spans: int | None = None,
+        debug: bool = False,
+        save_png: bool = True,
+        episode_index: int | None = None,
+        start_time: float | None = None,
+        end_time: float | None = None,
+        calendar_split: str | None = None,
+        display_carbon_itensity: bool = True,
+    ):
         """
         Renders a segment-based timeseries plot using the action_trace.
         Visualizes carbon intensity, used processors, rolling avg wait, queue length, and optional delay shading.
@@ -658,6 +727,9 @@ class Validation():
             action_trace: Either a single episode trace (list of dict entries) or a
                 collection of traces such as stats['action_traces'].
             episode_index: Optional index when passing a collection of traces.
+            start_time: Optional lower bound (inclusive) for the time axis.
+            end_time: Optional upper bound (inclusive) for the time axis.
+            calendar_split: Optional calendar split ('val'/'validation' or 'test') to control date labels.
         """
         import time
         from typing import Optional, Tuple
@@ -676,7 +748,12 @@ class Validation():
         png_path = os.path.join(output_dir, f"{name}.png")
 
         selected_trace = self._select_episode_trace(action_trace, episode_index=episode_index)
-        usage_segments, delay_spans, ci_times, ci_values, wait_x, wait_avg, q_times, q_lens = self._compute_timeseries_from_trace(selected_trace, mode=mode, rolling_window=rolling_window)
+        usage_segments, delay_spans, ci_times, ci_values, wait_x, wait_avg, q_times, q_lens, calendar_start_dt = self._compute_timeseries_from_trace(
+            selected_trace,
+            mode=mode,
+            rolling_window=rolling_window,
+            calendar_mode=calendar_split,
+        )
         if debug:
             print(f"[render] series: usage={len(usage_segments)}, delays={len(delay_spans)}, ci_points={len(ci_times)}, wait_points={len(wait_x)}, queue_points={len(q_times)}")
             if q_lens:
@@ -686,22 +763,174 @@ class Validation():
         with plt.ioff():
             fig, ax_ci = plt.subplots(figsize=(18, 6))
 
-        if display_carbon_itensity:
-            ax_ci.set_title('Episode Timeseries Overview')
-            ax_ci.set_xlabel('Time (s)')
+        window_start = float(start_time) if start_time is not None else None
+        window_end = float(end_time) if end_time is not None else None
+        if window_start is not None and window_end is not None and window_start >= window_end:
+            raise ValueError("start_time must be less than end_time.")
+
+        def _clip_segments(segments: list[dict[str, float]]) -> list[dict[str, float]]:
+            if window_start is None and window_end is None:
+                return segments
+            clipped: list[dict[str, float]] = []
+            for seg in segments:
+                seg_start = seg['start']
+                seg_end = seg['end']
+                if window_end is not None and seg_start >= window_end:
+                    continue
+                if window_start is not None and seg_end <= window_start:
+                    continue
+                new_start = max(seg_start, window_start) if window_start is not None else seg_start
+                new_end = min(seg_end, window_end) if window_end is not None else seg_end
+                if new_end > new_start:
+                    clipped.append(
+                        {
+                            'start': new_start,
+                            'end': new_end,
+                            'used_nodes': seg['used_nodes'],
+                            'unique_jobs': seg.get('unique_jobs', 0),
+                        }
+                    )
+            return clipped
+
+        def _clip_spans(spans: list[tuple[float, float]]) -> list[tuple[float, float]]:
+            if window_start is None and window_end is None:
+                return spans
+            clipped: list[tuple[float, float]] = []
+            for span_start, span_end in spans:
+                if window_end is not None and span_start >= window_end:
+                    continue
+                if window_start is not None and span_end <= window_start:
+                    continue
+                new_start = max(span_start, window_start) if window_start is not None else span_start
+                new_end = min(span_end, window_end) if window_end is not None else span_end
+                if new_end > new_start:
+                    clipped.append((new_start, new_end))
+            return clipped
+
+        def _clip_series(times, values=None):
+            if window_start is None and window_end is None:
+                if values is None:
+                    return list(times)
+                return list(times), list(values)
+            filtered_times = []
+            filtered_values = [] if values is not None else None
+            for idx, t in enumerate(times):
+                if window_start is not None and t < window_start:
+                    continue
+                if window_end is not None and t > window_end:
+                    continue
+                filtered_times.append(t)
+                if filtered_values is not None:
+                    filtered_values.append(values[idx])
+            if values is None:
+                return filtered_times
+            return filtered_times, filtered_values
+
+        usage_segments = _clip_segments(usage_segments)
+        delay_spans = _clip_spans(delay_spans)
+        ci_times, ci_values = _clip_series(ci_times, ci_values)
+        wait_x, wait_avg = _clip_series(wait_x, wait_avg)
+        q_times, q_lens = _clip_series(q_times, q_lens)
+
+        # Track x extents to harmonize Matplotlib and Plotly ranges.
+        x_extents = []
+        for seg in usage_segments:
+            x_extents.extend([seg['start'], seg['end']])
+        for span in delay_spans:
+            x_extents.extend(span)
+        x_extents.extend(ci_times)
+        x_extents.extend(wait_x)
+        x_extents.extend(q_times)
+        plotted_x_min = window_start if window_start is not None else (min(x_extents) if x_extents else None)
+        plotted_x_max = window_end if window_end is not None else (max(x_extents) if x_extents else None)
+
+        def _seconds_to_datetimes(values):
+            return [calendar_start_dt + timedelta(seconds=float(v)) for v in values]
+
+        plotly_ci_times = _seconds_to_datetimes(ci_times) if ci_times else []
+        plotly_queue_times = _seconds_to_datetimes(q_times) if q_times else []
+        plotly_delay_spans = [
+            (
+                calendar_start_dt + timedelta(seconds=float(span[0])),
+                calendar_start_dt + timedelta(seconds=float(span[1])),
+            )
+            for span in delay_spans
+        ] if delay_spans else []
+
+        handles = []
+        labels = []
+
+        ax_ci.set_xlabel('Timestamp')
+        ax_ci.xaxis.set_major_locator(MultipleLocator(4 * 3600))
+
+        def _format_tick(x_val, _pos=None):
+            try:
+                dt = calendar_start_dt + timedelta(seconds=float(x_val))
+            except Exception:
+                return ""
+            return dt.strftime("%Y-%m-%d\n%H:%M")
+
+        ax_ci.xaxis.set_major_formatter(FuncFormatter(_format_tick))
+        ax_ci.tick_params(axis='x', rotation=35)
+
+        ci_line = None
+        if display_carbon_itensity and ci_times and ci_values:
             ci_line, = ax_ci.plot(ci_times, ci_values, color='seagreen', label='Carbon Intensity')
             ax_ci.set_ylabel('gCO2/kWh', color='seagreen')
+            handles.append(ci_line)
+            labels.append('Carbon Intensity')
 
         # Used nodes on first right axis as duration bars per segment
         ax_proc = ax_ci.twinx()
-        proc_bars = []
+        job_counts = [
+            seg['unique_jobs']
+            for seg in usage_segments
+            if seg['end'] > seg['start'] and seg['used_nodes'] > 0
+        ]
+        min_jobs = min(job_counts) if job_counts else 0
+        max_jobs = max(job_counts) if job_counts else 0
+        job_cmap = cm.get_cmap()
+
+        def _job_color(count: int):
+            if max_jobs == min_jobs:
+                norm = 0.5 if max_jobs > 0 else 0.0
+            else:
+                norm = (count - min_jobs) / (max_jobs - min_jobs)
+            return job_cmap(np.clip(norm, 0.0, 1.0))
+
+        plotly_usage_centers: List[datetime] = []
+        plotly_usage_widths_ms: List[float] = []
+        plotly_usage_heights: List[float] = []
+        plotly_usage_colors: List[str] = []
+
+        first_bar_patch = None
         for seg in usage_segments:
             width = max(0, seg['end'] - seg['start'])
-            if width == 0:
+            if width <= 0 or seg['used_nodes'] <= 0:
                 continue
-            bar = ax_proc.bar(seg['start'], seg['used_nodes'], width=width, align='edge', alpha=0.25, color='royalblue')
-            proc_bars.append(bar)
+            rgba = _job_color(seg.get('unique_jobs', 0))
+            bar = ax_proc.bar(
+                seg['start'],
+                seg['used_nodes'],
+                width=width,
+                align='edge',
+                color=[rgba],
+                edgecolor='none',
+                alpha=0.7,
+            )
+            if first_bar_patch is None and bar:
+                first_bar_patch = bar[0]
+
+            mid_point = seg['start'] + width / 2.0
+            plotly_usage_centers.append(calendar_start_dt + timedelta(seconds=mid_point))
+            plotly_usage_widths_ms.append(width * 1000.0)
+            plotly_usage_heights.append(seg['used_nodes'])
+            plotly_usage_colors.append(mcolors.to_hex(rgba))
+
         ax_proc.set_ylabel('Nodes', color='royalblue')
+        if first_bar_patch is not None:
+            handles.append(first_bar_patch)
+            labels.append('Used Nodes (color ∝ unique jobs)')
 
         # Add rolling wait and queue length lines on a third axis (offset on right)
         ax_queue = None
@@ -710,9 +939,11 @@ class Validation():
             ax_queue = ax_ci.twinx()
             ax_queue.spines['right'].set_position(('axes', 1.1))
             # Step-like appearance for queue (holds until next change)
-            queue_line, = ax_queue.plot(q_times, q_lens, color='purple', drawstyle='steps-post', label='Queue Length')
-            ax_queue.set_ylabel('Queue Length', color='purple')
+            queue_line, = ax_queue.plot(q_times, q_lens, color='red', drawstyle='steps-post', label='Queue Length')
+            ax_queue.set_ylabel('Queue Length', color='red')
             ax_queue.set_ylim(0, max(q_lens) + 1)
+            handles.append(queue_line)
+            labels.append('Queue Length')
 
         # Shade skipped (delay) segments on the carbon axis
         added_label = False
@@ -726,19 +957,15 @@ class Validation():
                     added_label = True
 
         # Legend
-        labels = ['Carbon Intensity']
-        handles = [ci_line]
-        if proc_bars:
-            handles.append(proc_bars[0])
-            labels.append('Used Nodes')
-        if queue_line is not None:
-            labels.append('Queue Length')
-            handles.append(queue_line)
         if added_label:
             from matplotlib.patches import Patch
             handles.append(Patch(facecolor='gray', alpha=0.15, label='Skipped'))
             labels.append('Skipped')
-        ax_ci.legend(handles, labels, loc='upper right')
+        if handles:
+            ax_ci.legend(handles, labels, loc='upper right')
+
+        if plotted_x_min is not None and plotted_x_max is not None and plotted_x_max > plotted_x_min:
+            ax_ci.set_xlim(plotted_x_min, plotted_x_max)
 
         use_plotly = panhandler is None or zoom_factory is None
 
@@ -759,44 +986,62 @@ class Validation():
                 fig_i = make_subplots(specs=[[{"secondary_y": True}]])
 
                 # Carbon intensity on primary y
-                fig_i.add_trace(
-                    go.Scatter(x=ci_times, y=ci_values, name='Carbon Intensity', line=dict(color='seagreen')),
-                    secondary_y=False,
-                )
+                if display_carbon_itensity and plotly_ci_times and ci_values:
+                    fig_i.add_trace(
+                        go.Scatter(x=plotly_ci_times, y=ci_values, name='Carbon Intensity', line=dict(color='seagreen')),
+                        secondary_y=False,
+                    )
 
                 # Queue length on secondary y (right), step line
-                if q_times and q_lens:
+                if plotly_queue_times and q_lens:
                     fig_i.add_trace(
-                        go.Scatter(x=q_times, y=q_lens, name='Queue Length', line=dict(color='purple'), line_shape='hv'),
+                        go.Scatter(x=plotly_queue_times, y=q_lens, name='Queue Length', line=dict(color='purple'), line_shape='hv'),
                         secondary_y=True,
                     )
 
                 # Used nodes as wide bars (on secondary y to avoid scale issues)
-                if usage_segments:
-                    x_vals = [seg['start'] for seg in usage_segments]
-                    y_vals = [seg['used_nodes'] for seg in usage_segments]
-                    widths = [max(0, seg['end'] - seg['start']) for seg in usage_segments]
+                if plotly_usage_centers:
                     fig_i.add_trace(
-                        go.Bar(x=x_vals, y=y_vals, width=widths, name='Used Nodes', marker_color='royalblue', opacity=0.3),
+                        go.Bar(
+                            x=plotly_usage_centers,
+                            y=plotly_usage_heights,
+                            width=plotly_usage_widths_ms,
+                            name='Used Nodes',
+                            marker_color=plotly_usage_colors,
+                            opacity=0.7,
+                        ),
                         secondary_y=True,
                     )
 
+                plotted_range = None
+                if plotted_x_min is not None and plotted_x_max is not None and plotted_x_max > plotted_x_min:
+                    plotted_range = [
+                        calendar_start_dt + timedelta(seconds=plotted_x_min),
+                        calendar_start_dt + timedelta(seconds=plotted_x_max),
+                    ]
+
                 # Shade delay spans
                 if shade_delays and delay_spans:
-                    spans_iter = delay_spans
+                    spans_iter = plotly_delay_spans
                     if isinstance(max_delay_spans, int) and max_delay_spans is not None and max_delay_spans >= 0:
-                        spans_iter = delay_spans[:max_delay_spans]
-                    for s, e in spans_iter:
-                        if e > s:
-                            fig_i.add_shape(type="rect", x0=s, x1=e, y0=0, y1=1, xref='x', yref='paper', fillcolor='gray', opacity=0.15, line_width=0)
+                        spans_iter = spans_iter[:max_delay_spans]
+                    for s_dt, e_dt in spans_iter:
+                        if e_dt > s_dt:
+                            fig_i.add_shape(type="rect", x0=s_dt, x1=e_dt, y0=0, y1=1, xref='x', yref='paper', fillcolor='gray', opacity=0.15, line_width=0)
 
                 fig_i.update_layout(
                     title_text='Episode Timeseries Overview',
                     barmode='overlay',
                     legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
                 )
-                fig_i.update_xaxes(title_text='Time (s)')
-                fig_i.update_yaxes(title_text='gCO2/kWh', secondary_y=False)
+                fig_i.update_xaxes(
+                    title_text='Timestamp',
+                    range=plotted_range,
+                    dtick=14400000,
+                    tickformat="%Y-%m-%d<br>%H:%M",
+                )
+                if display_carbon_itensity:
+                    fig_i.update_yaxes(title_text='gCO2/kWh', secondary_y=False)
                 fig_i.update_yaxes(title_text='Queue / Nodes', secondary_y=True)
 
                 if debug:
@@ -822,11 +1067,11 @@ class Validation():
 
 def val_objective(avg_wait,total_carbon_emissions,eta):
     fcfs_wait_baseline = 6241.40
-    best_carbon = 18596164.61
+    best_carbon = 8872132
 
     """     return eta*(fcfs_wait_baseline/avg_wait)+(1-eta)*(best_carbon/total_carbon_emissions) """
 
-    return eta*avg_wait/fcfs_wait_baseline + total_carbon_emissions/best_carbon * (1-eta)
+    return eta*(avg_wait/fcfs_wait_baseline) + (total_carbon_emissions/best_carbon) * (1-eta)
 
     """
 

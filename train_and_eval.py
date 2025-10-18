@@ -163,6 +163,8 @@ def _evaluate_best_checkpoint(seed_dir: Path, model_path: Path) -> Dict[str, Any
             debug=False,
             checkpoint_dir=model_path.parent,
         )
+
+        print("Metrics from the fina test of train and eval: ", metrics)
     except Exception as exc:
         print(f"[train_and_eval] Test evaluation failed for '{model_path}': {exc}")
         return {}
