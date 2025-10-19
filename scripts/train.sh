@@ -14,7 +14,7 @@ etas=(0.75 0.5 0.25 0.01 0.001 0.0001)
 
 # Select eta based on the SLURM array ID
 eta=${etas[$SLURM_ARRAY_TASK_ID-1]}
-config="config_file/opt_eta_$eta.ini"
+config="config_file/d_opt_eta_$eta.ini"
 
 echo "Running with eta=$eta"
 
