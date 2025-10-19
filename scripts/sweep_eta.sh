@@ -16,7 +16,7 @@ source venv/bin/activate
 
 
 # Define eta values
-etas=(0.75 0.5 0.25 0.01 0.001 0.0001)
+etas=(0.75 0.5 0.25 0.01 0.001)
 
 # Select eta based on the SLURM array ID
 eta=${etas[$SLURM_ARRAY_TASK_ID-1]}
@@ -28,7 +28,7 @@ export WANDB_API_KEY="418d10fc7ab5763a7e2ec89f2dc5aed81c38bd8e"
 LOGFILE="run_$(date +%Y%m%d_%H%M%S).log"
 
 # Run your Python sweep script and save output to log
-python sweep_multi_env.py --sweep sweep_config.yaml --count 50 --eta "$eta" | tee "$LOGFILE"
+python sweep_multi_env.py --sweep sparse_sweep_config.yaml --count 50 --eta "$eta" | tee "$LOGFILE"
 
 # Deactivate virtual environment
 deactivate

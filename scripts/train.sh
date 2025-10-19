@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=sweep
-#SBATCH --array=1-4%4           
+#SBATCH --array=1-6%6           
 #SBATCH --cpus-per-task=16
-#SBATCH --time=5:00:00
+#SBATCH --time=7:00:00
 
 export WANDB_API_KEY="418d10fc7ab5763a7e2ec89f2dc5aed81c38bd8e"
 # Define log file (timestamped)
@@ -10,7 +10,7 @@ LOGFILE="run_$(date +%Y%m%d_%H%M%S).log"
 
 
 # Define eta values
-etas=(0.75 0.5 0.25 0.01 )
+etas=(0.75 0.5 0.25 0.01 0.001 0.0001)
 
 # Select eta based on the SLURM array ID
 eta=${etas[$SLURM_ARRAY_TASK_ID-1]}
@@ -22,7 +22,7 @@ echo "Running with eta=$eta"
 source venv/bin/activate
 
 # Run the Python script with the chosen eta
-python train_and_eval.py --config $config --seeds 5 --total-timesteps 1500000  | tee "$LOGFILE"
+python train_and_eval.py --config $config --seeds 5 --total-timesteps 500000  | tee "$LOGFILE"
 
 # Deactivate environment
 deactivate
