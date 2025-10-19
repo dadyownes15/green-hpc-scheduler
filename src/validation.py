@@ -1,6 +1,6 @@
 from src.baseline import Baseline, PercentileBaseline, FCFSBaseline, FCFSEasyBackfillBaseline
 from src.hpc_env import HPCenv
-from src.metrics import compute_average_wait, compute_carbon_emissions
+from src.metrics import collect_wait_times, compute_average_wait, compute_carbon_emissions
 from src.utils import VideoGenerator, get_config_as_dict, mask_fn
 from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.ppo_mask import MaskablePPO
@@ -17,7 +17,7 @@ import math
 import torch
 
 from datetime import datetime, timedelta
-from typing import List, Type, Optional, Sequence
+from typing import Any, List, Type, Optional, Sequence
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.cm as cm
@@ -444,6 +444,153 @@ class Validation():
         return processed_stats
 
 
+    def wait_time_distribution(
+        self,
+        model_stats: dict[str, dict[str, list]],
+        baseline_stats: dict[str, dict[str, list]],
+        model_key: Optional[str] = None,
+        baseline_key: Optional[str] = None,
+        bins: int = 50,
+        normalize: bool = True,
+        value_range: Optional[tuple[float, float]] = None,
+    ) -> dict[str, Any]:
+        """
+        Build comparable wait-time distributions for a model and a baseline.
+
+        Args:
+            model_stats: Stats as returned by `validate_model` or `validate_policy`.
+            baseline_stats: Stats as returned by `run_baselines`.
+            model_key: Optional key selector for `model_stats`. Defaults to the first entry.
+            baseline_key: Optional key selector for `baseline_stats`. Defaults to the first entry.
+            bins: Number of histogram bins to compute.
+            normalize: If True, histogram counts are reported as probability densities.
+            value_range: Optional (min, max) in seconds to clamp the histogram domain.
+
+        Returns:
+            Dictionary with per-policy histogram payloads plus shared bin edges.
+        """
+
+        def _resolve_entry(
+            stats_map: dict[str, dict[str, list]],
+            name: str,
+            preferred_key: Optional[str],
+        ) -> tuple[str, dict[str, list]]:
+            if not stats_map:
+                raise ValueError(f"{name} stats are empty; rerun evaluation before building distributions.")
+            candidate_key = preferred_key or next(iter(stats_map.keys()))
+            if candidate_key not in stats_map:
+                available = ", ".join(str(k) for k in stats_map.keys())
+                raise KeyError(f"{name} '{candidate_key}' not found. Available keys: {available}")
+            return candidate_key, stats_map[candidate_key]
+
+        def _collect_waits(stats_entry: dict[str, list]) -> list[float]:
+            histories = stats_entry.get("job_scheduled_history") or []
+            waits: list[float] = []
+            for history in histories:
+                waits.extend(collect_wait_times(history))
+            return waits
+
+        model_id, model_entry = _resolve_entry(model_stats, "model", model_key)
+        baseline_id, baseline_entry = _resolve_entry(baseline_stats, "baseline", baseline_key)
+
+        model_waits = _collect_waits(model_entry)
+        baseline_waits = _collect_waits(baseline_entry)
+        combined_waits = model_waits + baseline_waits
+
+        if value_range is not None:
+            histogram_range = (float(value_range[0]), float(value_range[1]))
+        elif combined_waits:
+            min_wait = float(min(combined_waits))
+            max_wait = float(max(combined_waits))
+            if math.isclose(min_wait, max_wait):
+                max_wait = min_wait + 1.0
+            histogram_range = (min_wait, max_wait)
+        else:
+            histogram_range = None
+
+        if histogram_range is None:
+            # No data available; return empty payloads.
+            empty_payload = {
+                "wait_times": [],
+                "hist_counts": [],
+                "cdf_x": [],
+                "cdf_y": [],
+                "summary": {"count": 0},
+            }
+            return {
+                "bin_edges": [],
+                model_id: empty_payload,
+                baseline_id: empty_payload,
+                "metadata": {
+                    "bins": int(bins),
+                    "normalize": bool(normalize),
+                    "range": None,
+                },
+            }
+
+        counts_model, bin_edges = np.histogram(
+            model_waits, bins=bins, range=histogram_range, density=normalize
+        )
+        counts_baseline, _ = np.histogram(
+            baseline_waits, bins=bins, range=histogram_range, density=normalize
+        )
+
+        def _summary(wait_values: list[float]) -> dict[str, float | int]:
+            if not wait_values:
+                return {
+                    "count": 0,
+                    "mean": 0.0,
+                    "median": 0.0,
+                    "min": 0.0,
+                    "max": 0.0,
+                    "p90": 0.0,
+                    "p95": 0.0,
+                }
+            arr = np.asarray(wait_values, dtype=float)
+            return {
+                "count": int(arr.size),
+                "mean": float(np.mean(arr)),
+                "median": float(np.median(arr)),
+                "min": float(np.min(arr)),
+                "max": float(np.max(arr)),
+                "p90": float(np.percentile(arr, 90)),
+                "p95": float(np.percentile(arr, 95)),
+            }
+
+        def _cdf(wait_values: list[float]) -> tuple[list[float], list[float]]:
+            if not wait_values:
+                return [], []
+            arr = np.sort(np.asarray(wait_values, dtype=float))
+            n = arr.size
+            y_vals = np.arange(1, n + 1, dtype=float) / float(n)
+            return arr.tolist(), y_vals.tolist()
+
+        model_cdf_x, model_cdf_y = _cdf(model_waits)
+        baseline_cdf_x, baseline_cdf_y = _cdf(baseline_waits)
+
+        return {
+            "bin_edges": bin_edges.tolist(),
+            model_id: {
+                "wait_times": model_waits,
+                "hist_counts": counts_model.tolist(),
+                "cdf_x": model_cdf_x,
+                "cdf_y": model_cdf_y,
+                "summary": _summary(model_waits),
+            },
+            baseline_id: {
+                "wait_times": baseline_waits,
+                "hist_counts": counts_baseline.tolist(),
+                "cdf_x": baseline_cdf_x,
+                "cdf_y": baseline_cdf_y,
+                "summary": _summary(baseline_waits),
+            },
+            "metadata": {
+                "bins": int(bins),
+                "normalize": bool(normalize),
+                "range": list(histogram_range),
+            },
+        }
+
 
     @staticmethod
     def _action_log_from_trace(action_trace):
@@ -512,7 +659,7 @@ class Validation():
     def _compute_timeseries_from_trace(
         self,
         action_trace,
-        mode: str = 'validation',
+        mode: str | None = None,
         rolling_window: int = 10,
         calendar_mode: str | None = None,
     ):
@@ -541,7 +688,11 @@ class Validation():
                 return key
             raise ValueError("calendar split must be one of {'validation', 'val', 'test', 'training', 'train'}.")
 
-        chosen_calendar_mode = calendar_mode or mode or 'validation'
+        resolved_mode = mode or 'validation'
+        if not isinstance(resolved_mode, str):
+            raise ValueError("mode must be a string when provided to _compute_timeseries_from_trace.")
+        resolved_mode = resolved_mode.lower()
+        chosen_calendar_mode = calendar_mode or resolved_mode
         normalized_calendar = _normalize_split(chosen_calendar_mode)
         calendar_start_dt = CarbonIntensity.SPLIT_WINDOWS[normalized_calendar][0]
 
@@ -556,7 +707,7 @@ class Validation():
         # Carbon setup
         ci = CarbonIntensity(green_win_length=24, normalize=False)
         try:
-            ci.set_mode(mode)
+            ci.set_mode(resolved_mode)
         except Exception:
             ci.set_mode('validation')
             normalized_calendar = 'validation'
@@ -701,7 +852,7 @@ class Validation():
         action_trace,
         name: str = "timeseries",
         output_dir: str = "renderings",
-        mode: str = 'validation',
+        mode: str | None = None,
         rolling_window: int = 10,
         shade_delays: bool = True,
         max_delay_spans: int | None = None,
@@ -748,9 +899,14 @@ class Validation():
         png_path = os.path.join(output_dir, f"{name}.png")
 
         selected_trace = self._select_episode_trace(action_trace, episode_index=episode_index)
+        resolved_mode = (mode or getattr(self, 'mode', None) or 'validation')
+        if isinstance(resolved_mode, str):
+            resolved_mode = resolved_mode.lower()
+        else:
+            raise ValueError("mode must be a string when provided or available on the Validation instance.")
         usage_segments, delay_spans, ci_times, ci_values, wait_x, wait_avg, q_times, q_lens, calendar_start_dt = self._compute_timeseries_from_trace(
             selected_trace,
-            mode=mode,
+            mode=resolved_mode,
             rolling_window=rolling_window,
             calendar_mode=calendar_split,
         )

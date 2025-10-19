@@ -99,12 +99,14 @@ class HPCenv(Env):
         self.carbon_intensity.set_mode(self.mode)
         self.total_processors = self.loads.max_procs
 
-
+        
+        
+        
         if mode == "training" or "validation":
             self.cutoff_timestamp = 14291716.0
         if mode == "test":
             self.cutoff_timestamp = 37813187.0 
-        
+    
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]
         assert self.reward_type in ["wait_abs_ems", "wait_abs_ems_clip","wait_abs_ems_ci_clip","bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems","bd_abs_ems_clip", "delay_queue_penalty_abs_ems", "delay_queue_penalty_abs_ems_user_ci"]
@@ -616,6 +618,7 @@ class HPCenv(Env):
             # Mask all delay actions: indices from max_queue_size to end
             mask[self.config_dict['max_queue_size']:] = False
         """
+       
 
         if self.current_timestamp - self.time_offset > self.cutoff_timestamp:
             print("Masking delay")
@@ -623,6 +626,8 @@ class HPCenv(Env):
                 mask[idx] = False 
 
         return mask
+                
+       
 
     def get_reward(self,scheduled_job : Job | None, current_timestamp, time_advanced: int = 0, was_delay: bool = False):
         """
@@ -789,7 +794,6 @@ class HPCenv(Env):
 
                 power_usage = scheduled_job.power_usage
                 carbon_emission = self.carbon_intensity.getCarbonEmissions(power_usage, start_time, end_time)
-                actual_wait = max(0, current_timestamp - scheduled_job.submit_time)
                 components["carbon"] = - carbon_emission * self.carbon_reward_booster * (1-self.eta)
                
             reward = components["wait"] + components["carbon"]

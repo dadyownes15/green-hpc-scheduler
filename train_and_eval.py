@@ -257,8 +257,8 @@ def train_and_eval(args: argparse.Namespace) -> None:
                 vec_env_cls=SubprocVecEnv,
                 seed=cfg_seed["seed"],
             )
-
-            env = VecNormalize(venv=env)
+            
+            env = VecNormalize(venv=env, norm_obs=False)
 
             policy_kwargs = _build_policy_kwargs(cfg_seed)
             tensorboard_dir = seed_dir / "tensorboard"
@@ -294,7 +294,7 @@ def train_and_eval(args: argparse.Namespace) -> None:
             best_cb = BestValidationCallback(
                 config_dict=cfg_seed,
                 save_path=best_model_path,
-                eval_freq=max(1, cfg_seed["n_steps"]*2),
+                eval_freq=max(1, cfg_seed["n_steps"]*10),
                 greater_is_better=False,
                 n_eval_episodes=cfg_seed.get("validation_episodes", 1),
                 run=run,

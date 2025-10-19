@@ -50,6 +50,16 @@ class PercentileBaseline(Baseline):
             carbon_start_idx = queue_features_len + running_features_len
             
             current_carbon_intensity = obs[carbon_start_idx]
+            carbon_intensity_source = getattr(self.env, "carbon_intensity", None)
+            if (
+                carbon_intensity_source is not None
+                and getattr(carbon_intensity_source, "normalize", False)
+            ):
+                # Observations are z-scored; convert back to physical units before comparing to raw cutoffs.
+                current_carbon_intensity = (
+                    current_carbon_intensity * carbon_intensity_source.std
+                    + carbon_intensity_source.mean
+                )
             
             forecast_start_idx = carbon_start_idx + self.config_dict['green_feature_constant']
             carbon_forecast = obs[forecast_start_idx:]
