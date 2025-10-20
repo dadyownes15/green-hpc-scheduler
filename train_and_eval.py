@@ -294,7 +294,7 @@ def train_and_eval(args: argparse.Namespace) -> None:
             best_cb = BestValidationCallback(
                 config_dict=cfg_seed,
                 save_path=best_model_path,
-                eval_freq=max(1, cfg_seed["n_steps"]*10),
+                eval_freq=max(1, cfg_seed["n_steps"]*3),
                 greater_is_better=False,
                 n_eval_episodes=cfg_seed.get("validation_episodes", 1),
                 run=run,
