@@ -100,12 +100,10 @@ class HPCenv(Env):
         self.total_processors = self.loads.max_procs
 
         
-        
-        
         if mode == "training" or "validation":
             self.cutoff_timestamp = 14291716.0
         if mode == "test":
-            self.cutoff_timestamp = 37813187.0 
+            self.cutoff_timestamp = 77813187.0 
     
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]

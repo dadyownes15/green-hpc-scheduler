@@ -14,7 +14,7 @@ etas=(0.75 0.5 0.25 0.01)
 
 # Select eta based on the SLURM array ID
 eta=${etas[$SLURM_ARRAY_TASK_ID-1]}
-config="config_file/d_opt_eta_$eta.ini"
+config="config_file/s_opt_eta_$eta.ini"
 
 echo "Running with eta=$eta"
 
@@ -22,7 +22,7 @@ echo "Running with eta=$eta"
 source venv/bin/activate
 
 # Run the Python script with the chosen eta
-python train_and_eval.py --config $config --seeds 5 --total-timesteps 500000  | tee "$LOGFILE"
+python train_and_eval.py --config $config --seeds 5 --total-timesteps 300000  | tee "$LOGFILE"
 
 # Deactivate environment
 deactivate
