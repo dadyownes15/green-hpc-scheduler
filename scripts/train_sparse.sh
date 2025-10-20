@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=sweep
-#SBATCH --array=1-1%1           
+#SBATCH --array=1-3%3           
 #SBATCH --cpus-per-task=16
-#SBATCH --time=7:00:00
+#SBATCH --time=32:00:00
 
 export WANDB_API_KEY="418d10fc7ab5763a7e2ec89f2dc5aed81c38bd8e"
 # Define log file (timestamped)
@@ -10,7 +10,7 @@ LOGFILE="run_$(date +%Y%m%d_%H%M%S).log"
 
 
 # Define eta values
-etas=(0.50)
+etas=(0.75 0.50 0.25 0.01)
 
 # Select eta based on the SLURM array ID
 eta=${etas[$SLURM_ARRAY_TASK_ID-1]}

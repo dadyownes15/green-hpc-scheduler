@@ -1,6 +1,6 @@
 from src.baseline import Baseline, PercentileBaseline, FCFSBaseline, FCFSEasyBackfillBaseline
 from src.hpc_env import HPCenv
-from src.metrics import collect_wait_times, compute_average_wait, compute_carbon_emissions
+from src.metrics import compute_average_wait, compute_carbon_emissions
 from src.utils import VideoGenerator, get_config_as_dict, mask_fn
 from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.ppo_mask import MaskablePPO
@@ -13,7 +13,6 @@ import json
 import os
 import numpy as np
 import collections
-import math
 import torch
 
 from datetime import datetime, timedelta
@@ -24,6 +23,8 @@ import matplotlib.cm as cm
 from matplotlib import colors as mcolors
 from pathlib import Path
 from matplotlib.ticker import FuncFormatter, MultipleLocator
+
+from src import analysis as analysis_utils
 
 class Validation():
     """
@@ -224,17 +225,17 @@ class Validation():
         return self
 
        
-    def run_baselines(self, n_eval_episodes, mode, debug = False):
+    def run_baselines(self, n_eval_episodes, mode, debug = False, run_percentile = True):
 
         baselines = [
 
             FCFSBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
 
                     ]
-        
-        for percentile in [10, 25, 50,60,70,80,90,95,97]:
-            baselines.append(PercentileBaseline(config_dict=self.config_dict, percentile = percentile, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)))
-            
+        if run_percentile:
+            for percentile in [10, 25, 50,60,70,80,90,95,97]:
+                baselines.append(PercentileBaseline(config_dict=self.config_dict, percentile = percentile, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)))
+                
         stats_dict = {}
         for baseline in baselines:
             stats_dict[baseline.name] = {
@@ -450,147 +451,125 @@ class Validation():
         baseline_stats: dict[str, dict[str, list]],
         model_key: Optional[str] = None,
         baseline_key: Optional[str] = None,
-        bins: int = 50,
+        bins: int | Sequence[float] | str = "fd",
         normalize: bool = True,
         value_range: Optional[tuple[float, float]] = None,
     ) -> dict[str, Any]:
-        """
-        Build comparable wait-time distributions for a model and a baseline.
-
-        Args:
-            model_stats: Stats as returned by `validate_model` or `validate_policy`.
-            baseline_stats: Stats as returned by `run_baselines`.
-            model_key: Optional key selector for `model_stats`. Defaults to the first entry.
-            baseline_key: Optional key selector for `baseline_stats`. Defaults to the first entry.
-            bins: Number of histogram bins to compute.
-            normalize: If True, histogram counts are reported as probability densities.
-            value_range: Optional (min, max) in seconds to clamp the histogram domain.
-
-        Returns:
-            Dictionary with per-policy histogram payloads plus shared bin edges.
-        """
-
-        def _resolve_entry(
-            stats_map: dict[str, dict[str, list]],
-            name: str,
-            preferred_key: Optional[str],
-        ) -> tuple[str, dict[str, list]]:
-            if not stats_map:
-                raise ValueError(f"{name} stats are empty; rerun evaluation before building distributions.")
-            candidate_key = preferred_key or next(iter(stats_map.keys()))
-            if candidate_key not in stats_map:
-                available = ", ".join(str(k) for k in stats_map.keys())
-                raise KeyError(f"{name} '{candidate_key}' not found. Available keys: {available}")
-            return candidate_key, stats_map[candidate_key]
-
-        def _collect_waits(stats_entry: dict[str, list]) -> list[float]:
-            histories = stats_entry.get("job_scheduled_history") or []
-            waits: list[float] = []
-            for history in histories:
-                waits.extend(collect_wait_times(history))
-            return waits
-
-        model_id, model_entry = _resolve_entry(model_stats, "model", model_key)
-        baseline_id, baseline_entry = _resolve_entry(baseline_stats, "baseline", baseline_key)
-
-        model_waits = _collect_waits(model_entry)
-        baseline_waits = _collect_waits(baseline_entry)
-        combined_waits = model_waits + baseline_waits
-
-        if value_range is not None:
-            histogram_range = (float(value_range[0]), float(value_range[1]))
-        elif combined_waits:
-            min_wait = float(min(combined_waits))
-            max_wait = float(max(combined_waits))
-            if math.isclose(min_wait, max_wait):
-                max_wait = min_wait + 1.0
-            histogram_range = (min_wait, max_wait)
-        else:
-            histogram_range = None
-
-        if histogram_range is None:
-            # No data available; return empty payloads.
-            empty_payload = {
-                "wait_times": [],
-                "hist_counts": [],
-                "cdf_x": [],
-                "cdf_y": [],
-                "summary": {"count": 0},
-            }
-            return {
-                "bin_edges": [],
-                model_id: empty_payload,
-                baseline_id: empty_payload,
-                "metadata": {
-                    "bins": int(bins),
-                    "normalize": bool(normalize),
-                    "range": None,
-                },
-            }
-
-        counts_model, bin_edges = np.histogram(
-            model_waits, bins=bins, range=histogram_range, density=normalize
-        )
-        counts_baseline, _ = np.histogram(
-            baseline_waits, bins=bins, range=histogram_range, density=normalize
+        return analysis_utils.wait_time_distribution(
+            model_stats=model_stats,
+            baseline_stats=baseline_stats,
+            model_key=model_key,
+            baseline_key=baseline_key,
+            bins=bins,
+            normalize=normalize,
+            value_range=value_range,
         )
 
-        def _summary(wait_values: list[float]) -> dict[str, float | int]:
-            if not wait_values:
-                return {
-                    "count": 0,
-                    "mean": 0.0,
-                    "median": 0.0,
-                    "min": 0.0,
-                    "max": 0.0,
-                    "p90": 0.0,
-                    "p95": 0.0,
-                }
-            arr = np.asarray(wait_values, dtype=float)
-            return {
-                "count": int(arr.size),
-                "mean": float(np.mean(arr)),
-                "median": float(np.median(arr)),
-                "min": float(np.min(arr)),
-                "max": float(np.max(arr)),
-                "p90": float(np.percentile(arr, 90)),
-                "p95": float(np.percentile(arr, 95)),
-            }
+    def plot_wait_time_distributions(
+        self,
+        series: Sequence[dict[str, Any]],
+        *,
+        kind: str = "pdf",
+        title: Optional[str] = None,
+        figsize: tuple[float, float] = (10.0, 6.0),
+        alpha: float = 0.45,
+        linewidth: float = 2.0,
+        show: bool = False,
+        save_path: str | Path | None = None,
+        ax_hist: Optional[Any] = None,
+        ax_cdf: Optional[Any] = None,
+    ) -> tuple[Any, Optional[Any]]:
+        return analysis_utils.plot_wait_time_distributions(
+            series,
+            kind=kind,
+            title=title,
+            figsize=figsize,
+            alpha=alpha,
+            linewidth=linewidth,
+            show=show,
+            save_path=save_path,
+            ax_hist=ax_hist,
+            ax_cdf=ax_cdf,
+        )
 
-        def _cdf(wait_values: list[float]) -> tuple[list[float], list[float]]:
-            if not wait_values:
-                return [], []
-            arr = np.sort(np.asarray(wait_values, dtype=float))
-            n = arr.size
-            y_vals = np.arange(1, n + 1, dtype=float) / float(n)
-            return arr.tolist(), y_vals.tolist()
+    def plot_wait_time_boxplot(
+        self,
+        series: Sequence[dict[str, Any]],
+        *,
+        title: Optional[str] = None,
+        figsize: tuple[float, float] = (8.0, 5.0),
+        whis: tuple[float, float] | float = (5, 95),
+        showfliers: bool = False,
+        log_scale: bool = True,
+        top_n_points: int = 5,
+        point_size: float = 18.0,
+        point_alpha: float = 0.9,
+        show: bool = False,
+        save_path: str | Path | None = None,
+        ax: Optional[Any] = None,
+    ) -> Any:
+        return analysis_utils.plot_wait_time_boxplot(
+            series,
+            title=title,
+            figsize=figsize,
+            whis=whis,
+            showfliers=showfliers,
+            log_scale=log_scale,
+            top_n_points=top_n_points,
+            point_size=point_size,
+            point_alpha=point_alpha,
+            show=show,
+            save_path=save_path,
+            ax=ax,
+        )
 
-        model_cdf_x, model_cdf_y = _cdf(model_waits)
-        baseline_cdf_x, baseline_cdf_y = _cdf(baseline_waits)
+    def build_wait_size_heatmap(
+        self,
+        raw_stats: dict[str, list],
+        *,
+        key: str | None = None,
+        size_metric: str = "procs",
+        x_bins: int | Sequence[float] | str = 40,
+        y_bins: int | Sequence[float] | str = "fd",
+        x_range: Optional[tuple[float, float]] = None,
+        y_range: Optional[tuple[float, float]] = None,
+        density: bool = False,
+    ) -> dict[str, Any]:
+        return analysis_utils.build_wait_size_heatmap(
+            raw_stats,
+            key=key,
+            size_metric=size_metric,
+            x_bins=x_bins,
+            y_bins=y_bins,
+            x_range=x_range,
+            y_range=y_range,
+            density=density,
+        )
 
-        return {
-            "bin_edges": bin_edges.tolist(),
-            model_id: {
-                "wait_times": model_waits,
-                "hist_counts": counts_model.tolist(),
-                "cdf_x": model_cdf_x,
-                "cdf_y": model_cdf_y,
-                "summary": _summary(model_waits),
-            },
-            baseline_id: {
-                "wait_times": baseline_waits,
-                "hist_counts": counts_baseline.tolist(),
-                "cdf_x": baseline_cdf_x,
-                "cdf_y": baseline_cdf_y,
-                "summary": _summary(baseline_waits),
-            },
-            "metadata": {
-                "bins": int(bins),
-                "normalize": bool(normalize),
-                "range": list(histogram_range),
-            },
-        }
-
+    def plot_wait_size_heatmaps(
+        self,
+        heatmaps: Sequence[dict[str, Any]],
+        *,
+        labels: Optional[Sequence[str]] = None,
+        figsize: tuple[float, float] = (12.0, 5.0),
+        cmap: str = "viridis",
+        log_color: bool = False,
+        share_colorbar: bool = True,
+        title: Optional[str] = None,
+        show: bool = False,
+        save_path: str | Path | None = None,
+    ) -> Any:
+        return analysis_utils.plot_wait_size_heatmaps(
+            heatmaps,
+            labels=labels,
+            figsize=figsize,
+            cmap=cmap,
+            log_color=log_color,
+            share_colorbar=share_colorbar,
+            title=title,
+            show=show,
+            save_path=save_path,
+        )
 
     @staticmethod
     def _action_log_from_trace(action_trace):
@@ -863,6 +842,7 @@ class Validation():
         end_time: float | None = None,
         calendar_split: str | None = None,
         display_carbon_itensity: bool = True,
+        max_queue_length: float | None = None,
     ):
         """
         Renders a segment-based timeseries plot using the action_trace.
@@ -881,6 +861,8 @@ class Validation():
             start_time: Optional lower bound (inclusive) for the time axis.
             end_time: Optional upper bound (inclusive) for the time axis.
             calendar_split: Optional calendar split ('val'/'validation' or 'test') to control date labels.
+            max_queue_length: Optional upper bound for the queue length axis; defaults to automatic scaling.
+                When Plotly output is used this also constrains the shared secondary axis for queue/nodes.
         """
         import time
         from typing import Optional, Tuple
@@ -1091,13 +1073,23 @@ class Validation():
         # Add rolling wait and queue length lines on a third axis (offset on right)
         ax_queue = None
         queue_line = None
+        queue_axis_upper: float | None = None
         if q_times and q_lens:
+            if max_queue_length is not None:
+                try:
+                    queue_axis_upper = float(max_queue_length)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("max_queue_length must be a numeric value or None.") from exc
+                if queue_axis_upper <= 0:
+                    raise ValueError("max_queue_length must be positive when provided.")
+            else:
+                queue_axis_upper = float(max(q_lens) + 1)
             ax_queue = ax_ci.twinx()
             ax_queue.spines['right'].set_position(('axes', 1.1))
             # Step-like appearance for queue (holds until next change)
             queue_line, = ax_queue.plot(q_times, q_lens, color='red', drawstyle='steps-post', label='Queue Length')
             ax_queue.set_ylabel('Queue Length', color='red')
-            ax_queue.set_ylim(0, max(q_lens) + 1)
+            ax_queue.set_ylim(0, queue_axis_upper)
             handles.append(queue_line)
             labels.append('Queue Length')
 
@@ -1198,7 +1190,10 @@ class Validation():
                 )
                 if display_carbon_itensity:
                     fig_i.update_yaxes(title_text='gCO2/kWh', secondary_y=False)
-                fig_i.update_yaxes(title_text='Queue / Nodes', secondary_y=True)
+                queue_axis_kwargs = dict(title_text='Queue / Nodes', secondary_y=True)
+                if queue_axis_upper is not None:
+                    queue_axis_kwargs['range'] = [0, queue_axis_upper]
+                fig_i.update_yaxes(**queue_axis_kwargs)
 
                 if debug:
                     print(f"[render] Built Plotly figure in {time.time() - t0:.3f}s")
