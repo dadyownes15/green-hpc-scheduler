@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=sweep
-#SBATCH --array=1-3%3           
+#SBATCH --array=1-4%4           
 #SBATCH --cpus-per-task=16
 #SBATCH --time=32:00:00
 
