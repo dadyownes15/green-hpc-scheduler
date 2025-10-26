@@ -15,7 +15,7 @@ import matplotlib.patches as patches
 class HPCenv(Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, config_dict, mode = "training", debug=False, name = None, trace_enabled: bool = True):
+    def __init__(self, config_dict, mode = "training", debug=False, name = None, trace_enabled: bool = True, cutoff = True):
         
         self.debug = debug
         self.config_dict = config_dict 
@@ -99,12 +99,13 @@ class HPCenv(Env):
         self.carbon_intensity.set_mode(self.mode)
         self.total_processors = self.loads.max_procs
 
-        
-        if mode == "training" or "validation":
-            self.cutoff_timestamp = 14291716.0
-        if mode == "test":
-            self.cutoff_timestamp = 77813187.0 
-    
+        if cutoff:
+            if mode == "training" or "validation":
+                self.cutoff_timestamp = 14291716.0
+            if mode == "test":
+                self.cutoff_timestamp = 77813187.0 
+        else:
+            self.cutoff_timestamp = float('inf') 
         assert self.config_dict is not None, "Config dict, did not parse"
         assert self.mode in ["training", "validation", "test"]
         assert self.reward_type in ["wait_abs_ems", "wait_abs_ems_clip","wait_abs_ems_ci_clip","bd_abs_ems","wait_relative_ems", "bd_relative_ems","wait_relative_compute_ems","bd_abs_ems_clip", "delay_queue_penalty_abs_ems", "delay_queue_penalty_abs_ems_user_ci"]

@@ -10,6 +10,7 @@ import numpy as np
 import seaborn as sns
 
 from src.metrics import collect_wait_times
+from src.carbon_intensity import CarbonIntensity
 from src.viz_style import PALETTE, finalize, use_house_style
 
 _PROCESSOR_BUCKET_LABELS = ["1", "2-3", "4-7", "8-31", "32-127", "128-255", "256+"]
@@ -164,7 +165,157 @@ __all__ = [
     "build_wait_size_heatmap_for_fcfs",
     "build_wait_size_heatmaps_for_seed_vs_fcfs",
     "plot_wait_size_heatmap",
+    "carbon_intensity_distribution",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Carbon intensity utilities
+
+
+def carbon_intensity_distribution(
+    action_trace: Sequence[Mapping[str, Any]],
+    mode: str,
+    *,
+    bins: int | Sequence[float] | str = "fd",
+    normalize: bool = True,
+    value_range: Optional[Tuple[float, float]] = None,
+) -> Dict[str, Any]:
+    """
+    Build a histogram-style payload capturing carbon intensities when jobs start.
+
+    Args:
+        action_trace: Per-episode action trace where schedule actions contain job start times.
+        mode: Carbon intensity split, one of {"training", "validation", "test"}.
+        bins: Histogram bin specification forwarded to NumPy.
+        normalize: If True, return a density histogram instead of raw counts.
+        value_range: Optional clamp for histogram calculations.
+
+    Returns:
+        Dictionary with bin edges, histogram counts, CDF data, raw intensities, summary stats, and metadata.
+    """
+    if not isinstance(mode, str):
+        raise TypeError("mode must be a string identifying the carbon intensity split.")
+    mode_normalized = mode.lower()
+
+    ci = CarbonIntensity(green_win_length=24, normalize=False)
+    try:
+        ci.set_mode(mode_normalized)
+    except ValueError as exc:
+        raise ValueError("mode must be one of {'training', 'validation', 'test'}.") from exc
+
+    intensities: list[float] = []
+    for entry in action_trace or []:
+        if not hasattr(entry, "get"):
+            raise TypeError("Each action trace entry must provide dict-like access via .get().")
+        if entry.get("action_type") != "schedule":
+            continue
+        start_time = entry.get("timestamp_before")
+        if start_time is None:
+            continue
+        try:
+            start_seconds = float(start_time)
+        except (TypeError, ValueError):
+            continue
+        intensities.append(float(ci.intensity_at(start_seconds)))
+
+    arr = np.asarray(intensities, dtype=float)
+
+    def _serialize_bins(spec: Any) -> Any:
+        if isinstance(spec, (list, tuple, np.ndarray)):
+            return [float(b) for b in np.asarray(spec, dtype=float)]
+        return spec
+
+    def _summary(values: np.ndarray) -> dict[str, float | int]:
+        if values.size == 0:
+            return {
+                "count": 0,
+                "mean": 0.0,
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "p90": 0.0,
+                "p95": 0.0,
+            }
+        return {
+            "count": int(values.size),
+            "mean": float(np.mean(values)),
+            "median": float(np.median(values)),
+            "min": float(np.min(values)),
+            "max": float(np.max(values)),
+            "p90": float(np.percentile(values, 90)),
+            "p95": float(np.percentile(values, 95)),
+        }
+
+    def _cdf(values: np.ndarray) -> tuple[list[float], list[float]]:
+        if values.size == 0:
+            return [], []
+        sorted_vals = np.sort(values)
+        n = sorted_vals.size
+        y_vals = np.arange(1, n + 1, dtype=float) / float(n)
+        return sorted_vals.tolist(), y_vals.tolist()
+
+    bins_meta = _serialize_bins(bins)
+
+    histogram_range: Optional[Tuple[float, float]]
+    if value_range is not None:
+        histogram_range = (float(value_range[0]), float(value_range[1]))
+    elif arr.size:
+        lo = float(np.min(arr))
+        hi = float(np.max(arr))
+        if math.isclose(lo, hi):
+            hi = lo + 1.0
+        histogram_range = (lo, hi)
+    else:
+        histogram_range = None
+
+    if arr.size == 0:
+        if histogram_range is not None:
+            bin_edges = np.histogram_bin_edges(
+                np.linspace(histogram_range[0], histogram_range[1], 2, dtype=float),
+                bins=bins,
+                range=histogram_range,
+            )
+            if bin_edges.size <= 1:
+                center = histogram_range[0]
+                bin_edges = np.array([center - 0.5, center + 0.5], dtype=float)
+            counts = np.zeros(bin_edges.size - 1, dtype=float)
+            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+        else:
+            bin_edges = np.array([], dtype=float)
+            counts = np.array([], dtype=float)
+            bin_centers = np.array([], dtype=float)
+        cdf_x, cdf_y = [], []
+    else:
+        hist_kwargs: dict[str, Any] = {"bins": bins}
+        if histogram_range is not None:
+            hist_kwargs["range"] = histogram_range
+        bin_edges = np.histogram_bin_edges(arr, **hist_kwargs)
+        if bin_edges.size <= 1:
+            center = float(arr[0])
+            bin_edges = np.array([center - 0.5, center + 0.5], dtype=float)
+        counts, _ = np.histogram(arr, bins=bin_edges, density=normalize)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+        if normalize:
+            counts = np.nan_to_num(counts, nan=0.0, posinf=0.0, neginf=0.0)
+        cdf_x, cdf_y = _cdf(arr)
+
+    payload = {
+        "bin_edges": bin_edges.tolist(),
+        "hist_counts": counts.tolist(),
+        "bin_centers": bin_centers.tolist(),
+        "cdf_x": cdf_x,
+        "cdf_y": cdf_y,
+        "intensities": arr.tolist(),
+        "summary": _summary(arr),
+        "metadata": {
+            "mode": mode_normalized,
+            "bins": bins_meta,
+            "density": bool(normalize),
+            "range": list(histogram_range) if histogram_range else None,
+        },
+    }
+    return payload
 
 
 # ---------------------------------------------------------------------------
@@ -580,613 +731,193 @@ def plot_wait_time_boxplot(
         plt.show()
 
     return ax
+import json
+import math
+import os
+from typing import Any, Dict, List, Tuple, Union
 
 
-# ---------------------------------------------------------------------------
-# Wait-time vs job-size heatmap utilities
-
-
-def build_wait_size_heatmap(
-    raw_stats: Mapping[str, Any],
-    *,
-    key: Optional[str] = None,
-    size_metric: str = "procs",
-    x_bins: int | Sequence[float] | str = 40,
-    y_bins: int | Sequence[float] | str = "fd",
-    x_range: Optional[Tuple[float, float]] = None,
-    y_range: Optional[Tuple[float, float]] = None,
-    density: bool = False,
-    processor_edges: Optional[Sequence[float]] = None,
-    wait_edges: Optional[Sequence[float]] = None,
-) -> Dict[str, Any]:
+def _load_json_or_jsonl(path: str) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
     """
-    Build a correlation heatmap payload between processor-size bins and wait-time bins.
+    Loads either:
+    - normal JSON (entire file is an object or list), OR
+    - JSONL / NDJSON (one JSON object per line).
 
-    The computation constructs indicator variables for each processor bin and wait bin, then
-    reports the Pearson correlation (phi coefficient) for every processor/wait bin pair.
+    Heuristic:
+    - if extension ends with .jsonl -> parse line by line
+    - else -> try normal json.load
     """
-    waits_arr, sizes_arr = _collect_waits_and_sizes(
-        raw_stats,
-        size_metric=size_metric,
-        key=key,
-    )
+    _, ext = os.path.splitext(path)
 
-    if waits_arr.size == 0 or sizes_arr.size == 0:
-        return {
-            "correlation_matrix": [],
-            "count": 0,
-            "processor_edges": [],
-            "wait_edges": [],
-            "processor_labels": [],
-            "wait_labels": [],
-            "x_label": "Wait Time Bins",
-            "y_label": "Processor Size Bins" if size_metric != "compute_hours" else "Compute Hours Bins",
-            "value_units": "correlation",
-        }
+    if ext.lower() == ".jsonl":
+        runs: List[Dict[str, Any]] = []
+        with open(path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                runs.append(json.loads(line))
+        return runs
 
-    # Determine processor bin edges and labels.
-    if size_metric == "compute_hours":
-        if processor_edges is not None:
-            proc_edges = np.asarray(processor_edges, dtype=float)
-        else:
-            proc_edges = _resolve_compute_hours_edges(
-                sizes_arr,
-                bins=x_bins,
-                value_range=x_range,
-            )
-        proc_labels = [
-            f"{int(round(lo))}+" if hi == proc_edges[-1] else f"{int(round(lo))}–{int(round(hi))}"
-            for lo, hi in zip(proc_edges[:-1], proc_edges[1:])
-        ]
-        proc_values = sizes_arr
-    else:
-        if processor_edges is not None:
-            proc_edges = np.asarray(processor_edges, dtype=float)
-        else:
-            proc_edges = _processor_bucket_edges(len(_PROCESSOR_BUCKET_LABELS))
-        num_labels = proc_edges.size - 1
-        proc_labels = list(_PROCESSOR_BUCKET_LABELS[:num_labels])
-        proc_values = np.array([_processor_bucket(s) for s in sizes_arr], dtype=float)
+    # default: assume .json
+    with open(path, "r") as f:
+        return json.load(f)
 
-    if proc_edges.ndim != 1 or proc_edges.size < 2:
-        raise ValueError("processor_edges must be a 1-D array with at least two values.")
 
-    # Determine wait-time bin edges and labels.
-    if wait_edges is not None:
-        wait_edges_arr = np.asarray(wait_edges, dtype=float)
-    else:
-        wait_edges_arr = _compute_wait_bin_edges(waits_arr, min_bins=6, max_bins=8)
-    if wait_edges_arr.ndim != 1 or wait_edges_arr.size < 2:
-        raise ValueError("wait_edges must be a 1-D array with at least two values.")
-
-    wait_labels = _format_wait_labels(wait_edges_arr)
-
-    counts, _, _ = np.histogram2d(
-        proc_values,
-        waits_arr,
-        bins=(proc_edges, wait_edges_arr),
-        density=False,
-    )
-    total = float(np.sum(counts))
-    if not total:
-        return {
-            "correlation_matrix": [],
-            "count": 0,
-            "processor_edges": proc_edges.tolist(),
-            "wait_edges": wait_edges_arr.tolist(),
-            "processor_labels": proc_labels,
-            "wait_labels": wait_labels,
-            "x_label": "Wait Time Bins",
-            "y_label": "Processor Size Bins" if size_metric != "compute_hours" else "Compute Hours Bins",
-            "value_units": "correlation",
-        }
-
-    proc_probs = np.sum(counts, axis=1) / total
-    wait_probs = np.sum(counts, axis=0) / total
-
-    correlations = np.zeros_like(counts, dtype=float)
-    for i in range(counts.shape[0]):
-        p_i = proc_probs[i]
-        if p_i <= 0.0 or p_i >= 1.0:
+def flatten_dict(d: Dict[str, Any], parent_key: str = "") -> Dict[str, Any]:
+    """
+    Recursively flattens a nested dictionary.
+    Keys are joined with dots, e.g. 'Action Analysis.Total Actions'.
+    Example:
+        {"Action Analysis": {"Total Actions": 5}}
+        -> {"Action Analysis.Total Actions": 5}
+    Lists are skipped.
+    """
+    flat: Dict[str, Any] = {}
+    for k, v in d.items():
+        new_key = f"{parent_key}.{k}" if parent_key else str(k)
+        if isinstance(v, dict):
+            flat.update(flatten_dict(v, new_key))
+        elif isinstance(v, list):
+            # Not aggregating lists here.
             continue
-        for j in range(counts.shape[1]):
-            p_j = wait_probs[j]
-            if p_j <= 0.0 or p_j >= 1.0:
-                continue
-            p_ij = counts[i, j] / total
-            expected = p_i * p_j
-            denom = math.sqrt(p_i * (1.0 - p_i) * p_j * (1.0 - p_j))
-            if denom > 0:
-                correlations[i, j] = (p_ij - expected) / denom
-
-    correlations = np.clip(correlations, -1.0, 1.0)
-
-    y_axis_label = "Compute Hours Bins" if size_metric == "compute_hours" else "Processor Size Bins"
-
-    return {
-        "correlation_matrix": correlations.tolist(),
-        "counts": counts.tolist(),
-        "processor_edges": proc_edges.tolist(),
-        "wait_edges": wait_edges_arr.tolist(),
-        "processor_labels": proc_labels,
-        "wait_labels": wait_labels,
-        "count": int(waits_arr.size),
-        "x_label": "Wait Time Bins",
-        "y_label": y_axis_label,
-        "value_units": "correlation",
-    }
+        else:
+            flat[new_key] = v
+    return flat
 
 
-def plot_wait_size_heatmaps(
-    heatmaps: Sequence[Mapping[str, Any]],
-    *,
-    labels: Optional[Sequence[str]] = None,
-    figsize: tuple[float, float] = (12.0, 5.0),
-    cmap: str = "coolwarm",
-    log_color: bool = False,
-    share_colorbar: bool = True,
-    title: Optional[str] = None,
-    show: bool = False,
-    save_path: str | Path | None = None,
-) -> Any:
+def collect_metrics(runs: List[Dict[str, Any]]) -> Dict[str, List[float]]:
     """
-    Plot one or more correlation heatmaps side-by-side.
+    Builds {metric_name: [values across runs]}.
 
-    Note:
-        ``log_color`` is ignored for correlation plots but retained for API compatibility.
+    Rules:
+    - Include `best_validation_reward` from top level.
+    - Dive into run["test_eval_metrics"] recursively.
+    - Rename "Validation Reward" -> "Objective".
+    - Only keep numeric values.
     """
-    if not heatmaps:
-        raise ValueError("heatmaps is empty.")
-    use_house_style()
-    sns.set_theme(style="white")
+    metrics_across_seeds: Dict[str, List[float]] = {}
 
-    n = len(heatmaps)
-    fig, axes = plt.subplots(1, n, figsize=figsize, squeeze=False)
-    axes = axes[0]
-
-    shared_colorbar = None
-    for i, (ax, hm) in enumerate(zip(axes, heatmaps)):
-        corr_payload = hm.get("correlation_matrix") or hm.get("correlations")
-        if corr_payload is None:
-            raise ValueError("heatmap payload missing 'correlation_matrix'.")
-
-        corr_array = np.asarray(corr_payload, dtype=float)
-        if corr_array.size == 0:
-            ax.set_visible(False)
-            continue
-
-        proc_labels = list(hm.get("processor_labels") or hm.get("y_tick_labels") or [])
-        wait_labels = list(hm.get("wait_labels") or hm.get("x_tick_labels") or [])
-        num_proc, num_wait = corr_array.shape
-        if proc_labels and len(proc_labels) != num_proc:
-            raise ValueError("processor_labels length does not match correlation matrix rows.")
-        if wait_labels and len(wait_labels) != num_wait:
-            raise ValueError("wait_labels length does not match correlation matrix columns.")
-        if not proc_labels:
-            proc_labels = [f"Bin {i}" for i in range(num_proc)]
-        if not wait_labels:
-            wait_labels = [f"Bin {j}" for j in range(num_wait)]
-
-        show_colorbar = share_colorbar and shared_colorbar is None
-        cbar_kws = {"ticks": np.linspace(-1.0, 1.0, 5), "label": "Correlation"} if show_colorbar else None
-        heat = sns.heatmap(
-            corr_array,
-            ax=ax,
-            cmap=cmap,
-            vmin=-1.0,
-            vmax=1.0,
-            center=0.0,
-            annot=True,
-            fmt=".2f",
-            annot_kws={"fontsize": 9},
-            cbar=show_colorbar,
-            square=True,
-            linewidths=0.5,
-            linecolor="white",
-            xticklabels=wait_labels,
-            yticklabels=proc_labels,
-            cbar_kws=cbar_kws,
-        )
-        if show_colorbar:
-            shared_colorbar = heat.collections[0].colorbar
-            shared_colorbar.ax.tick_params(length=0)
-
-        ax.set_xticklabels(wait_labels, rotation=45, ha="right")
-        ax.set_yticklabels(proc_labels, rotation=0)
-        ax.tick_params(length=0)
-        ax.set_xlabel(hm.get("x_label", "Wait Time Bins"))
-        ax.set_ylabel(hm.get("y_label", "Processor Bins"))
-        ax.grid(False)
-
-        if labels and i < len(labels):
-            ax.annotate(
-                labels[i],
-                xy=(0.5, 1.02),
-                xycoords="axes fraction",
-                ha="center",
-                va="bottom",
-                fontsize=12,
-                fontweight="bold",
+    for run in runs:
+        # top level metric
+        if "best_validation_reward" in run:
+            metrics_across_seeds.setdefault("best_validation_reward", []).append(
+                float(run["best_validation_reward"])
             )
 
-    if title:
-        fig.suptitle(title)
+        # test_eval_metrics block
+        tem = run.get("test_eval_metrics", {})
+        flat = flatten_dict(tem)
 
-    if save_path:
-        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
-    first_ax = next((ax for ax in axes if ax.get_visible()), axes[0])
-    finalize(first_ax, outfile=str(save_path) if save_path else None)
-    if show:
-        plt.show()
-    return axes
+        # rename "Validation Reward" to "Objective"
+        renamed_flat: Dict[str, Any] = {}
+        for k, v in flat.items():
+            if k == "Validation Reward":
+                renamed_flat["Objective"] = v
+            else:
+                renamed_flat[k] = v
 
+        # keep numeric values
+        for k, v in renamed_flat.items():
+            if isinstance(v, (int, float)):
+                metrics_across_seeds.setdefault(k, []).append(float(v))
 
-# ---------------------------------------------------------------------------
-# Convenience helpers that operate on Validation outputs
-
-
-def _validate_dir(train_eval_dir: str | Path) -> Path:
-    resolved = Path(train_eval_dir).expanduser().resolve()
-    if not resolved.exists():
-        raise FileNotFoundError(f"Directory '{resolved}' does not exist.")
-    return resolved
+    return metrics_across_seeds
 
 
-def _init_validation(train_eval_dir: str | Path):
-    from src.validation import Validation  # Local import to avoid circular dependency
-
-    validator = Validation()
-    validator.load_dir(str(_validate_dir(train_eval_dir)))
-    return validator
-
-
-def evaluate_models(
-    train_eval_dir: str | Path,
-    seeds: Sequence[int],
-    *,
-    mode: str = "test",
-    n_eval_episodes: int = 1,
-    debug: bool = False,
-) -> Dict[int, Dict[str, Any]]:
+def mean_std(vals: List[float]) -> Tuple[float, float]:
     """
-    Evaluate trained models for the provided seeds and return their stats.
+    Returns (mean, sample_std). If only one value, std = 0.0.
     """
-    directory = _validate_dir(train_eval_dir)
-    results: Dict[int, Dict[str, Any]] = {}
+    n = len(vals)
+    if n == 0:
+        return float("nan"), float("nan")
 
-    for seed in seeds:
-        model_path = directory / f"seed_{seed}" / "best_model.zip"
-        if not model_path.exists():
-            raise FileNotFoundError(f"Model checkpoint not found at '{model_path}'.")
+    mean_val = sum(vals) / n
 
-        validator = _init_validation(directory)
+    if n == 1:
+        return mean_val, 0.0
 
-        from sb3_contrib.ppo_mask import MaskablePPO
-
-        model = MaskablePPO.load(str(model_path))
-        processed, raw = validator.validate_model(
-            n_eval_episodes,
-            model,
-            mode=mode,
-            debug=debug,
-        )
-        results[int(seed)] = {
-            "processed": processed,
-            "raw": raw,
-            "model_path": str(model_path),
-        }
-
-    return results
+    var = sum((x - mean_val) ** 2 for x in vals) / (n - 1)
+    std_val = math.sqrt(var)
+    return mean_val, std_val
 
 
-def evaluate_baselines(
-    train_eval_dir: str | Path,
-    *,
-    mode: str = "test",
-    n_eval_episodes: int = 1,
-    include_percentiles: bool = True,
-    debug: bool = False,
-) -> Dict[str, Any]:
+def format_number(x: float) -> str:
     """
-    Run the configured baselines and return their processed/raw statistics.
+    Pretty-print a float for console output.
+    - large numbers -> scientific
+    - medium numbers -> 3 decimals
+    - small numbers -> strip trailing zeros
     """
-    validator = _init_validation(train_eval_dir)
-    processed, raw = validator.run_baselines(
-        n_eval_episodes=n_eval_episodes,
-        mode=mode,
-        debug=debug,
-        run_percentile=include_percentiles,
-    )
-    return {"processed": processed, "raw": raw}
+    if math.isnan(x):
+        return "nan"
+
+    ax = abs(x)
+    if ax >= 1e6:
+        return f"{x:.3e}"
+    elif ax >= 1e3:
+        return f"{x:.3f}"
+    else:
+        s = f"{x:.6f}"
+        s = s.rstrip("0").rstrip(".")
+        if s == "-0":
+            s = "0"
+        return s
 
 
-def wait_time_distributions_vs_baseline(
-    train_eval_dir: str | Path,
-    model_stats: Mapping[int, Mapping[str, Any]],
-    baseline_raw_stats: Mapping[str, Any],
-    *,
-    baseline_key: str = "FCFS Baseline",
-    bins: int | Sequence[float] | str = "fd",
-    normalize: bool = True,
-    value_range: Optional[Tuple[float, float]] = None,
-) -> Dict[int, Dict[str, Any]]:
+def summarize_runs(runs: List[Dict[str, Any]]) -> List[Tuple[str, float, float]]:
     """
-    Build wait-time distributions comparing each model seed against a baseline.
+    - Collects metrics across runs
+    - Computes mean/std per metric
+    - Returns sorted list of (metric_name, mean, std)
     """
-    validator = _init_validation(train_eval_dir)
-    distributions: Dict[int, Dict[str, Any]] = {}
+    metrics = collect_metrics(runs)
 
-    for seed, stats in model_stats.items():
-        raw_stats = stats.get("raw")
-        if not raw_stats:
-            raise ValueError(f"No raw stats found for seed {seed}.")
-        distribution = wait_time_distribution(
-            model_stats=raw_stats,
-            baseline_stats=baseline_raw_stats,
-            model_key="model",
-            baseline_key=baseline_key,
-            bins=bins,
-            normalize=normalize,
-            value_range=value_range,
-        )
-        distributions[int(seed)] = distribution
+    summary_rows: List[Tuple[str, float, float]] = []
+    for metric_name, values in metrics.items():
+        m, s = mean_std(values)
+        summary_rows.append((metric_name, m, s))
 
-    return distributions
+    summary_rows.sort(key=lambda x: x[0].lower())
+    return summary_rows
 
 
-def plot_wait_time_distributions_for_seeds(
-    train_eval_dir: str | Path,
-    distributions: Mapping[int, Dict[str, Any]],
-    *,
-    baseline_key: str = "FCFS Baseline",
-    baseline_label: str | None = None,
-    kind: str = "pdf",
-    figsize: tuple[float, float] = (10.0, 6.0),
-    alpha: float = 0.45,
-    linewidth: float = 2.0,
-    show: bool = False,
-    save_path: str | Path | None = None,
-) -> Tuple[Any, Optional[Any]]:
+def print_results(summary_rows: List[Tuple[str, float, float]]) -> None:
     """
-    Convenience wrapper for plotting distributions across model seeds plus a baseline.
+    Print table to stdout (not LaTeX yet).
     """
-    if not distributions:
-        raise ValueError("distributions is empty; nothing to plot.")
-
-    series = []
-    for seed, distribution in distributions.items():
-        series.append(
-            {
-                "distribution": distribution,
-                "key": "model",
-                "label": f"Model (seed {seed})",
-            }
+    print(f"{'Metric':60s} | {'Mean':>15s} | {'Std':>15s}")
+    print("-" * 96)
+    for metric_name, m, s in summary_rows:
+        print(
+            f"{metric_name:60s} | "
+            f"{format_number(m):>15s} | "
+            f"{format_number(s):>15s}"
         )
 
-    first_distribution = next(iter(distributions.values()))
-    series.append(
-        {
-            "distribution": first_distribution,
-            "key": baseline_key,
-            "label": baseline_label or baseline_key,
-        }
-    )
 
-    return plot_wait_time_distributions(
-        series,
-        kind=kind,
-        figsize=figsize,
-        alpha=alpha,
-        linewidth=linewidth,
-        show=show,
-        save_path=save_path,
-    )
-
-
-def plot_wait_time_boxplots_for_seeds(
-    train_eval_dir: str | Path,
-    distributions: Mapping[int, Dict[str, Any]],
-    *,
-    baseline_key: str = "FCFS Baseline",
-    baseline_label: str | None = None,
-    model_label: str | None = None,
-    figsize: tuple[float, float] = (8.0, 5.0),
-    whis: tuple[float, float] | float = (5, 95),
-    showfliers: bool = False,
-    log_scale: bool = True,
-    top_n_points: int = 5,
-    show: bool = False,
-    save_path: str | Path | None = None,
-) -> Any:
+def summarize_file(path: str) -> None:
     """
-    Plot a boxplot comparing each model seed against the chosen baseline.
+    Public entry point:
+    - Load .json or .jsonl
+    - Normalize to list[runs]
+    - Compute stats
+    - Print table
     """
-    if not distributions:
-        raise ValueError("distributions is empty; nothing to plot.")
+    data = _load_json_or_jsonl(path)
 
-    series = []
-    for seed, distribution in distributions.items():
-        label = f"{model_label} (seed {seed})" if model_label else f"Model (seed {seed})"
-        series.append(
-            {
-                "distribution": distribution,
-                "key": "model",
-                "label": label,
-            }
+    # normalize into list of runs
+    if isinstance(data, dict):
+        runs = [data]
+    elif isinstance(data, list):
+        runs = data
+    else:
+        raise ValueError(
+            "Parsed file must be either a dict (single run) or list[dict] (multiple runs)"
         )
 
-    first_distribution = next(iter(distributions.values()))
-    series.append(
-        {
-            "distribution": first_distribution,
-            "key": baseline_key,
-            "label": baseline_label or baseline_key,
-        }
-    )
-
-    return plot_wait_time_boxplot(
-        series,
-        figsize=figsize,
-        whis=whis,
-        showfliers=showfliers,
-        log_scale=log_scale,
-        top_n_points=top_n_points,
-        show=show,
-        save_path=save_path,
-    )
+    summary_rows = summarize_runs(runs)
+    print_results(summary_rows)
 
 
-def build_wait_size_heatmap_for_seed(
-    train_eval_dir: str | Path,
-    model_eval: Mapping[int, Mapping[str, Any]],
-    *,
-    seed: int,
-    size_metric: str = "procs",
-    x_bins: int | Sequence[float] | str = 40,
-    y_bins: int | Sequence[float] | str = "fd",
-    x_range: Optional[Tuple[float, float]] = None,
-    y_range: Optional[Tuple[float, float]] = None,
-    density: bool = False,
-    processor_edges: Optional[Sequence[float]] = None,
-    wait_edges: Optional[Sequence[float]] = None,
-) -> Dict[str, Any]:
-    """
-    Build a single wait-vs-size heatmap payload for a model seed.
-    """
-    validator = _init_validation(train_eval_dir)
-    seed_raw = model_eval.get(int(seed), {}).get("raw")
-    if not seed_raw:
-        raise ValueError(f"No raw stats for seed {seed}.")
-    return build_wait_size_heatmap(
-        seed_raw,
-        key="model",
-        size_metric=size_metric,
-        x_bins=x_bins,
-        y_bins=y_bins,
-        x_range=x_range,
-        y_range=y_range,
-        density=density,
-        processor_edges=processor_edges,
-        wait_edges=wait_edges,
-    )
-
-
-def build_wait_size_heatmap_for_fcfs(
-    train_eval_dir: str | Path,
-    baseline_eval: Mapping[str, Any],
-    *,
-    size_metric: str = "procs",
-    x_bins: int | Sequence[float] | str = 40,
-    y_bins: int | Sequence[float] | str = "fd",
-    x_range: Optional[Tuple[float, float]] = None,
-    y_range: Optional[Tuple[float, float]] = None,
-    density: bool = False,
-    processor_edges: Optional[Sequence[float]] = None,
-    wait_edges: Optional[Sequence[float]] = None,
-) -> Dict[str, Any]:
-    """
-    Build a single wait-vs-size heatmap payload for the FCFS baseline.
-    """
-    _ = _init_validation(train_eval_dir)  # ensure config loaded for consistency
-    return build_wait_size_heatmap(
-        baseline_eval.get("raw", baseline_eval),
-        key="FCFS Baseline",
-        size_metric=size_metric,
-        x_bins=x_bins,
-        y_bins=y_bins,
-        x_range=x_range,
-        y_range=y_range,
-        density=density,
-        processor_edges=processor_edges,
-        wait_edges=wait_edges,
-    )
-
-
-def build_wait_size_heatmaps_for_seed_vs_fcfs(
-    train_eval_dir: str | Path,
-    model_eval: Mapping[int, Mapping[str, Any]],
-    baseline_eval: Mapping[str, Any],
-    *,
-    seed: int,
-    baseline_key: str = "FCFS Baseline",
-    size_metric: str = "procs",
-    x_bins: int | Sequence[float] | str = 40,
-    y_bins: int | Sequence[float] | str = "fd",
-    x_range: Optional[Tuple[float, float]] = None,
-    y_range: Optional[Tuple[float, float]] = None,
-    density: bool = False,
-    processor_edges: Optional[Sequence[float]] = None,
-    wait_edges: Optional[Sequence[float]] = None,
-) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    """
-    Build model and FCFS heatmaps using shared processor and wait-time bins.
-    """
-    _ = _init_validation(train_eval_dir)
-
-    seed_raw = model_eval.get(int(seed), {}).get("raw")
-    if not seed_raw:
-        raise ValueError(f"No raw stats for seed {seed}.")
-
-    baseline_root = baseline_eval.get("raw", baseline_eval)
-    baseline_raw = baseline_root.get(baseline_key)
-    if not baseline_raw:
-        available = ", ".join(str(k) for k in baseline_root.keys())
-        raise ValueError(f"No raw stats found for baseline '{baseline_key}'. Available: {available}")
-
-    # Build FCFS first to establish reference bins.
-    fcfs_heatmap = build_wait_size_heatmap(
-        baseline_root,
-        key=baseline_key,
-        size_metric=size_metric,
-        x_bins=x_bins,
-        y_bins=y_bins,
-        x_range=x_range,
-        y_range=y_range,
-        density=density,
-        processor_edges=processor_edges,
-        wait_edges=wait_edges,
-    )
-
-    proc_edges = fcfs_heatmap.get("processor_edges") or None
-    wait_edges_arr = fcfs_heatmap.get("wait_edges") or None
-
-    model_heatmap = build_wait_size_heatmap(
-        seed_raw,
-        key="model",
-        size_metric=size_metric,
-        x_bins=x_bins,
-        y_bins=y_bins,
-        x_range=x_range,
-        y_range=y_range,
-        density=density,
-        processor_edges=proc_edges,
-        wait_edges=wait_edges_arr,
-    )
-
-    return model_heatmap, fcfs_heatmap
-
-
-def plot_wait_size_heatmap(
-    heatmap_payload: Mapping[str, Any],
-    *,
-    label: str | None = None,
-    figsize: tuple[float, float] = (6.0, 5.0),
-    cmap: str = "coolwarm",
-    log_color: bool = False,
-    show: bool = False,
-    save_path: str | Path | None = None,
-) -> Any:
-    """
-    Plot a single correlation heatmap payload.
-    """
-    axes = plot_wait_size_heatmaps(
-        [heatmap_payload],
-        labels=[label] if label else None,
-        figsize=figsize,
-        cmap=cmap,
-        log_color=log_color,
-        share_colorbar=False,
-        show=show,
-        save_path=save_path,
-    )
-    return axes[0] if isinstance(axes, (list, tuple)) else axes

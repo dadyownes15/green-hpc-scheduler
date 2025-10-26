@@ -14,7 +14,7 @@ class Baseline(abc.ABC):
         self.config_dict = config_dict
         self.env = env
         assert self.config_dict is not None, "Config dict, did not parse"
-        
+
     @abc.abstractmethod
     def run(self, seed):
         """
@@ -22,6 +22,55 @@ class Baseline(abc.ABC):
         Subclasses must implement this method.
         """
         pass
+
+
+class RandomBaseline(Baseline):
+    def __init__(self, config_dict, env):
+        """
+        Baseline that schedules uniformly at random among currently valid actions.
+        """
+        super().__init__(config_dict, env)
+        self.name = "Random Baseline"
+
+    def run(self, seed=42, debug: bool = False):
+        """
+        Runs the random scheduling policy.
+
+        At each step we:
+        1. Query the environment for the boolean action mask.
+        2. Sample uniformly from the valid action indices.
+        3. Execute the sampled action and accumulate reward components.
+        """
+        self.env.reset(seed=seed, options={})
+        rng = np.random.default_rng(seed)
+
+        terminated = False
+        truncated = False
+        reward = 0.0
+        reward_components = {"wait": 0.0, "carbon": 0.0, "total": 0.0}
+        step_count = 0
+
+        while not terminated and not truncated:
+            mask = self.env.valid_action_mask()
+            valid_actions = np.flatnonzero(mask)
+            if valid_actions.size == 0:
+                raise RuntimeError("RandomBaseline: no valid actions available to sample.")
+
+            action = int(rng.choice(valid_actions))
+            _, rwd, terminated, truncated, info = self.env.step(action)
+
+            reward += rwd
+            reward_components["wait"] += float(info.get("reward_wait", 0.0))
+            reward_components["carbon"] += float(info.get("reward_carbon", 0.0))
+            reward_components["total"] += float(info.get("reward_total", rwd))
+
+            step_count += 1
+            if debug:
+                print(f"Step: {step_count}, Action: {action}, Reward: {rwd:.2f}")
+
+        reward_components["total"] = float(reward)
+        return reward, reward_components, self.env.get_action_trace()
+
 
 class PercentileBaseline(Baseline):
     def __init__(self,config_dict, env, percentile, mode):

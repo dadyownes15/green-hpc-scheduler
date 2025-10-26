@@ -1,4 +1,10 @@
-from src.baseline import Baseline, PercentileBaseline, FCFSBaseline, FCFSEasyBackfillBaseline
+from src.baseline import (
+    Baseline,
+    PercentileBaseline,
+    FCFSBaseline,
+    FCFSEasyBackfillBaseline,
+    RandomBaseline,
+)
 from src.hpc_env import HPCenv
 from src.metrics import compute_average_wait, compute_carbon_emissions
 from src.utils import VideoGenerator, get_config_as_dict, mask_fn
@@ -228,13 +234,18 @@ class Validation():
     def run_baselines(self, n_eval_episodes, mode, debug = False, run_percentile = True):
 
         baselines = [
-
-            FCFSBaseline(config_dict=self.config_dict, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)), 
-
-                    ]
+            RandomBaseline(
+                config_dict=self.config_dict,
+                env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True),
+            ),
+            FCFSBaseline(
+                config_dict=self.config_dict,
+                env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True, cutoff=False),
+            ),
+        ]
         if run_percentile:
             for percentile in [10, 25, 50,60,70,80,90,95,97]:
-                baselines.append(PercentileBaseline(config_dict=self.config_dict, percentile = percentile, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, trace_enabled=True)))
+                baselines.append(PercentileBaseline(config_dict=self.config_dict, percentile = percentile, mode=mode, env=HPCenv(config_dict=self.config_dict, mode=mode, debug=debug, cutoff=False, trace_enabled=True)))
                 
         stats_dict = {}
         for baseline in baselines:
@@ -842,6 +853,8 @@ class Validation():
         end_time: float | None = None,
         calendar_split: str | None = None,
         display_carbon_itensity: bool = True,
+        display_queue: bool = True,
+        display_timestamps: bool = True,
         max_queue_length: float | None = None,
     ):
         """
@@ -861,6 +874,8 @@ class Validation():
             start_time: Optional lower bound (inclusive) for the time axis.
             end_time: Optional upper bound (inclusive) for the time axis.
             calendar_split: Optional calendar split ('val'/'validation' or 'test') to control date labels.
+            display_queue: Toggle queue length visuals (line + dedicated axis). Set False to hide them.
+            display_timestamps: Toggle timestamp axis labels/ticks. Set False to hide them.
             max_queue_length: Optional upper bound for the queue length axis; defaults to automatic scaling.
                 When Plotly output is used this also constrains the shared secondary axis for queue/nodes.
         """
@@ -1011,6 +1026,10 @@ class Validation():
         ax_ci.xaxis.set_major_formatter(FuncFormatter(_format_tick))
         ax_ci.tick_params(axis='x', rotation=35)
 
+        if not display_timestamps:
+            ax_ci.set_xlabel('')
+            ax_ci.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+
         ci_line = None
         if display_carbon_itensity and ci_times and ci_values:
             ci_line, = ax_ci.plot(ci_times, ci_values, color='seagreen', label='Carbon Intensity')
@@ -1074,7 +1093,7 @@ class Validation():
         ax_queue = None
         queue_line = None
         queue_axis_upper: float | None = None
-        if q_times and q_lens:
+        if display_queue and q_times and q_lens:
             if max_queue_length is not None:
                 try:
                     queue_axis_upper = float(max_queue_length)
@@ -1141,7 +1160,7 @@ class Validation():
                     )
 
                 # Queue length on secondary y (right), step line
-                if plotly_queue_times and q_lens:
+                if display_queue and plotly_queue_times and q_lens:
                     fig_i.add_trace(
                         go.Scatter(x=plotly_queue_times, y=q_lens, name='Queue Length', line=dict(color='purple'), line_shape='hv'),
                         secondary_y=True,
@@ -1188,10 +1207,13 @@ class Validation():
                     dtick=14400000,
                     tickformat="%Y-%m-%d<br>%H:%M",
                 )
+                if not display_timestamps:
+                    fig_i.update_xaxes(title_text='', showticklabels=False)
                 if display_carbon_itensity:
                     fig_i.update_yaxes(title_text='gCO2/kWh', secondary_y=False)
-                queue_axis_kwargs = dict(title_text='Queue / Nodes', secondary_y=True)
-                if queue_axis_upper is not None:
+                secondary_axis_title = 'Queue / Nodes' if display_queue else 'Nodes'
+                queue_axis_kwargs = dict(title_text=secondary_axis_title, secondary_y=True)
+                if display_queue and queue_axis_upper is not None:
                     queue_axis_kwargs['range'] = [0, queue_axis_upper]
                 fig_i.update_yaxes(**queue_axis_kwargs)
 
